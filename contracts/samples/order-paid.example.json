@@ -1,0 +1,63 @@
+{
+  "event_id": "550e8400-e29b-41d4-a716-446655440001",
+  "correlation_id": "550e8400-e29b-41d4-a716-446655440000",
+  "tenant_id": "tenant_acme_corp",
+  "occurred_at": "2024-01-15T14:30:00.000Z",
+  "event_type": "business.order.paid",
+  "version": "1.0.0",
+  "source": "mercadopago",
+  "payload": {
+    "order_id": "MP-12345678901",
+    "external_reference": "SHOP-ORD-9876",
+    "payment_id": "PAY-98765432109",
+    "payment_method": "credit_card",
+    "amount": 15000.00,
+    "currency": "ARS",
+    "installments": 3,
+    "fee_amount": 750.00,
+    "net_amount": 14250.00,
+    "customer": {
+      "id": "CUST-MP-123456",
+      "email": "juan.perez@example.com",
+      "first_name": "Juan",
+      "last_name": "Pérez",
+      "phone": "+5491155551234",
+      "identification": {
+        "type": "DNI",
+        "number": "30123456"
+      }
+    },
+    "items": [
+      {
+        "id": "PROD-001",
+        "sku": "SKU-WIDGET-001",
+        "title": "Widget Premium",
+        "description": "Widget premium con garantía extendida",
+        "quantity": 2,
+        "unit_price": 6000.00
+      },
+      {
+        "id": "PROD-002",
+        "sku": "SKU-GADGET-002",
+        "title": "Gadget Básico",
+        "quantity": 1,
+        "unit_price": 3000.00
+      }
+    ],
+    "shipping": {
+      "address": {
+        "street_name": "Av. Corrientes",
+        "street_number": "1234",
+        "city": "Buenos Aires",
+        "state": "CABA",
+        "zip_code": "C1043AAZ",
+        "country": "AR"
+      },
+      "cost": 0
+    },
+    "metadata": {
+      "mp_preference_id": "PREF-123456",
+      "store_id": "STORE-001"
+    }
+  }
+}

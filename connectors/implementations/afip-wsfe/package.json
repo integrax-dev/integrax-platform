@@ -1,0 +1,27 @@
+{
+  "name": "@integrax/connector-afip-wsfe",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AFIP WSFE (Factura Electrónica) connector for IntegraX",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "@integrax/connector-sdk": "workspace:*",
+    "soap": "^1.0.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  },
+  "peerDependencies": {
+    "@integrax/connector-sdk": "workspace:*"
+  }
+}

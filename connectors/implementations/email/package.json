@@ -1,0 +1,23 @@
+{
+  "name": "@integrax/connector-email",
+  "version": "0.1.0",
+  "description": "IntegraX Email/SMTP connector for transactional and marketing emails",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@integrax/connector-sdk": "workspace:*",
+    "nodemailer": "^6.9.8"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^6.4.14",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  },
+  "keywords": ["integrax", "connector", "email", "smtp", "nodemailer", "transactional"],
+  "license": "MIT"
+}

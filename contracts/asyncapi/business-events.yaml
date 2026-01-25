@@ -1,0 +1,252 @@
+asyncapi: 3.0.0
+info:
+  title: IntegraX Business Events
+  version: 1.0.0
+  description: |
+    Eventos de negocio canónicos para integraciones enterprise.
+    Todos los eventos siguen el patrón event-driven con trazabilidad end-to-end.
+  contact:
+    name: IntegraX Team
+    email: team@integrax.io
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+defaultContentType: application/json
+
+servers:
+  mvp-redis:
+    host: redis:6379
+    protocol: redis
+    description: Redis para MVP (BullMQ)
+  enterprise-kafka:
+    host: kafka:9092
+    protocol: kafka
+    description: Kafka para Enterprise
+
+channels:
+  business.order.paid:
+    address: business.order.paid
+    messages:
+      orderPaid:
+        $ref: '#/components/messages/OrderPaid'
+    description: Canal para eventos de pedidos pagados
+
+  business.invoice.issued:
+    address: business.invoice.issued
+    messages:
+      invoiceIssued:
+        $ref: '#/components/messages/InvoiceIssued'
+    description: Canal para eventos de facturas emitidas
+
+  business.customer.upserted:
+    address: business.customer.upserted
+    messages:
+      customerUpserted:
+        $ref: '#/components/messages/CustomerUpserted'
+    description: Canal para eventos de clientes creados/actualizados
+
+  integration.task.failed:
+    address: integration.task.failed
+    messages:
+      taskFailed:
+        $ref: '#/components/messages/TaskFailed'
+    description: Canal para tareas fallidas (DLQ/alertas)
+
+operations:
+  publishOrderPaid:
+    action: send
+    channel:
+      $ref: '#/channels/business.order.paid'
+    summary: Publicar evento de pedido pagado
+    messages:
+      - $ref: '#/channels/business.order.paid/messages/orderPaid'
+
+  consumeOrderPaid:
+    action: receive
+    channel:
+      $ref: '#/channels/business.order.paid'
+    summary: Consumir evento de pedido pagado para procesar facturación
+    messages:
+      - $ref: '#/channels/business.order.paid/messages/orderPaid'
+
+  publishInvoiceIssued:
+    action: send
+    channel:
+      $ref: '#/channels/business.invoice.issued'
+    summary: Publicar evento de factura emitida
+    messages:
+      - $ref: '#/channels/business.invoice.issued/messages/invoiceIssued'
+
+  consumeTaskFailed:
+    action: receive
+    channel:
+      $ref: '#/channels/integration.task.failed'
+    summary: Consumir tareas fallidas para reintento o escalamiento
+    messages:
+      - $ref: '#/channels/integration.task.failed/messages/taskFailed'
+
+components:
+  messages:
+    OrderPaid:
+      name: OrderPaid
+      title: Pedido Pagado
+      summary: Evento emitido cuando un pedido ha sido pagado exitosamente
+      contentType: application/json
+      headers:
+        $ref: '#/components/schemas/EventHeaders'
+      payload:
+        $ref: '../schemas/business/order.paid.json'
+
+    InvoiceIssued:
+      name: InvoiceIssued
+      title: Factura Emitida
+      summary: Evento emitido cuando una factura ha sido emitida exitosamente
+      contentType: application/json
+      headers:
+        $ref: '#/components/schemas/EventHeaders'
+      payload:
+        $ref: '../schemas/business/invoice.issued.json'
+
+    CustomerUpserted:
+      name: CustomerUpserted
+      title: Cliente Creado/Actualizado
+      summary: Evento emitido cuando un cliente es creado o actualizado
+      contentType: application/json
+      headers:
+        $ref: '#/components/schemas/EventHeaders'
+      payload:
+        type: object
+        required:
+          - event_id
+          - correlation_id
+          - tenant_id
+          - occurred_at
+          - event_type
+          - payload
+        properties:
+          event_id:
+            type: string
+            format: uuid
+          correlation_id:
+            type: string
+            format: uuid
+          tenant_id:
+            type: string
+          occurred_at:
+            type: string
+            format: date-time
+          event_type:
+            type: string
+            const: business.customer.upserted
+          payload:
+            type: object
+            required:
+              - customer_id
+              - action
+            properties:
+              customer_id:
+                type: string
+              action:
+                type: string
+                enum: [created, updated]
+              name:
+                type: string
+              email:
+                type: string
+                format: email
+              identification:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  number:
+                    type: string
+
+    TaskFailed:
+      name: TaskFailed
+      title: Tarea Fallida
+      summary: Evento emitido cuando una tarea de integración falla después de reintentos
+      contentType: application/json
+      headers:
+        $ref: '#/components/schemas/EventHeaders'
+      payload:
+        type: object
+        required:
+          - event_id
+          - correlation_id
+          - tenant_id
+          - occurred_at
+          - event_type
+          - payload
+        properties:
+          event_id:
+            type: string
+            format: uuid
+          correlation_id:
+            type: string
+            format: uuid
+          tenant_id:
+            type: string
+          occurred_at:
+            type: string
+            format: date-time
+          event_type:
+            type: string
+            const: integration.task.failed
+          payload:
+            type: object
+            required:
+              - task_id
+              - task_type
+              - error
+              - retry_count
+            properties:
+              task_id:
+                type: string
+              task_type:
+                type: string
+                description: Tipo de tarea (ej. create_invoice, send_notification)
+              original_event_id:
+                type: string
+                format: uuid
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                  message:
+                    type: string
+                  stack:
+                    type: string
+              retry_count:
+                type: integer
+              max_retries:
+                type: integer
+              last_attempt_at:
+                type: string
+                format: date-time
+              original_payload:
+                type: object
+                description: Payload original de la tarea (redactado si contiene PII)
+
+  schemas:
+    EventHeaders:
+      type: object
+      properties:
+        correlation_id:
+          type: string
+          format: uuid
+          description: ID de correlación para trazabilidad
+        trace_id:
+          type: string
+          description: OpenTelemetry trace ID
+        span_id:
+          type: string
+          description: OpenTelemetry span ID
+        tenant_id:
+          type: string
+          description: ID del tenant
+        source:
+          type: string
+          description: Sistema origen del evento

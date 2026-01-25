@@ -1,0 +1,22 @@
+# Temporal Dynamic Config for Development
+# See: https://docs.temporal.io/references/dynamic-configuration
+
+system.forceSearchAttributesCacheRefreshOnRead:
+  - value: true
+
+frontend.enableClientVersionCheck:
+  - value: true
+    constraints: {}
+
+history.archival.enableRead:
+  - value: true
+
+history.archival.enableWrite:
+  - value: true
+
+limit.maxIDLength:
+  - value: 1000
+
+# Enable all namespaces by default
+system.enableEagerNamespaceRefresher:
+  - value: true

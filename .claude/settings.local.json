@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker --version:*)",
+      "Bash(node --version:*)",
+      "Bash(pnpm --version:*)",
+      "Bash(npm --version)",
+      "Bash(npm install:*)",
+      "Bash(pnpm install)",
+      "Bash(pnpm test:*)",
+      "Bash(npx vitest:*)",
+      "Bash(pnpm -r test:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker ps:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm test:real:*)",
+      "Bash(MERCADOPAGO_ACCESS_TOKEN=\"TEST-8747012136230671-012419-04623ae7297b0ed3d187dc3a4ecc282b-327230517\" pnpm test:real:*)",
+      "Bash(pnpm simulate:payment:*)",
+      "Bash(curl:*)",
+      "Bash(node -e \"\nconst token = ''TEST-8747012136230671-012419-04623ae7297b0ed3d187dc3a4ecc282b-327230517'';\nfetch\\(''https://api.mercadopago.com/v1/payments'', {\n  method: ''POST'',\n  headers: {\n    ''Authorization'': ''Bearer '' + token,\n    ''Content-Type'': ''application/json''\n  },\n  body: JSON.stringify\\({\n    transaction_amount: 100,\n    description: ''Test IntegraX'',\n    payment_method_id: ''visa'',\n    payer: { email: ''test@test.com'' }\n  }\\)\n}\\).then\\(r => r.json\\(\\)\\).then\\(console.log\\).catch\\(console.error\\);\n\")",
+      "Bash(node -e \"\nconst token = ''TEST-8747012136230671-012419-04623ae7297b0ed3d187dc3a4ecc282b-327230517'';\nconst idempotencyKey = ''integrax-test-'' + Date.now\\(\\);\nfetch\\(''https://api.mercadopago.com/v1/payments'', {\n  method: ''POST'',\n  headers: {\n    ''Authorization'': ''Bearer '' + token,\n    ''Content-Type'': ''application/json'',\n    ''X-Idempotency-Key'': idempotencyKey\n  },\n  body: JSON.stringify\\({\n    transaction_amount: 100,\n    description: ''Test IntegraX'',\n    payment_method_id: ''visa'',\n    payer: { email: ''test_user_123@testuser.com'' }\n  }\\)\n}\\).then\\(r => r.json\\(\\)\\).then\\(d => console.log\\(JSON.stringify\\(d, null, 2\\)\\)\\).catch\\(console.error\\);\n\")",
+      "Bash(pnpm docker:enterprise:*)",
+      "Bash(findstr:*)",
+      "Bash(pnpm docker:mvp:down:*)",
+      "Bash(pnpm setup:debezium:*)",
+      "Bash(pnpm --filter @integrax/temporal-workflows test)",
+      "Bash(pnpm --filter @integrax/kafka-consumer exec vitest run)",
+      "Bash(pnpm --filter @integrax/connector-contabilium exec vitest run:*)",
+      "Bash(pnpm --filter @integrax/connector-afip-wsfe exec vitest:*)",
+      "Bash(pnpm --filter @integrax/connector-whatsapp exec vitest:*)",
+      "Bash(pnpm --filter @integrax/connector-email exec vitest:*)",
+      "Bash(pnpm --filter @integrax/llm-orchestrator exec vitest run)",
+      "Bash(npx tsx:*)",
+      "Bash(pnpm stress-test:*)",
+      "Bash(STRESS_JOBS=5000 STRESS_CONCURRENCY=200 pnpm stress-test:*)"
+    ]
+  }
+}

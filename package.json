@@ -1,0 +1,40 @@
+{
+  "name": "integrax-oss",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Enterprise Integration Platform - Open Source",
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev:worker": "pnpm --filter @integrax/worker dev",
+    "dev:temporal": "pnpm --filter @integrax/temporal-workflows dev",
+    "dev:kafka-consumer": "pnpm --filter @integrax/kafka-consumer dev",
+    "test": "pnpm -r test",
+    "test:real": "tsx scripts/test-real.ts",
+    "test:integration": "tsx scripts/test-integration.ts",
+    "simulate:payment": "tsx scripts/simulate-payment.ts",
+    "stress-test": "tsx scripts/stress-test.ts",
+    "lint": "pnpm -r lint",
+    "docker:mvp": "docker compose -f infra/docker-compose/mvp/docker-compose.yml up -d",
+    "docker:mvp:down": "docker compose -f infra/docker-compose/mvp/docker-compose.yml down",
+    "docker:mvp:logs": "docker compose -f infra/docker-compose/mvp/docker-compose.yml logs -f",
+    "docker:enterprise": "docker compose -f infra/docker-compose/enterprise/docker-compose.yml up -d",
+    "docker:enterprise:down": "docker compose -f infra/docker-compose/enterprise/docker-compose.yml down",
+    "docker:enterprise:logs": "docker compose -f infra/docker-compose/enterprise/docker-compose.yml logs -f",
+    "setup:debezium": "tsx scripts/setup-debezium.ts"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.10.9",
+    "dotenv": "^16.3.1",
+    "google-auth-library": "^10.5.0",
+    "ioredis": "^5.3.2",
+    "pg": "^8.11.3",
+    "tsx": "^4.6.2",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0"
+}

@@ -1,0 +1,6 @@
+packages:
+  - 'connectors/sdk/typescript'
+  - 'connectors/implementations/*'
+  - 'workers/ts'
+  - 'workflows/temporal'
+  - 'services/*'

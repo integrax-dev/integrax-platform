@@ -1,0 +1,279 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://integrax.io/schemas/business/invoice.issued.json",
+  "title": "InvoiceIssued",
+  "description": "Evento emitido cuando una factura ha sido emitida exitosamente",
+  "type": "object",
+  "required": [
+    "event_id",
+    "correlation_id",
+    "tenant_id",
+    "occurred_at",
+    "event_type",
+    "version",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identificador único del evento"
+    },
+    "correlation_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "ID de correlación para trazabilidad end-to-end"
+    },
+    "tenant_id": {
+      "type": "string",
+      "description": "Identificador del tenant (multi-tenancy)"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp ISO8601 de cuando ocurrió el evento"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "business.invoice.issued"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Versión semántica del schema",
+      "default": "1.0.0"
+    },
+    "source": {
+      "type": "string",
+      "description": "Sistema que emitió la factura (ej: contabilium, erp)"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "invoice_id",
+        "invoice_number",
+        "invoice_type",
+        "invoice_date",
+        "total_amount",
+        "currency",
+        "customer",
+        "issuer"
+      ],
+      "properties": {
+        "invoice_id": {
+          "type": "string",
+          "description": "ID interno de la factura en el sistema"
+        },
+        "invoice_number": {
+          "type": "string",
+          "description": "Número de comprobante (ej: 0001-00001234)"
+        },
+        "invoice_type": {
+          "type": "string",
+          "enum": ["A", "B", "C", "E", "M", "nota_credito_a", "nota_credito_b", "nota_credito_c", "nota_debito_a", "nota_debito_b", "nota_debito_c"],
+          "description": "Tipo de comprobante fiscal (Argentina)"
+        },
+        "invoice_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Fecha de emisión"
+        },
+        "due_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Fecha de vencimiento"
+        },
+        "related_order_id": {
+          "type": "string",
+          "description": "ID del pedido relacionado"
+        },
+        "related_payment_id": {
+          "type": "string",
+          "description": "ID del pago relacionado"
+        },
+        "subtotal": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Subtotal sin impuestos"
+        },
+        "tax_amount": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Total de impuestos"
+        },
+        "total_amount": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Monto total de la factura"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$",
+          "description": "Código ISO 4217 de la moneda"
+        },
+        "exchange_rate": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Tipo de cambio (si aplica)"
+        },
+        "customer": {
+          "type": "object",
+          "required": ["name", "identification"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "ID del cliente en el ERP"
+            },
+            "name": {
+              "type": "string",
+              "description": "Razón social o nombre completo"
+            },
+            "email": {
+              "type": "string",
+              "format": "email"
+            },
+            "identification": {
+              "type": "object",
+              "required": ["type", "number"],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["CUIT", "CUIL", "DNI", "CDI", "LE", "LC", "CI_EXTRANJERA", "PASAPORTE", "OTRO"]
+                },
+                "number": {
+                  "type": "string"
+                }
+              }
+            },
+            "tax_category": {
+              "type": "string",
+              "enum": ["responsable_inscripto", "monotributo", "exento", "consumidor_final", "no_responsable"],
+              "description": "Condición frente al IVA"
+            },
+            "address": {
+              "type": "object",
+              "properties": {
+                "street": { "type": "string" },
+                "city": { "type": "string" },
+                "state": { "type": "string" },
+                "zip_code": { "type": "string" },
+                "country": { "type": "string", "default": "AR" }
+              }
+            }
+          }
+        },
+        "issuer": {
+          "type": "object",
+          "required": ["cuit", "business_name", "point_of_sale"],
+          "properties": {
+            "cuit": {
+              "type": "string",
+              "pattern": "^\\d{11}$",
+              "description": "CUIT del emisor"
+            },
+            "business_name": {
+              "type": "string",
+              "description": "Razón social del emisor"
+            },
+            "point_of_sale": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 99999,
+              "description": "Punto de venta AFIP"
+            },
+            "tax_category": {
+              "type": "string",
+              "enum": ["responsable_inscripto", "monotributo", "exento"]
+            }
+          }
+        },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["description", "quantity", "unit_price"],
+            "properties": {
+              "id": { "type": "string" },
+              "sku": { "type": "string" },
+              "description": { "type": "string" },
+              "quantity": {
+                "type": "number",
+                "minimum": 0
+              },
+              "unit": {
+                "type": "string",
+                "default": "unidad"
+              },
+              "unit_price": {
+                "type": "number",
+                "minimum": 0
+              },
+              "discount_percent": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "tax_rate": {
+                "type": "number",
+                "description": "Alícuota de IVA (ej: 21, 10.5, 0)"
+              },
+              "subtotal": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "taxes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "tax_type": {
+                "type": "string",
+                "enum": ["iva", "iibb", "percepciones", "retenciones", "otros"]
+              },
+              "tax_id": {
+                "type": "string",
+                "description": "Código AFIP del impuesto"
+              },
+              "rate": { "type": "number" },
+              "base_amount": { "type": "number" },
+              "amount": { "type": "number" }
+            }
+          }
+        },
+        "afip": {
+          "type": "object",
+          "description": "Datos de autorización AFIP (si aplica)",
+          "properties": {
+            "cae": {
+              "type": "string",
+              "pattern": "^\\d{14}$",
+              "description": "Código de Autorización Electrónico"
+            },
+            "cae_expiration": {
+              "type": "string",
+              "format": "date",
+              "description": "Fecha de vencimiento del CAE"
+            },
+            "authorization_date": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        "pdf_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL del PDF de la factura"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

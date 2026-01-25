@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://integrax.io/schemas/business/order.paid.json",
+  "title": "OrderPaid",
+  "description": "Evento emitido cuando un pedido ha sido pagado exitosamente",
+  "type": "object",
+  "required": [
+    "event_id",
+    "correlation_id",
+    "tenant_id",
+    "occurred_at",
+    "event_type",
+    "version",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identificador único del evento"
+    },
+    "correlation_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "ID de correlación para trazabilidad end-to-end"
+    },
+    "tenant_id": {
+      "type": "string",
+      "description": "Identificador del tenant (multi-tenancy)"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp ISO8601 de cuando ocurrió el evento"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "business.order.paid"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Versión semántica del schema",
+      "default": "1.0.0"
+    },
+    "source": {
+      "type": "string",
+      "description": "Sistema origen del evento (ej: mercadopago, shopify)"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "order_id",
+        "payment_id",
+        "amount",
+        "currency",
+        "customer"
+      ],
+      "properties": {
+        "order_id": {
+          "type": "string",
+          "description": "ID del pedido en el sistema origen"
+        },
+        "external_reference": {
+          "type": "string",
+          "description": "Referencia externa (ej: ID en ecommerce)"
+        },
+        "payment_id": {
+          "type": "string",
+          "description": "ID del pago en el procesador"
+        },
+        "payment_method": {
+          "type": "string",
+          "enum": ["credit_card", "debit_card", "account_money", "bank_transfer", "cash", "other"],
+          "description": "Método de pago utilizado"
+        },
+        "amount": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Monto total pagado"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$",
+          "description": "Código ISO 4217 de la moneda",
+          "examples": ["ARS", "USD", "BRL"]
+        },
+        "installments": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "Cantidad de cuotas"
+        },
+        "fee_amount": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Comisión del procesador de pagos"
+        },
+        "net_amount": {
+          "type": "number",
+          "description": "Monto neto a recibir (amount - fee)"
+        },
+        "customer": {
+          "type": "object",
+          "required": ["id", "email"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "ID del cliente en el sistema origen"
+            },
+            "email": {
+              "type": "string",
+              "format": "email"
+            },
+            "first_name": {
+              "type": "string"
+            },
+            "last_name": {
+              "type": "string"
+            },
+            "phone": {
+              "type": "string"
+            },
+            "identification": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["DNI", "CUIT", "CUIL", "CPF", "CNPJ", "RUT", "OTHER"]
+                },
+                "number": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "title", "quantity", "unit_price"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "sku": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "quantity": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "unit_price": {
+                "type": "number",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "shipping": {
+          "type": "object",
+          "properties": {
+            "address": {
+              "type": "object",
+              "properties": {
+                "street_name": { "type": "string" },
+                "street_number": { "type": "string" },
+                "city": { "type": "string" },
+                "state": { "type": "string" },
+                "zip_code": { "type": "string" },
+                "country": { "type": "string" }
+              }
+            },
+            "cost": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Datos adicionales específicos del origen"
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

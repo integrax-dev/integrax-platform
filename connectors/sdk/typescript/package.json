@@ -1,0 +1,36 @@
+{
+  "name": "@integrax/connector-sdk",
+  "version": "1.0.0",
+  "description": "SDK para desarrollar conectores de IntegraX",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest",
+    "lint": "eslint src --ext .ts"
+  },
+  "keywords": [
+    "integrax",
+    "connector",
+    "integration",
+    "sdk"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "zod": "^3.22.4",
+    "pino": "^8.17.2",
+    "@opentelemetry/api": "^1.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0",
+    "eslint": "^8.55.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

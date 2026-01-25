@@ -1,0 +1,667 @@
+openapi: 3.1.0
+info:
+  title: IntegraX Admin API
+  version: 1.0.0
+  description: |
+    API de administración para monitoreo, auditoría y gestión de integraciones.
+  contact:
+    name: IntegraX Team
+    email: team@integrax.io
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+servers:
+  - url: http://localhost:3000/api/v1/admin
+    description: Desarrollo local
+  - url: https://api.integrax.io/v1/admin
+    description: Producción
+
+tags:
+  - name: runs
+    description: Ejecuciones de workflows/tareas
+  - name: audit
+    description: Logs de auditoría
+  - name: metrics
+    description: Métricas y estadísticas
+  - name: dlq
+    description: Dead Letter Queue
+
+paths:
+  /runs:
+    get:
+      operationId: listRuns
+      summary: Listar ejecuciones
+      tags:
+        - runs
+      parameters:
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+        - name: workflow_type
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, running, completed, failed, cancelled]
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: correlation_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: Lista de ejecuciones
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RunSummary'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+  /runs/{runId}:
+    get:
+      operationId: getRun
+      summary: Obtener detalle de una ejecución
+      tags:
+        - runs
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Detalle de la ejecución
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /runs/{runId}/retry:
+    post:
+      operationId: retryRun
+      summary: Reintentar una ejecución fallida
+      tags:
+        - runs
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                from_step:
+                  type: string
+                  description: Reiniciar desde un paso específico
+      responses:
+        '202':
+          description: Reintento iniciado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  new_run_id:
+                    type: string
+                    format: uuid
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /runs/{runId}/cancel:
+    post:
+      operationId: cancelRun
+      summary: Cancelar una ejecución en progreso
+      tags:
+        - runs
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Ejecución cancelada
+        '400':
+          description: No se puede cancelar (ya terminó)
+
+  /audit:
+    get:
+      operationId: getAuditLogs
+      summary: Obtener logs de auditoría
+      tags:
+        - audit
+      parameters:
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+        - name: user_id
+          in: query
+          schema:
+            type: string
+        - name: action
+          in: query
+          schema:
+            type: string
+          description: Filtrar por tipo de acción
+        - name: resource_type
+          in: query
+          schema:
+            type: string
+            enum: [connection, workflow, run, connector]
+        - name: resource_id
+          in: query
+          schema:
+            type: string
+        - name: correlation_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+      responses:
+        '200':
+          description: Logs de auditoría
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditLog'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+  /audit/{auditId}:
+    get:
+      operationId: getAuditLog
+      summary: Obtener detalle de un registro de auditoría
+      tags:
+        - audit
+      parameters:
+        - name: auditId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Detalle del log
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLogDetail'
+
+  /metrics/summary:
+    get:
+      operationId: getMetricsSummary
+      summary: Obtener resumen de métricas
+      tags:
+        - metrics
+      parameters:
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [hour, day, week, month]
+            default: day
+      responses:
+        '200':
+          description: Resumen de métricas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsSummary'
+
+  /metrics/connectors:
+    get:
+      operationId: getConnectorMetrics
+      summary: Métricas por conector
+      tags:
+        - metrics
+      parameters:
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+        - name: connector_id
+          in: query
+          schema:
+            type: string
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [hour, day, week, month]
+            default: day
+      responses:
+        '200':
+          description: Métricas de conectores
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ConnectorMetrics'
+
+  /dlq:
+    get:
+      operationId: listDlqMessages
+      summary: Listar mensajes en DLQ
+      tags:
+        - dlq
+      parameters:
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+        - name: queue
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Mensajes en DLQ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DlqMessage'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+  /dlq/{messageId}/reprocess:
+    post:
+      operationId: reprocessDlqMessage
+      summary: Reprocesar mensaje de DLQ
+      tags:
+        - dlq
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '202':
+          description: Mensaje encolado para reprocesamiento
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /dlq/{messageId}:
+    delete:
+      operationId: deleteDlqMessage
+      summary: Descartar mensaje de DLQ
+      tags:
+        - dlq
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Razón del descarte (para auditoría)
+      responses:
+        '204':
+          description: Mensaje descartado
+
+components:
+  parameters:
+    RunId:
+      name: runId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: ID de la ejecución
+
+  schemas:
+    RunSummary:
+      type: object
+      required:
+        - id
+        - workflow_type
+        - status
+        - started_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        workflow_type:
+          type: string
+          example: order_to_invoice
+        status:
+          type: string
+          enum: [pending, running, completed, failed, cancelled]
+        tenant_id:
+          type: string
+        correlation_id:
+          type: string
+          format: uuid
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        duration_ms:
+          type: integer
+        error_message:
+          type: string
+
+    Run:
+      allOf:
+        - $ref: '#/components/schemas/RunSummary'
+        - type: object
+          properties:
+            input:
+              type: object
+              description: Input del workflow (redactado si contiene PII)
+            output:
+              type: object
+              description: Output del workflow
+            steps:
+              type: array
+              items:
+                $ref: '#/components/schemas/RunStep'
+            retries:
+              type: integer
+            parent_run_id:
+              type: string
+              format: uuid
+              description: Si es un retry, ID del run original
+
+    RunStep:
+      type: object
+      required:
+        - step_id
+        - name
+        - status
+      properties:
+        step_id:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, completed, failed, skipped]
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        duration_ms:
+          type: integer
+        retries:
+          type: integer
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+
+    AuditLog:
+      type: object
+      required:
+        - id
+        - timestamp
+        - tenant_id
+        - action
+      properties:
+        id:
+          type: string
+          format: uuid
+        timestamp:
+          type: string
+          format: date-time
+        tenant_id:
+          type: string
+        user_id:
+          type: string
+        user_role:
+          type: string
+        action:
+          type: string
+          description: Acción realizada (ej. connection.created, action.executed)
+        resource_type:
+          type: string
+        resource_id:
+          type: string
+        correlation_id:
+          type: string
+          format: uuid
+        result:
+          type: string
+          enum: [success, failure]
+        ip_address:
+          type: string
+
+    AuditLogDetail:
+      allOf:
+        - $ref: '#/components/schemas/AuditLog'
+        - type: object
+          properties:
+            params:
+              type: object
+              description: Parámetros de la acción (redactados)
+            response_hash:
+              type: string
+              description: Hash del resultado (para verificación)
+            trace_id:
+              type: string
+
+    MetricsSummary:
+      type: object
+      properties:
+        period:
+          type: string
+        total_runs:
+          type: integer
+        successful_runs:
+          type: integer
+        failed_runs:
+          type: integer
+        success_rate:
+          type: number
+          format: float
+        avg_duration_ms:
+          type: integer
+        p95_duration_ms:
+          type: integer
+        total_events_processed:
+          type: integer
+        dlq_depth:
+          type: integer
+        active_connections:
+          type: integer
+
+    ConnectorMetrics:
+      type: object
+      properties:
+        connector_id:
+          type: string
+        connector_name:
+          type: string
+        total_calls:
+          type: integer
+        successful_calls:
+          type: integer
+        failed_calls:
+          type: integer
+        error_rate:
+          type: number
+          format: float
+        avg_latency_ms:
+          type: integer
+        p95_latency_ms:
+          type: integer
+
+    DlqMessage:
+      type: object
+      required:
+        - id
+        - queue
+        - failed_at
+        - retry_count
+      properties:
+        id:
+          type: string
+        queue:
+          type: string
+        original_event_type:
+          type: string
+        correlation_id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+        failed_at:
+          type: string
+          format: date-time
+        retry_count:
+          type: integer
+        last_error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+        payload_preview:
+          type: string
+          description: Preview truncado del payload
+
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total_pages:
+          type: integer
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        correlation_id:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Request inválido
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []

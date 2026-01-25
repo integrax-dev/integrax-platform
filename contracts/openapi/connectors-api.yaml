@@ -1,0 +1,621 @@
+openapi: 3.1.0
+info:
+  title: IntegraX Connectors API
+  version: 1.0.0
+  description: |
+    API para gestionar conectores de integración.
+    Permite registrar, listar, probar conexiones y ejecutar acciones de conectores.
+  contact:
+    name: IntegraX Team
+    email: team@integrax.io
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Desarrollo local
+  - url: https://api.integrax.io/v1
+    description: Producción
+
+tags:
+  - name: connectors
+    description: Gestión de conectores
+  - name: connections
+    description: Gestión de conexiones (instancias configuradas)
+  - name: actions
+    description: Ejecución de acciones
+
+paths:
+  /connectors:
+    get:
+      operationId: listConnectors
+      summary: Listar conectores disponibles
+      description: Retorna todos los conectores registrados en el sistema
+      tags:
+        - connectors
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [payment, ecommerce, erp, fiscal, notification, storage]
+          description: Filtrar por categoría
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, deprecated, beta]
+          description: Filtrar por estado
+      responses:
+        '200':
+          description: Lista de conectores
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ConnectorSummary'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /connectors/{connectorId}:
+    get:
+      operationId: getConnector
+      summary: Obtener detalle de un conector
+      tags:
+        - connectors
+      parameters:
+        - $ref: '#/components/parameters/ConnectorId'
+      responses:
+        '200':
+          description: Detalle del conector
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connector'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /connectors/{connectorId}/spec:
+    get:
+      operationId: getConnectorSpec
+      summary: Obtener especificación completa del conector
+      description: Retorna schemas de configuración, autenticación y acciones disponibles
+      tags:
+        - connectors
+      parameters:
+        - $ref: '#/components/parameters/ConnectorId'
+      responses:
+        '200':
+          description: Especificación del conector
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectorSpec'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /connections:
+    get:
+      operationId: listConnections
+      summary: Listar conexiones configuradas
+      tags:
+        - connections
+      parameters:
+        - name: connector_id
+          in: query
+          schema:
+            type: string
+          description: Filtrar por conector
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+          description: Filtrar por tenant
+      responses:
+        '200':
+          description: Lista de conexiones
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Connection'
+
+    post:
+      operationId: createConnection
+      summary: Crear una nueva conexión
+      tags:
+        - connections
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConnectionRequest'
+      responses:
+        '201':
+          description: Conexión creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /connections/{connectionId}:
+    get:
+      operationId: getConnection
+      summary: Obtener detalle de una conexión
+      tags:
+        - connections
+      parameters:
+        - $ref: '#/components/parameters/ConnectionId'
+      responses:
+        '200':
+          description: Detalle de la conexión
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      operationId: updateConnection
+      summary: Actualizar una conexión
+      tags:
+        - connections
+      parameters:
+        - $ref: '#/components/parameters/ConnectionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateConnectionRequest'
+      responses:
+        '200':
+          description: Conexión actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+
+    delete:
+      operationId: deleteConnection
+      summary: Eliminar una conexión
+      tags:
+        - connections
+      parameters:
+        - $ref: '#/components/parameters/ConnectionId'
+      responses:
+        '204':
+          description: Conexión eliminada
+
+  /connections/{connectionId}/test:
+    post:
+      operationId: testConnection
+      summary: Probar una conexión
+      description: Verifica que las credenciales y configuración sean válidas
+      tags:
+        - connections
+      parameters:
+        - $ref: '#/components/parameters/ConnectionId'
+      responses:
+        '200':
+          description: Resultado del test
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestConnectionResult'
+
+  /connections/{connectionId}/actions/{actionId}:
+    post:
+      operationId: executeAction
+      summary: Ejecutar una acción del conector
+      tags:
+        - actions
+      parameters:
+        - $ref: '#/components/parameters/ConnectionId'
+        - name: actionId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID de la acción a ejecutar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecuteActionRequest'
+      responses:
+        '200':
+          description: Resultado de la acción
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          description: Error de validación en los parámetros
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+components:
+  parameters:
+    ConnectorId:
+      name: connectorId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: ID único del conector
+      example: mercadopago
+
+    ConnectionId:
+      name: connectionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: ID único de la conexión
+
+  schemas:
+    ConnectorSummary:
+      type: object
+      required:
+        - id
+        - name
+        - category
+        - status
+      properties:
+        id:
+          type: string
+          example: mercadopago
+        name:
+          type: string
+          example: Mercado Pago
+        description:
+          type: string
+          example: Procesador de pagos líder en Latinoamérica
+        category:
+          type: string
+          enum: [payment, ecommerce, erp, fiscal, notification, storage]
+        status:
+          type: string
+          enum: [active, deprecated, beta]
+        icon_url:
+          type: string
+          format: uri
+        version:
+          type: string
+          example: "1.0.0"
+
+    Connector:
+      allOf:
+        - $ref: '#/components/schemas/ConnectorSummary'
+        - type: object
+          properties:
+            auth_type:
+              type: string
+              enum: [api_key, oauth2, basic, custom]
+            documentation_url:
+              type: string
+              format: uri
+            supported_regions:
+              type: array
+              items:
+                type: string
+              example: [AR, BR, MX, CL, CO]
+
+    ConnectorSpec:
+      type: object
+      required:
+        - connector_id
+        - auth_schema
+        - config_schema
+        - actions
+      properties:
+        connector_id:
+          type: string
+        auth_schema:
+          type: object
+          description: JSON Schema para configuración de autenticación
+        config_schema:
+          type: object
+          description: JSON Schema para configuración adicional
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActionSpec'
+        triggers:
+          type: array
+          items:
+            $ref: '#/components/schemas/TriggerSpec'
+          description: Webhooks/eventos que el conector puede recibir
+
+    ActionSpec:
+      type: object
+      required:
+        - id
+        - name
+        - input_schema
+        - output_schema
+      properties:
+        id:
+          type: string
+          example: fetch_payment
+        name:
+          type: string
+          example: Obtener detalle de pago
+        description:
+          type: string
+        input_schema:
+          type: object
+          description: JSON Schema para los parámetros de entrada
+        output_schema:
+          type: object
+          description: JSON Schema para la respuesta
+        idempotent:
+          type: boolean
+          default: false
+          description: Si la acción es idempotente
+        rate_limit:
+          type: object
+          properties:
+            requests_per_minute:
+              type: integer
+
+    TriggerSpec:
+      type: object
+      required:
+        - id
+        - name
+        - event_type
+        - payload_schema
+      properties:
+        id:
+          type: string
+          example: payment_approved
+        name:
+          type: string
+          example: Pago aprobado
+        description:
+          type: string
+        event_type:
+          type: string
+          description: Tipo de evento canónico que genera
+        payload_schema:
+          type: object
+          description: JSON Schema del payload del webhook
+
+    Connection:
+      type: object
+      required:
+        - id
+        - connector_id
+        - tenant_id
+        - name
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        connector_id:
+          type: string
+        tenant_id:
+          type: string
+        name:
+          type: string
+          example: MercadoPago - Tienda Principal
+        status:
+          type: string
+          enum: [active, inactive, error]
+        config:
+          type: object
+          description: Configuración (sin secretos)
+        last_test_at:
+          type: string
+          format: date-time
+        last_test_status:
+          type: string
+          enum: [success, failed]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateConnectionRequest:
+      type: object
+      required:
+        - connector_id
+        - name
+        - credentials_ref
+      properties:
+        connector_id:
+          type: string
+        name:
+          type: string
+        credentials_ref:
+          type: string
+          description: Referencia al secret manager (nunca credenciales directas)
+        config:
+          type: object
+
+    UpdateConnectionRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        credentials_ref:
+          type: string
+        config:
+          type: object
+        status:
+          type: string
+          enum: [active, inactive]
+
+    TestConnectionResult:
+      type: object
+      required:
+        - success
+        - tested_at
+      properties:
+        success:
+          type: boolean
+        tested_at:
+          type: string
+          format: date-time
+        latency_ms:
+          type: integer
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+        details:
+          type: object
+          description: Información adicional del test (ej. permisos disponibles)
+
+    ExecuteActionRequest:
+      type: object
+      required:
+        - params
+      properties:
+        params:
+          type: object
+          description: Parámetros según el input_schema de la acción
+        correlation_id:
+          type: string
+          format: uuid
+        idempotency_key:
+          type: string
+          description: Clave para garantizar idempotencia
+
+    ActionResult:
+      type: object
+      required:
+        - success
+        - action_id
+        - executed_at
+      properties:
+        success:
+          type: boolean
+        action_id:
+          type: string
+        executed_at:
+          type: string
+          format: date-time
+        latency_ms:
+          type: integer
+        data:
+          type: object
+          description: Resultado según el output_schema de la acción
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            retryable:
+              type: boolean
+
+    ValidationError:
+      type: object
+      properties:
+        error:
+          type: string
+          example: validation_error
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total_pages:
+          type: integer
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        correlation_id:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Request inválido
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: No autorizado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+security:
+  - bearerAuth: []
+  - apiKey: []
