@@ -1,0 +1,30 @@
+{
+  "name": "@integrax/realtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "WebSocket server for IntegraX real-time notifications",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "ws": "^8.16.0",
+    "ioredis": "^5.3.2",
+    "jsonwebtoken": "^9.0.2",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/ws": "^8.5.10",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/uuid": "^9.0.7",
+    "typescript": "^5.3.0",
+    "tsx": "^4.6.2",
+    "vitest": "^1.0.0"
+  }
+}

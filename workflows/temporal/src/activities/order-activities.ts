@@ -200,7 +200,7 @@ export async function processPayment(
     throw new Error(`MercadoPago error: ${JSON.stringify(error)}`);
   }
 
-  const data = await response.json();
+  const data = await response.json() as { id: string };
 
   // In a real scenario, we'd wait for the webhook. For now, return preference ID
   return {

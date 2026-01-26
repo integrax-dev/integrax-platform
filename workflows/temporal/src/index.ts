@@ -6,3 +6,4 @@
 
 export * from './workflows/index.js';
 export * from './activities/index.js';
+export * from './client/index.js';

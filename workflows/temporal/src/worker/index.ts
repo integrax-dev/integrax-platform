@@ -13,6 +13,7 @@ config();
 // Import activities
 import * as paymentActivities from '../activities/payment-activities.js';
 import * as orderActivities from '../activities/order-activities.js';
+import * as connectorActivities from '../activities/connector-activities.js';
 
 const TASK_QUEUE = process.env.TEMPORAL_TASK_QUEUE || 'integrax-workflows';
 const TEMPORAL_ADDRESS = process.env.TEMPORAL_ADDRESS || 'localhost:7233';
@@ -44,6 +45,7 @@ async function run() {
     activities: {
       ...paymentActivities,
       ...orderActivities,
+      ...connectorActivities,
     },
   });
 

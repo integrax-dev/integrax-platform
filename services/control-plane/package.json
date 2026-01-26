@@ -1,6 +1,7 @@
 {
   "name": "@integrax/control-plane",
   "version": "0.1.0",
+  "type": "module",
   "description": "IntegraX Control Plane API - Admin endpoints for platform management",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -14,6 +15,7 @@
   "dependencies": {
     "@integrax/connector-sdk": "workspace:*",
     "@integrax/connector-learning": "workspace:*",
+    "@integrax/temporal-workflows": "workspace:*",
     "bcrypt": "^5.1.1",
     "express": "^4.18.2",
     "helmet": "^7.1.0",

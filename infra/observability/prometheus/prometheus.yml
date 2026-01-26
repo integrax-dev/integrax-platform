@@ -8,38 +8,73 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
+  # ============================================
+  # IntegraX Services
+  # ============================================
+
+  # Control Plane API
+  - job_name: 'integrax-control-plane'
+    static_configs:
+      - targets: ['control-plane:3000']
+    metrics_path: /metrics
+
+  # LLM Orchestrator
+  - job_name: 'integrax-llm-orchestrator'
+    static_configs:
+      - targets: ['llm-orchestrator:3001']
+    metrics_path: /metrics
+
+  # Temporal Worker
+  - job_name: 'integrax-temporal-worker'
+    static_configs:
+      - targets: ['temporal-worker:9090']
+    metrics_path: /metrics
+
+  # Event Router
+  - job_name: 'integrax-event-router'
+    static_configs:
+      - targets: ['event-router:3002']
+    metrics_path: /metrics
+
+  # ============================================
+  # Infrastructure
+  # ============================================
+
   # OpenTelemetry Collector metrics
   - job_name: 'otel-collector'
     static_configs:
       - targets: ['otel-collector:8888']
 
-  # OTLP metrics exported by collector
-  - job_name: 'integrax-metrics'
+  # Temporal Server
+  - job_name: 'temporal'
     static_configs:
-      - targets: ['otel-collector:8889']
-
-  # n8n metrics
-  - job_name: 'n8n'
-    static_configs:
-      - targets: ['n8n:5678']
+      - targets: ['temporal:8000']
     metrics_path: /metrics
 
-  # Redis metrics (if redis-exporter is added)
-  # - job_name: 'redis'
-  #   static_configs:
-  #     - targets: ['redis-exporter:9121']
+  # Redis Exporter
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
 
-  # Postgres metrics (if postgres-exporter is added)
-  # - job_name: 'postgres'
-  #   static_configs:
-  #     - targets: ['postgres-exporter:9187']
+  # Postgres Exporter
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  # Kafka (JMX Exporter)
+  - job_name: 'kafka'
+    static_configs:
+      - targets: ['kafka:7071']
+
+  # Node Exporter (host metrics)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
 
 alerting:
   alertmanagers:
     - static_configs:
-        - targets: []
-          # Add alertmanager target when configured
-          # - targets: ['alertmanager:9093']
+        - targets: ['alertmanager:9093']
 
 rule_files:
-  # - 'alerts/*.yml'
+  - 'alerts/*.yml'

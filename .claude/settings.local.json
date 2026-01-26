@@ -36,7 +36,14 @@
       "Bash(pnpm run build:*)",
       "Bash(npx vite build)",
       "Bash(pnpm install:*)",
-      "Bash(timeout 8 pnpm run dev:*)"
+      "Bash(timeout 8 pnpm run dev:*)",
+      "Bash(pnpm --filter @integrax/temporal-workflows build:*)",
+      "Bash(pnpm --filter @integrax/metrics build:*)",
+      "Bash(pnpm --filter @integrax/secrets build:*)",
+      "Bash(pnpm --filter @integrax/realtime build:*)",
+      "Bash(pnpm --filter @integrax/temporal-workflows --filter @integrax/llm-orchestrator --filter @integrax/connector-learning --filter @integrax/connector-sdk test)",
+      "Bash(pnpm run dev)",
+      "Bash(START_SERVER=true pnpm run dev:*)"
     ]
   }
 }

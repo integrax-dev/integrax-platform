@@ -105,7 +105,15 @@ export async function validatePayment(input: ValidatePaymentInput): Promise<Paym
     throw new Error(`MercadoPago API error: ${JSON.stringify(error)}`);
   }
 
-  const data = await response.json();
+  const data = await response.json() as {
+    id: number;
+    status: string;
+    transaction_amount: number;
+    currency_id: string;
+    payer?: { email?: string; first_name?: string };
+    payment_method_id: string;
+    date_created: string;
+  };
 
   return {
     id: data.id.toString(),

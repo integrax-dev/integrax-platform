@@ -20,3 +20,6 @@ export type {
   OrderStatus,
   TimelineEvent,
 } from './order-workflow.js';
+
+export { multiTenantWorkflow } from './multiTenantWorkflow.js';
+export type { MultiTenantWorkflowInput, MultiTenantWorkflowOutput } from './multiTenantWorkflow.js';

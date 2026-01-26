@@ -7,6 +7,7 @@ import helmet from 'helmet';
 import { tenantsRouter } from './routes/tenants';
 import { connectorsRouter } from './routes/connectors';
 import { workflowsRouter } from './routes/workflows';
+import { temporalWorkflowsRouter } from './routes/workflows-temporal';
 import { getAuditLogs } from './middleware/audit';
 import { requireAuth, requireRole } from './middleware/auth';
 
@@ -55,6 +56,7 @@ app.get('/api', (req, res) => {
 app.use('/api/tenants', tenantsRouter);
 app.use('/api/connectors', connectorsRouter);
 app.use('/api/workflows', workflowsRouter);
+app.use('/api/workflows/temporal', temporalWorkflowsRouter);
 
 // Audit logs endpoint
 app.get(
@@ -148,7 +150,9 @@ app.use((req, res) => {
 // Start server
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
-if (require.main === module) {
+// ESM entry point check
+const isMainModule = import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}`;
+if (isMainModule || process.env.START_SERVER === 'true') {
   app.listen(PORT, () => {
     console.log(`
 ╔═══════════════════════════════════════════════════════════════╗

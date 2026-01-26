@@ -1,0 +1,102 @@
+groups:
+  - name: integrax-alerts
+    rules:
+      # High error rate
+      - alert: HighErrorRate
+        expr: sum(rate(integrax_http_requests_total{status=~"5.."}[5m])) / sum(rate(integrax_http_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} over the last 5 minutes"
+
+      # High latency
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, sum(rate(integrax_http_request_duration_seconds_bucket[5m])) by (le)) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency detected"
+          description: "95th percentile latency is {{ $value | humanizeDuration }} over the last 5 minutes"
+
+      # Workflow failures
+      - alert: HighWorkflowFailureRate
+        expr: sum(rate(integrax_workflows_completed_total{status="failed"}[5m])) / sum(rate(integrax_workflows_completed_total[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High workflow failure rate"
+          description: "Workflow failure rate is {{ $value | humanizePercentage }}"
+
+      # DLQ growing
+      - alert: DLQGrowing
+        expr: sum(integrax_dlq_size) > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Dead Letter Queue is growing"
+          description: "DLQ has {{ $value }} items"
+
+      # Tenant rate limit
+      - alert: TenantRateLimited
+        expr: sum(rate(integrax_tenant_rate_limit_hits_total[5m])) by (tenant_id) > 10
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: "Tenant {{ $labels.tenant_id }} hitting rate limits"
+          description: "Tenant {{ $labels.tenant_id }} has {{ $value }} rate limit hits/second"
+
+      # Connector errors
+      - alert: ConnectorErrors
+        expr: sum(rate(integrax_connector_errors_total[5m])) by (connector_id) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Connector {{ $labels.connector_id }} experiencing errors"
+          description: "Connector {{ $labels.connector_id }} has {{ $value }} errors/second"
+
+      # Tenant quota near limit
+      - alert: TenantQuotaNearLimit
+        expr: integrax_tenant_quota_usage_percent > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Tenant {{ $labels.tenant_id }} quota near limit"
+          description: "Tenant {{ $labels.tenant_id }} {{ $labels.quota_type }} quota is at {{ $value }}%"
+
+      # LLM high usage
+      - alert: LLMHighTokenUsage
+        expr: sum(rate(integrax_llm_tokens_used_total[1h])) by (tenant_id) > 100000
+        for: 30m
+        labels:
+          severity: info
+        annotations:
+          summary: "High LLM token usage for tenant {{ $labels.tenant_id }}"
+          description: "Tenant {{ $labels.tenant_id }} using {{ $value | humanize }} tokens/hour"
+
+      # Service down
+      - alert: ServiceDown
+        expr: up{job=~"integrax-.*"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "IntegraX service {{ $labels.job }} is down"
+          description: "Service {{ $labels.job }} has been down for more than 1 minute"
+
+      # No workflows running
+      - alert: NoActiveWorkflows
+        expr: sum(integrax_workflows_active) == 0
+        for: 30m
+        labels:
+          severity: info
+        annotations:
+          summary: "No active workflows"
+          description: "No workflows have been running for 30 minutes"

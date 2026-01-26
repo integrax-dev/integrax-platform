@@ -218,7 +218,7 @@ export async function orderWorkflow(input: OrderWorkflowInput): Promise<OrderWor
     }
 
     if (receivedPaymentData) {
-      paymentId = receivedPaymentData.paymentId;
+      paymentId = (receivedPaymentData as { paymentId: string }).paymentId;
     }
   }
 
