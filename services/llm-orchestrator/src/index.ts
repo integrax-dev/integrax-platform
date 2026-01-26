@@ -30,6 +30,8 @@ export { LLMClient, createLLMClient } from './llm-client';
 export { ToolExecutor, createToolExecutor, INTEGRATION_TOOLS } from './tools';
 export { INTEGRAX_CONNECTORS, getConnector, getConnectorsByCategory, searchConnectors } from './connectors-registry';
 
+export { MultiTenantIntegrator } from './multiTenantIntegration';
+
 // Type exports
 export type {
   // Config

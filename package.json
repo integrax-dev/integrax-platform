@@ -14,6 +14,7 @@
     "test:integration": "tsx scripts/test-integration.ts",
     "simulate:payment": "tsx scripts/simulate-payment.ts",
     "stress-test": "tsx scripts/stress-test.ts",
+    "learn-api": "tsx scripts/learn-api.ts",
     "lint": "pnpm -r lint",
     "docker:mvp": "docker compose -f infra/docker-compose/mvp/docker-compose.yml up -d",
     "docker:mvp:down": "docker compose -f infra/docker-compose/mvp/docker-compose.yml down",
@@ -24,13 +25,16 @@
     "setup:debezium": "tsx scripts/setup-debezium.ts"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.32.0",
     "@types/pg": "^8.10.9",
+    "cheerio": "^1.0.0-rc.12",
     "dotenv": "^16.3.1",
     "google-auth-library": "^10.5.0",
     "ioredis": "^5.3.2",
     "pg": "^8.11.3",
     "tsx": "^4.6.2",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "yaml": "^2.3.4"
   },
   "engines": {
     "node": ">=18.0.0",

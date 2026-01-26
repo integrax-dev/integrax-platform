@@ -32,7 +32,11 @@
       "Bash(pnpm --filter @integrax/llm-orchestrator exec vitest run)",
       "Bash(npx tsx:*)",
       "Bash(pnpm stress-test:*)",
-      "Bash(STRESS_JOBS=5000 STRESS_CONCURRENCY=200 pnpm stress-test:*)"
+      "Bash(STRESS_JOBS=5000 STRESS_CONCURRENCY=200 pnpm stress-test:*)",
+      "Bash(pnpm run build:*)",
+      "Bash(npx vite build)",
+      "Bash(pnpm install:*)",
+      "Bash(timeout 8 pnpm run dev:*)"
     ]
   }
 }

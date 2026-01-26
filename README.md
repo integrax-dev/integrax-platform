@@ -2,6 +2,48 @@
 
 Plataforma de integraciones orientada a eventos para empresas de Argentina y LatAm. Incluye conectores, contratos (OpenAPI/AsyncAPI/JSON Schema/Proto), workers y workflows (Temporal). Monorepo listo para desarrollo y despliegue.
 
+## Arquitectura Global IntegraX
+
+### Diagrama de Componentes (texto)
+
+```
+┌─────────────┐      ┌─────────────┐      ┌─────────────┐
+│  API/Admin  │◄────►│ Auth/RBAC   │◄────►│ Tenant Svc  │
+└─────┬───────┘      └─────┬───────┘      └─────┬───────┘
+   │                    │                    │
+   ▼                    ▼                    ▼
+┌─────────────┐      ┌─────────────┐      ┌─────────────┐
+│ Workflow    │◄────►│ EventRouter │◄────►│ RateLimiter │
+└─────┬───────┘      └─────┬───────┘      └─────┬───────┘
+   │                    │                    │
+   ▼                    ▼                    ▼
+┌─────────────┐      ┌─────────────┐      ┌─────────────┐
+│ Conectores  │◄────►│ DLQ Manager │◄────►│ SecretVault │
+└─────┬───────┘      └─────┬───────┘      └─────┬───────┘
+   │                    │                    │
+   ▼                    ▼                    ▼
+┌─────────────┐      ┌─────────────┐      ┌─────────────┐
+│ Observab.   │◄────►│ AuditLogger │◄────►│ Metrics/Alert│
+└─────────────┘      └─────────────┘      └─────────────┘
+```
+
+### Descripción de Componentes
+
+- **Tenant Service**: Alta/baja, suspensión, límites, owner, plan.
+- **Auth/RBAC**: Autenticación y control de acceso por rol y tenant.
+- **Rate Limiter**: Limita requests y jobs por tenant.
+- **Workflow Engine**: Orquestación, versionado, pausa/reanuda, observabilidad.
+- **Event Router**: Ingesta, validación, idempotencia, enrutamiento por tenant.
+- **DLQ Manager**: Dead Letter Queue por tenant, reprocesar/descartar eventos.
+- **Conectores**: Catálogo, credenciales, scopes, test connection.
+- **Secret Vault**: Almacenamiento seguro y rotación de secretos.
+- **Audit Logger**: Registro de cambios sensibles por tenant/usuario.
+- **Metrics/Alerts**: Dashboards y alertas por tenant/workflow.
+- **Admin API/Panel**: Endpoints y consola mínima para operar la plataforma.
+- **Observabilidad**: Logs, métricas, tracing por tenant.
+
+---
+
 ## 🚀 Quickstart
 
 ```bash

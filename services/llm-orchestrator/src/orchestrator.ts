@@ -125,7 +125,7 @@ export class Orchestrator {
 
     try {
       // First, parse the intent
-      const intent = await this.parseIntent(message, context);
+      const intent = await this.parseIntentInternal(message, context);
       context.currentIntent = intent.intent;
 
       // Route based on intent
@@ -174,9 +174,20 @@ export class Orchestrator {
   }
 
   /**
-   * Parse user intent from message
+   * Parse user intent from message (public wrapper)
    */
-  private async parseIntent(message: string, context: ConversationContext): Promise<ParsedIntent> {
+  async parseIntent(message: string): Promise<ParsedIntent> {
+    const emptyContext: ConversationContext = {
+      messages: [],
+      metadata: {},
+    };
+    return this.parseIntentInternal(message, emptyContext);
+  }
+
+  /**
+   * Parse user intent from message (internal with context)
+   */
+  private async parseIntentInternal(message: string, context: ConversationContext): Promise<ParsedIntent> {
     const prompt = `Mensaje del usuario: "${message}"
 
 Contexto previo: ${context.messages.slice(-4).map((m) => `${m.role}: ${m.content}`).join('\n')}
