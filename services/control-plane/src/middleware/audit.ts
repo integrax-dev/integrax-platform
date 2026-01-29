@@ -55,7 +55,7 @@ export function audit(action: string) {
 /**
  * Mask sensitive data in request body for audit
  */
-function maskSensitiveData(obj: any): any {
+function maskSensitiveData<T extends object>(obj: T): T {
   if (!obj || typeof obj !== 'object') return obj;
 
   const sensitiveKeys = [

@@ -8,7 +8,8 @@
  * IMPORTANTE: Este conector requiere un certificado digital emitido por AFIP.
  */
 
-import * as crypto from 'crypto';
+import * as forge from 'node-forge';
+import { XMLParser, XMLBuilder } from 'fast-xml-parser';
 import {
   Connector,
   ConnectorSpec,
@@ -17,6 +18,19 @@ import {
   ConnectorError,
   ErrorCode,
 } from '@integrax/connector-sdk';
+
+// XML Parser configuration
+const xmlParser = new XMLParser({
+  ignoreAttributes: false,
+  attributeNamePrefix: '@_',
+  textNodeName: '#text',
+});
+
+const xmlBuilder = new XMLBuilder({
+  ignoreAttributes: false,
+  attributeNamePrefix: '@_',
+  format: true,
+});
 import {
   AfipConfig,
   AfipToken,
@@ -199,16 +213,51 @@ export class AfipWsfeConnector implements Connector {
   }
 
   private signTRA(tra: string): string {
-    // Create PKCS#7 signed message (CMS)
-    const sign = crypto.createSign('RSA-SHA256');
-    sign.update(tra);
-    const signature = sign.sign(this.config.privateKey, 'base64');
+    // Implementación real de firmado CMS/PKCS#7 usando node-forge
+    try {
+      // Cargar clave privada y certificado
+      const p7 = forge.pkcs7.createSignedData();
+      p7.content = forge.util.createBuffer(tra, 'utf8');
 
-    // In production, this would create a proper CMS/PKCS#7 structure
-    // For now, return base64 encoded signed data
-    // Note: Real implementation needs proper CMS library
-    const signedData = Buffer.from(tra).toString('base64');
-    return signedData;
+      // Certificado y clave privada en formato PEM
+      const certPem = this.config.certificate;
+      const keyPem = this.config.privateKey;
+
+      const cert = forge.pki.certificateFromPem(certPem);
+      const privateKey = forge.pki.privateKeyFromPem(keyPem);
+
+      p7.addSigner({
+        key: privateKey,
+        certificate: cert,
+        digestAlgorithm: forge.pki.oids.sha256,
+        authenticatedAttributes: [
+          {
+            type: forge.pki.oids.contentType,
+            value: forge.pki.oids.data,
+          },
+          {
+            type: forge.pki.oids.messageDigest,
+            // value will be auto-calculated
+          },
+          {
+            type: forge.pki.oids.signingTime,
+            value: new Date(),
+          },
+        ],
+      });
+      p7.addCertificate(cert);
+      p7.sign({ detached: true });
+
+      // Exportar CMS en DER y codificar en base64
+      const der = forge.asn1.toDer(p7.toAsn1()).getBytes();
+      const b64 = forge.util.encode64(der);
+      return b64;
+    } catch (err) {
+      throw new ConnectorError(
+        ErrorCode.AUTHENTICATION_FAILED,
+        'Error firmando TRA (CMS/PKCS#7): ' + (err instanceof Error ? err.message : String(err))
+      );
+    }
   }
 
   // ============================================

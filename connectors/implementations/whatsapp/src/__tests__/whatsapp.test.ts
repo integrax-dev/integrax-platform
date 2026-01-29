@@ -477,4 +477,30 @@ describe('WhatsApp Connector', () => {
       expect(request.context?.message_id).toBe('wamid.original123');
     });
   });
+
+  describe('WhatsApp Integration (real)', () => {
+    const { WhatsAppConnector } = require('../index');
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+    const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
+
+    it('should authenticate and get phone profile', async () => {
+      if (!phoneNumberId || !accessToken) {
+        console.warn('WhatsApp integration test skipped: set WHATSAPP_PHONE_NUMBER_ID y WHATSAPP_ACCESS_TOKEN');
+        return;
+      }
+      const connector = new WhatsAppConnector({ phoneNumberId, accessToken });
+      let profile = null;
+      let error = null;
+      try {
+        profile = await connector.getPhoneProfile();
+      } catch (err) {
+        error = err;
+      }
+      if (error) {
+        console.error('WhatsApp API error:', error);
+      }
+      expect(profile).toBeDefined();
+      expect(profile.id).toBeDefined();
+    }, 10000);
+  });
 });

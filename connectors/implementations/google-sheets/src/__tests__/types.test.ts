@@ -401,3 +401,29 @@ describe('AppendResultSchema', () => {
     expect(result.success).toBe(true);
   });
 });
+
+describe('Google Sheets Integration (real)', () => {
+  const { GoogleSheetsConnector } = require('../index');
+  const credentials = process.env.GOOGLE_SHEETS_CREDENTIALS;
+  const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+
+  it('should connect and get spreadsheet info', async () => {
+    if (!credentials || !spreadsheetId) {
+      console.warn('Google Sheets integration test skipped: set GOOGLE_SHEETS_CREDENTIALS y GOOGLE_SHEETS_SPREADSHEET_ID');
+      return;
+    }
+    const connector = new GoogleSheetsConnector({ credentials: JSON.parse(Buffer.from(credentials, 'base64').toString('utf8')) });
+    let info = null;
+    let error = null;
+    try {
+      info = await connector.getSpreadsheet({ spreadsheetId });
+    } catch (err) {
+      error = err;
+    }
+    if (error) {
+      console.error('Google Sheets API error:', error);
+    }
+    expect(info).toBeDefined();
+    expect(info.spreadsheetId).toBe(spreadsheetId);
+  }, 15000);
+});

@@ -15,7 +15,12 @@ export class MultiTenantIntegrator {
     if (!parsed || !parsed.intent || parsed.intent === 'unknown') return null;
     // 2. Generar workflow (mock: usar intent como tipo)
     const workflowType = parsed.intent === 'process_payment' ? 'payment' : 'order';
-    const payload: any = { tenantId, ...parsed.entities };
+    let payload: MultiTenantWorkflowInput['payload'];
+    if (workflowType === 'payment') {
+      payload = { tenantId, ...parsed.entities } as import('../../../workflows/temporal/src/workflows/payment-workflow').PaymentWorkflowInput;
+    } else {
+      payload = { tenantId, ...parsed.entities } as import('../../../workflows/temporal/src/workflows/order-workflow').OrderWorkflowInput;
+    }
     const input: MultiTenantWorkflowInput = { tenantId, workflowType, payload };
     // 3. Ejecutar workflow multi-tenant
     return await multiTenantWorkflow(input);

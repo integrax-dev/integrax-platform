@@ -11,33 +11,43 @@ import {
 } from 'recharts';
 import './Dashboard.css';
 
-// Mock data
-const eventsData = [
-  { name: '00:00', events: 120, success: 115, failed: 5 },
-  { name: '04:00', events: 80, success: 78, failed: 2 },
-  { name: '08:00', events: 250, success: 240, failed: 10 },
-  { name: '12:00', events: 380, success: 365, failed: 15 },
-  { name: '16:00', events: 420, success: 400, failed: 20 },
-  { name: '20:00', events: 300, success: 290, failed: 10 },
-];
+import { useEffect, useState } from 'react';
 
-const connectorUsage = [
-  { name: 'MercadoPago', calls: 1250 },
-  { name: 'WhatsApp', calls: 890 },
-  { name: 'AFIP', calls: 456 },
-  { name: 'Email', calls: 678 },
-  { name: 'Sheets', calls: 234 },
-];
-
-const recentEvents = [
-  { id: 1, type: 'payment.approved', tenant: 'Tienda ABC', status: 'success', time: '2 min ago' },
-  { id: 2, type: 'invoice.created', tenant: 'Empresa XYZ', status: 'success', time: '5 min ago' },
-  { id: 3, type: 'whatsapp.sent', tenant: 'Tienda ABC', status: 'success', time: '8 min ago' },
-  { id: 4, type: 'payment.failed', tenant: 'Negocio 123', status: 'failed', time: '12 min ago' },
-  { id: 5, type: 'order.created', tenant: 'Tienda ABC', status: 'success', time: '15 min ago' },
-];
+type DashboardData = {
+  eventsData: Array<{ name: string; events: number; success: number; failed: number }>;
+  connectorUsage: Array<{ name: string; calls: number }>;
+  recentEvents: Array<{ id: string; type: string; tenant: string; status: string; time: string }>;
+  stats: {
+    tenants: number;
+    eventsToday: number;
+    connectors: number;
+    uptime: number;
+    tenantsChange: string;
+    eventsChange: string;
+    connectorsChange: string;
+  };
+};
 
 export function Dashboard() {
+  const [data, setData] = useState<DashboardData|null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string|null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch('/api/admin/dashboard')
+      .then(res => {
+        if (!res.ok) throw new Error('Error al cargar dashboard');
+        return res.json();
+      })
+      .then(setData)
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="dashboard">Cargando...</div>;
+  if (error) return <div className="dashboard" style={{color:'red'}}>{error}</div>;
+  if (!data) return <div className="dashboard">Sin datos</div>;
   return (
     <div className="dashboard">
       <div className="page-header">
@@ -50,34 +60,34 @@ export function Dashboard() {
         <div className="stat-card">
           <div className="stat-icon blue">🏢</div>
           <div className="stat-content">
-            <span className="stat-value">24</span>
+            <span className="stat-value">{data.stats.tenants}</span>
             <span className="stat-label">Tenants Activos</span>
           </div>
-          <span className="stat-change positive">+3 este mes</span>
+          <span className="stat-change positive">{data.stats.tenantsChange}</span>
         </div>
 
         <div className="stat-card">
           <div className="stat-icon green">⚡</div>
           <div className="stat-content">
-            <span className="stat-value">12.5k</span>
+            <span className="stat-value">{data.stats.eventsToday}</span>
             <span className="stat-label">Eventos Hoy</span>
           </div>
-          <span className="stat-change positive">+18% vs ayer</span>
+          <span className="stat-change positive">{data.stats.eventsChange}</span>
         </div>
 
         <div className="stat-card">
           <div className="stat-icon purple">🔌</div>
           <div className="stat-content">
-            <span className="stat-value">89</span>
+            <span className="stat-value">{data.stats.connectors}</span>
             <span className="stat-label">Conectores Configurados</span>
           </div>
-          <span className="stat-change positive">+12 esta semana</span>
+          <span className="stat-change positive">{data.stats.connectorsChange}</span>
         </div>
 
         <div className="stat-card">
           <div className="stat-icon orange">📊</div>
           <div className="stat-content">
-            <span className="stat-value">99.2%</span>
+            <span className="stat-value">{data.stats.uptime}%</span>
             <span className="stat-label">Uptime</span>
           </div>
           <span className="stat-change neutral">Últimos 30 días</span>
@@ -90,7 +100,7 @@ export function Dashboard() {
           <h3>Eventos por Hora</h3>
           <div className="chart-container">
             <ResponsiveContainer width="100%" height={250}>
-              <AreaChart data={eventsData}>
+              <AreaChart data={data.eventsData}>
                 <defs>
                   <linearGradient id="colorEvents" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
@@ -123,7 +133,7 @@ export function Dashboard() {
           <h3>Uso por Conector</h3>
           <div className="chart-container">
             <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={connectorUsage} layout="vertical">
+              <BarChart data={data.connectorUsage} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                 <XAxis type="number" stroke="#64748b" fontSize={12} />
                 <YAxis dataKey="name" type="category" stroke="#64748b" fontSize={12} width={100} />
@@ -157,7 +167,7 @@ export function Dashboard() {
             </tr>
           </thead>
           <tbody>
-            {recentEvents.map((event) => (
+            {data.recentEvents.map((event) => (
               <tr key={event.id}>
                 <td>
                   <code className="event-type">{event.type}</code>

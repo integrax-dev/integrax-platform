@@ -1,3 +1,5 @@
+import { createLogger } from '../../../../workers/ts/src/logger.js';
+const logger = createLogger('payment-activities');
 /**
  * Payment Activities
  *
@@ -225,7 +227,7 @@ export async function syncToGoogleSheets(input: SyncToGoogleSheetsInput): Promis
   const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
 
   if (!credentials || !spreadsheetId) {
-    console.log('Google Sheets not configured, skipping sync');
+    logger.info('Google Sheets not configured, skipping sync');
     return;
   }
 
@@ -280,7 +282,7 @@ export async function syncToGoogleSheets(input: SyncToGoogleSheetsInput): Promis
  */
 export async function sendNotification(input: SendNotificationInput): Promise<void> {
   // For now, just log. In production, this would send via webhook, email, etc.
-  console.log(`[NOTIFICATION] Tenant: ${input.tenantId}, Type: ${input.type}`, input.data);
+  logger.info(`[NOTIFICATION] Tenant: ${input.tenantId}, Type: ${input.type} Data: ${JSON.stringify(input.data)}`);
 
   // Could publish to a notifications topic in Kafka
   const kafka = getKafka();

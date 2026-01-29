@@ -1,4 +1,4 @@
-import pino from 'pino';
+import pinoImport from 'pino';
 import { config } from './config.js';
 
 const transport = config.NODE_ENV === 'development'
@@ -13,6 +13,7 @@ const transport = config.NODE_ENV === 'development'
   : undefined;
 
 export function createLogger(name: string) {
+  const pino = typeof pinoImport === 'function' ? pinoImport : pinoImport.default;
   return pino({
     name,
     level: config.LOG_LEVEL,

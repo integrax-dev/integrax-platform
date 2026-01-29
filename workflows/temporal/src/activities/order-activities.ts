@@ -1,3 +1,5 @@
+import { createLogger } from '../../../../workers/ts/src/logger.js';
+const logger = createLogger('order-activities');
 /**
  * Order Activities
  *
@@ -256,7 +258,7 @@ export async function generateInvoice(
   );
 
   // In the future, this would call AFIP WSFE for electronic invoicing
-  console.log(`[INVOICE] Generated invoice ${invoiceNumber} for order ${input.orderId}`);
+  logger.info(`[INVOICE] Generated invoice ${invoiceNumber} for order ${input.orderId}`);
 
   return {
     invoiceId,
@@ -269,13 +271,13 @@ export async function generateInvoice(
  */
 export async function sendOrderConfirmation(input: SendOrderConfirmationInput): Promise<void> {
   // Placeholder: In production, this would integrate with an email service
-  console.log(`[EMAIL] Sending confirmation to ${input.customer.email}`);
-  console.log(`  Order: ${input.orderId}`);
-  console.log(`  Total: ${input.currency} ${input.totalAmount}`);
-  console.log(`  Items: ${input.items.map(i => `${i.name} x${i.quantity}`).join(', ')}`);
+  logger.info(`[EMAIL] Sending confirmation to ${input.customer.email}`);
+  logger.info(`  Order: ${input.orderId}`);
+  logger.info(`  Total: ${input.currency} ${input.totalAmount}`);
+  logger.info(`  Items: ${input.items.map(i => `${i.name} x${i.quantity}`).join(', ')}`);
 
   if (input.invoiceId) {
-    console.log(`  Invoice: ${input.invoiceId}`);
+    logger.info(`  Invoice: ${input.invoiceId}`);
   }
 
   // Publish notification event
@@ -316,11 +318,11 @@ export async function sendOrderConfirmation(input: SendOrderConfirmationInput): 
  */
 export async function updateInventory(input: UpdateInventoryInput): Promise<void> {
   // Placeholder: In production, this would update an inventory service
-  console.log(`[INVENTORY] Updating inventory for tenant ${input.tenantId}`);
+  logger.info(`[INVENTORY] Updating inventory for tenant ${input.tenantId}`);
 
   for (const item of input.items) {
     const delta = input.action === 'decrease' ? -item.quantity : item.quantity;
-    console.log(`  Product ${item.productId}: ${delta > 0 ? '+' : ''}${delta}`);
+    logger.info(`  Product ${item.productId}: ${delta > 0 ? '+' : ''}${delta}`);
   }
 
   // Publish inventory event

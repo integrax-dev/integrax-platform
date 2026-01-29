@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach } from 'vitest';
 import { TenantService } from '../tenantService';
 
 describe('TenantService', () => {
@@ -13,6 +14,7 @@ describe('TenantService', () => {
       plan: 'basic',
       ownerUserId: 'user1',
       limits: { rateLimit: 10, jobsPerMinute: 5, concurrency: 2 },
+      status: 'active',
     });
     expect(tenant).toHaveProperty('id');
     expect(tenant.name).toBe('TestTenant');
@@ -25,6 +27,7 @@ describe('TenantService', () => {
       plan: 'pro',
       ownerUserId: 'user2',
       limits: { rateLimit: 20, jobsPerMinute: 10, concurrency: 5 },
+      status: 'active',
     });
     expect(service.suspendTenant(tenant.id)).toBe(true);
     expect(service.getTenant(tenant.id)?.status).toBe('suspended');
@@ -38,6 +41,7 @@ describe('TenantService', () => {
       plan: 'enterprise',
       ownerUserId: 'user3',
       limits: { rateLimit: 50, jobsPerMinute: 25, concurrency: 10 },
+      status: 'active',
     });
     const newLimits = { rateLimit: 100, jobsPerMinute: 50, concurrency: 20 };
     expect(service.setLimits(tenant.id, newLimits)).toBe(true);
@@ -50,12 +54,14 @@ describe('TenantService', () => {
       plan: 'basic',
       ownerUserId: 'userA',
       limits: { rateLimit: 5, jobsPerMinute: 2, concurrency: 1 },
+      status: 'active',
     });
     service.createTenant({
       name: 'TenantB',
       plan: 'pro',
       ownerUserId: 'userB',
       limits: { rateLimit: 10, jobsPerMinute: 5, concurrency: 2 },
+      status: 'active',
     });
     const tenants = service.listTenants();
     expect(tenants.length).toBe(2);

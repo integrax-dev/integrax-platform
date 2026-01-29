@@ -385,4 +385,30 @@ describe('Contabilium Connector', () => {
       expect(steps.facturado).toBe(true);
     });
   });
+
+  describe('Contabilium Integration (real)', () => {
+    const { ContabiliumConnector } = require('../index');
+    const clientId = process.env.CONTABILIUM_CLIENT_ID;
+    const clientSecret = process.env.CONTABILIUM_CLIENT_SECRET;
+
+    it('should authenticate and get company info', async () => {
+      if (!clientId || !clientSecret) {
+        console.warn('Contabilium integration test skipped: set CONTABILIUM_CLIENT_ID y CONTABILIUM_CLIENT_SECRET');
+        return;
+      }
+      const connector = new ContabiliumConnector({ clientId, clientSecret });
+      let info = null;
+      let error = null;
+      try {
+        info = await connector.getCompanyInfo();
+      } catch (err) {
+        error = err;
+      }
+      if (error) {
+        console.error('Contabilium API error:', error);
+      }
+      expect(info).toBeDefined();
+      expect(info.RazonSocial).toBeDefined();
+    }, 10000);
+  });
 });

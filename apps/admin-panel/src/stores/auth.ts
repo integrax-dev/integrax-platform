@@ -1,3 +1,4 @@
+
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -24,24 +25,27 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isAuthenticated: false,
 
+
       login: async (email: string, password: string) => {
-        // In production, call the API
-        // For demo, accept any credentials
-        const mockUser: User = {
-          id: 'usr_demo',
-          email,
-          name: email.split('@')[0],
-          role: email.includes('admin') ? 'platform_admin' : 'tenant_admin',
-          tenantId: email.includes('admin') ? undefined : 'ten_demo',
-        };
-
-        const mockToken = `demo_token_${Date.now()}`;
-
-        set({
-          user: mockUser,
-          token: mockToken,
-          isAuthenticated: true,
-        });
+        try {
+          const res = await fetch('/api/admin/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+          });
+          if (!res.ok) {
+            throw new Error('Credenciales inválidas');
+          }
+          const data = await res.json();
+          set({
+            user: data.user,
+            token: data.token,
+            isAuthenticated: true,
+          });
+        } catch (err) {
+          set({ user: null, token: null, isAuthenticated: false });
+          throw err;
+        }
       },
 
       logout: () => {

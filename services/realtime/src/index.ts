@@ -77,10 +77,29 @@ export class RealtimeServer {
   private readonly config: Required<RealtimeConfig>;
 
   constructor(config: RealtimeConfig = {}) {
+    // Validate required config in production
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    if (isProduction && !config.jwtSecret && !process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET environment variable is required in production');
+    }
+
+    if (isProduction && !config.redisUrl && !process.env.REDIS_URL) {
+      throw new Error('REDIS_URL environment variable is required in production');
+    }
+
+    if (!process.env.JWT_SECRET && !config.jwtSecret) {
+      console.warn('[Realtime] WARNING: Using default JWT secret. Set JWT_SECRET in production!');
+    }
+
+    if (!process.env.REDIS_URL && !config.redisUrl) {
+      console.warn('[Realtime] WARNING: Using localhost Redis. Set REDIS_URL in production!');
+    }
+
     this.config = {
       port: config.port || parseInt(process.env.WS_PORT || '3003', 10),
       redisUrl: config.redisUrl || process.env.REDIS_URL || 'redis://localhost:6379',
-      jwtSecret: config.jwtSecret || process.env.JWT_SECRET || 'integrax-dev-secret',
+      jwtSecret: config.jwtSecret || process.env.JWT_SECRET || 'integrax-dev-secret-DO-NOT-USE-IN-PRODUCTION',
       pingInterval: config.pingInterval || 30000,
     };
   }

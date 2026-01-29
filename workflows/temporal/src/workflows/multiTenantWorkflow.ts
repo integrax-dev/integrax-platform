@@ -18,13 +18,13 @@ export type MultiTenantWorkflowOutput = {
 export async function multiTenantWorkflow(input: MultiTenantWorkflowInput): Promise<MultiTenantWorkflowOutput> {
   // En producción, validar tenant, límites, suspensión, etc.
   if (input.workflowType === 'order') {
-    // @ts-ignore
-    const { orderWorkflow } = await import('./order-workflow');
+    const mod = await import('./order-workflow');
+    const orderWorkflow = mod.orderWorkflow as (input: OrderWorkflowInput) => Promise<OrderWorkflowOutput>;
     const result = await orderWorkflow(input.payload as OrderWorkflowInput);
     return { tenantId: input.tenantId, workflowType: 'order', result };
   } else if (input.workflowType === 'payment') {
-    // @ts-ignore
-    const { paymentWorkflow } = await import('./payment-workflow');
+    const mod = await import('./payment-workflow');
+    const paymentWorkflow = mod.paymentWorkflow as (input: PaymentWorkflowInput) => Promise<PaymentWorkflowOutput>;
     const result = await paymentWorkflow(input.payload as PaymentWorkflowInput);
     return { tenantId: input.tenantId, workflowType: 'payment', result };
   }

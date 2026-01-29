@@ -1,3 +1,6 @@
+// Logger
+import { createLogger } from '../../../workers/ts/src/logger.js';
+const logger = createLogger('temporal-worker');
 /**
  * Temporal Worker
  *
@@ -19,22 +22,17 @@ const TASK_QUEUE = process.env.TEMPORAL_TASK_QUEUE || 'integrax-workflows';
 const TEMPORAL_ADDRESS = process.env.TEMPORAL_ADDRESS || 'localhost:7233';
 
 async function run() {
-  console.log(`
-╔═══════════════════════════════════════════════════════════╗
-║   INTEGRAX - Temporal Worker                              ║
-╠═══════════════════════════════════════════════════════════╣
-║   Task Queue: ${TASK_QUEUE.padEnd(40)}║
-║   Temporal:   ${TEMPORAL_ADDRESS.padEnd(40)}║
-╚═══════════════════════════════════════════════════════════╝
-`);
+  logger.info(`INTEGRAX - Temporal Worker`);
+  logger.info(`Task Queue: ${TASK_QUEUE}`);
+  logger.info(`Temporal:   ${TEMPORAL_ADDRESS}`);
 
   // Connect to Temporal server
-  console.log('Connecting to Temporal server...');
+  logger.info('Connecting to Temporal server...');
   const connection = await NativeConnection.connect({
     address: TEMPORAL_ADDRESS,
   });
 
-  console.log('Connection established. Starting worker...');
+  logger.info('Connection established. Starting worker...');
 
   // Create and start worker
   const worker = await Worker.create({
@@ -49,15 +47,15 @@ async function run() {
     },
   });
 
-  console.log(`Worker started. Listening on task queue: ${TASK_QUEUE}`);
-  console.log('Press Ctrl+C to stop.\n');
+  logger.info(`Worker started. Listening on task queue: ${TASK_QUEUE}`);
+  logger.info('Press Ctrl+C to stop.');
 
   // Handle shutdown
   const shutdown = async () => {
-    console.log('\nShutting down worker...');
+    logger.info('Shutting down worker...');
     await worker.shutdown();
     await connection.close();
-    console.log('Worker stopped.');
+    logger.info('Worker stopped.');
     process.exit(0);
   };
 

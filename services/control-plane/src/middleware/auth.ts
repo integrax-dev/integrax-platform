@@ -21,10 +21,22 @@ declare global {
   }
 }
 
-// JWT secret (should come from environment in production)
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'integrax-dev-secret-change-in-production'
-);
+// JWT secret - REQUIRED in production
+function getJwtSecret(): Uint8Array {
+  const secret = process.env.JWT_SECRET;
+
+  if (!secret && process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET environment variable is required in production');
+  }
+
+  if (!secret) {
+    console.warn('[Auth] WARNING: Using default JWT secret. Set JWT_SECRET in production!');
+  }
+
+  return new TextEncoder().encode(secret || 'integrax-dev-secret-DO-NOT-USE-IN-PRODUCTION');
+}
+
+const JWT_SECRET = getJwtSecret();
 
 /**
  * Authenticate request via JWT or API key

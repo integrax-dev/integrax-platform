@@ -90,7 +90,7 @@ function validateFacturaRequest(req: FacturaRequest): string[] {
     errors.push('PtoVta debe estar entre 1 y 99999');
   }
 
-  if (!Object.values(TipoComprobante).includes(req.CbteTipo)) {
+  if (!(Object.values(TipoComprobante) as unknown as number[]).includes(req.CbteTipo)) {
     errors.push('CbteTipo inválido');
   }
 
@@ -98,7 +98,7 @@ function validateFacturaRequest(req: FacturaRequest): string[] {
     errors.push('Concepto debe ser 1, 2 o 3');
   }
 
-  if (!Object.values(TipoDocumento).includes(req.DocTipo)) {
+  if (!(Object.values(TipoDocumento) as unknown as number[]).includes(req.DocTipo)) {
     errors.push('DocTipo inválido');
   }
 
@@ -467,5 +467,41 @@ describe('AFIP WSFE Connector', () => {
       expect(facturaAInput.docTipo).toBe(80);
       expect(facturaAInput.fechaServicioDesde).toBeDefined();
     });
+  });
+
+  describe('AFIP WSFE Integration (real WSAA)', () => {
+    const { AfipWsfeConnector } = require('../index');
+
+    const cuit = process.env.AFIP_CUIT;
+    const certificate = process.env.AFIP_CERT_PATH ? require('fs').readFileSync(process.env.AFIP_CERT_PATH, 'utf8') : undefined;
+    const privateKey = process.env.AFIP_KEY_PATH ? require('fs').readFileSync(process.env.AFIP_KEY_PATH, 'utf8') : undefined;
+    const environment = process.env.AFIP_ENVIRONMENT || 'testing';
+
+    it('should authenticate with AFIP WSAA (CMS/PKCS#7)', async () => {
+      if (!cuit || !certificate || !privateKey) {
+        console.warn('AFIP integration test skipped: set AFIP_CUIT, AFIP_CERT_PATH, AFIP_KEY_PATH env vars');
+        return;
+      }
+      const connector = new AfipWsfeConnector({
+        cuit,
+        certificate,
+        privateKey,
+        environment,
+      });
+      let error = null;
+      let token = null;
+      try {
+        token = await connector.authenticate();
+      } catch (err) {
+        error = err;
+      }
+      if (error) {
+        console.error('AFIP WSAA auth error:', error);
+      }
+      expect(token).toBeDefined();
+      expect(token.token).toBeDefined();
+      expect(token.sign).toBeDefined();
+      expect(token.expirationTime).toBeInstanceOf(Date);
+    }, 20000);
   });
 });

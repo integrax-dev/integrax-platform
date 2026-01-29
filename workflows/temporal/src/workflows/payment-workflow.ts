@@ -1,3 +1,5 @@
+import { createLogger } from '../../../../workers/ts/src/logger.js';
+const logger = createLogger('payment-workflow');
 /**
  * Payment Processing Workflow
  *
@@ -66,12 +68,12 @@ export async function paymentWorkflow(input: PaymentWorkflowInput): Promise<Paym
   // Set up signal handlers
   setHandler(cancelPaymentSignal, (reason: string) => {
     cancelled = true;
-    console.log(`Payment ${input.paymentId} cancelled: ${reason}`);
+    logger.info(`Payment ${input.paymentId} cancelled: ${reason}`);
   });
 
   setHandler(retryStepSignal, (step: string) => {
     retryStep = step;
-    console.log(`Retrying step: ${step}`);
+    logger.info(`Retrying step: ${step}`);
   });
 
   // Check for cancellation

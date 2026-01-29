@@ -1,16 +1,38 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './Pages.css';
 
-const mockTenants = [
-  { id: 'ten_001', name: 'Tienda ABC', plan: 'professional', status: 'active', events: 4521, created: '2024-01-15' },
-  { id: 'ten_002', name: 'Empresa XYZ', plan: 'enterprise', status: 'active', events: 12340, created: '2024-01-10' },
-  { id: 'ten_003', name: 'Negocio 123', plan: 'starter', status: 'active', events: 890, created: '2024-02-01' },
-  { id: 'ten_004', name: 'Shop Online', plan: 'professional', status: 'suspended', events: 2100, created: '2024-01-20' },
-  { id: 'ten_005', name: 'Mi PyME', plan: 'free', status: 'active', events: 156, created: '2024-02-10' },
-];
+
+type Tenant = {
+  id: string;
+  name: string;
+  plan: string;
+  status: string;
+  events: number;
+  created: string;
+};
 
 export function Tenants() {
   const [showModal, setShowModal] = useState(false);
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string|null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch('/api/admin/tenants')
+      .then(res => {
+        if (!res.ok) throw new Error('Error al cargar tenants');
+        return res.json();
+      })
+      .then(data => {
+        setTenants(data.tenants || []);
+        setLoading(false);
+      })
+      .catch(err => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, []);
 
   return (
     <div className="page">
@@ -37,7 +59,13 @@ export function Tenants() {
             </tr>
           </thead>
           <tbody>
-            {mockTenants.map((tenant) => (
+            {loading ? (
+              <tr><td colSpan={6}>Cargando...</td></tr>
+            ) : error ? (
+              <tr><td colSpan={6} style={{color:'red'}}>{error}</td></tr>
+            ) : tenants.length === 0 ? (
+              <tr><td colSpan={6}>No hay tenants</td></tr>
+            ) : tenants.map((tenant) => (
               <tr key={tenant.id}>
                 <td>
                   <div className="tenant-name">

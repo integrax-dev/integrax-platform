@@ -1,15 +1,38 @@
 import './Pages.css';
+import { useEffect, useState } from 'react';
 
-const mockEvents = [
-  { id: 'evt_001', type: 'payment.approved', tenant: 'Tienda ABC', connector: 'mercadopago', status: 'processed', time: '2024-02-15 14:32:01' },
-  { id: 'evt_002', type: 'invoice.created', tenant: 'Tienda ABC', connector: 'afip-wsfe', status: 'processed', time: '2024-02-15 14:32:05' },
-  { id: 'evt_003', type: 'message.sent', tenant: 'Tienda ABC', connector: 'whatsapp', status: 'processed', time: '2024-02-15 14:32:08' },
-  { id: 'evt_004', type: 'order.created', tenant: 'Empresa XYZ', connector: 'tiendanube', status: 'failed', time: '2024-02-15 14:30:15', error: 'Timeout' },
-  { id: 'evt_005', type: 'payment.pending', tenant: 'Negocio 123', connector: 'mercadopago', status: 'pending', time: '2024-02-15 14:28:45' },
-  { id: 'evt_006', type: 'stock.updated', tenant: 'Shop Online', connector: 'contabilium', status: 'dlq', time: '2024-02-15 14:25:00', error: 'Rate limit' },
-];
+type Event = {
+  id: string;
+  type: string;
+  tenant: string;
+  connector: string;
+  status: string;
+  time: string;
+  error?: string;
+};
 
 export function Events() {
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string|null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch('/api/admin/events')
+      .then(res => {
+        if (!res.ok) throw new Error('Error al cargar eventos');
+        return res.json();
+      })
+      .then(data => {
+        setEvents(data.events || []);
+        setLoading(false);
+      })
+      .catch(err => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, []);
+
   return (
     <div className="page">
       <div className="page-header">
@@ -48,7 +71,13 @@ export function Events() {
             </tr>
           </thead>
           <tbody>
-            {mockEvents.map((event) => (
+            {loading ? (
+              <tr><td colSpan={7}>Cargando...</td></tr>
+            ) : error ? (
+              <tr><td colSpan={7} style={{color:'red'}}>{error}</td></tr>
+            ) : events.length === 0 ? (
+              <tr><td colSpan={7}>No hay eventos</td></tr>
+            ) : events.map((event) => (
               <tr key={event.id}>
                 <td><code className="text-xs">{event.id}</code></td>
                 <td><code className="event-type">{event.type}</code></td>

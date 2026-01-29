@@ -1,3 +1,5 @@
+import { createLogger } from '../../../workers/ts/src/logger.js';
+const logger = createLogger('temporal-client');
 /**
  * Temporal Client Service
  *
@@ -43,7 +45,7 @@ export class TemporalClientService {
       namespace: this.config.namespace,
     });
 
-    console.log(`[Temporal] Connected to ${this.config.address}`);
+    logger.info(`[Temporal] Connected to ${this.config.address}`);
   }
 
   async disconnect(): Promise<void> {
@@ -86,7 +88,7 @@ export class TemporalClientService {
       args: [input],
     });
 
-    console.log(`[Temporal] Started workflow ${id} for tenant ${tenantId}`);
+    logger.info(`[Temporal] Started workflow ${id} for tenant ${tenantId}`);
     return handle;
   }
 
@@ -134,7 +136,7 @@ export class TemporalClientService {
   async cancelWorkflow(workflowId: string): Promise<void> {
     const handle = this.getHandle(workflowId);
     await handle.cancel();
-    console.log(`[Temporal] Cancelled workflow ${workflowId}`);
+    logger.info(`[Temporal] Cancelled workflow ${workflowId}`);
   }
 
   /**
@@ -147,7 +149,7 @@ export class TemporalClientService {
     } else {
       await handle.signal(signalName);
     }
-    console.log(`[Temporal] Sent signal ${signalName} to workflow ${workflowId}`);
+    logger.info(`[Temporal] Sent signal ${signalName} to workflow ${workflowId}`);
   }
 
   /**

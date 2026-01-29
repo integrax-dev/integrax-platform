@@ -417,4 +417,58 @@ describe('Email Connector', () => {
       expect(poolConfig.maxConnections).toBe(5);
     });
   });
+
+  describe('Email Integration (real)', () => {
+    const { EmailConnector } = require('../index');
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    const smtpFrom = process.env.SMTP_FROM_EMAIL || smtpUser;
+    const smtpTo = process.env.SMTP_TO_EMAIL || smtpUser;
+
+    it('should connect to SMTP and verify', async () => {
+      if (!smtpHost || !smtpUser || !smtpPass) {
+        console.warn('Email integration test skipped: set SMTP_HOST, SMTP_USER, SMTP_PASS');
+        return;
+      }
+      const connector = new EmailConnector();
+      await connector.connect({
+        type: 'basic',
+        credentials: { provider: 'smtp', host: smtpHost, user: smtpUser, pass: smtpPass },
+      });
+      const verified = await connector.verify();
+      expect(verified).toBe(true);
+      await connector.disconnect();
+    }, 10000);
+
+    it('should connect and send a test email', async () => {
+      if (!smtpHost || !smtpUser || !smtpPass) {
+        console.warn('Email integration test skipped: set SMTP_HOST, SMTP_USER, SMTP_PASS');
+        return;
+      }
+      const connector = new EmailConnector();
+      await connector.connect({
+        type: 'basic',
+        credentials: { provider: 'smtp', host: smtpHost, user: smtpUser, pass: smtpPass },
+      });
+      let result = null;
+      let error = null;
+      try {
+        result = await connector.sendEmail({
+          from: smtpFrom,
+          to: smtpTo,
+          subject: 'Test IntegraX',
+          text: 'Test de integración SMTP',
+        });
+      } catch (err) {
+        error = err;
+      }
+      await connector.disconnect();
+      if (error) {
+        console.error('SMTP error:', error);
+      }
+      expect(result).toBeDefined();
+      expect(result.success).toBe(true);
+    }, 15000);
+  });
 });
