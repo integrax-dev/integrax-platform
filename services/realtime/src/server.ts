@@ -8,6 +8,16 @@ import { RealtimeServer } from './index.js';
 
 const PORT = parseInt(process.env.WS_PORT || '3003', 10);
 
+if (!process.env.JWT_SECRET) {
+  console.error('[Realtime] FATAL: JWT_SECRET environment variable is not set');
+  process.exit(1);
+}
+
+if (!process.env.REDIS_URL) {
+  console.error('[Realtime] FATAL: REDIS_URL environment variable is not set');
+  process.exit(1);
+}
+
 async function main() {
   console.log(`
 ╔═══════════════════════════════════════════════════════════════╗
@@ -37,10 +47,11 @@ async function main() {
 
   await server.start();
 
+  const HOST = process.env.HOST || '0.0.0.0';
   console.log(`
-Realtime Server running on ws://localhost:${PORT}
+Realtime Server running on ws://${HOST}:${PORT}
 
-Connection URL: ws://localhost:${PORT}?token=<JWT_TOKEN>
+Connection URL: ws://${HOST}:${PORT}?token=<JWT_TOKEN>
 
 Channels:
   - workflows    Workflow execution events
@@ -50,7 +61,7 @@ Channels:
   - system       Connection status
 
 Example client connection:
-  const ws = new WebSocket('ws://localhost:${PORT}?token=YOUR_JWT');
+  const ws = new WebSocket('ws://' + HOST + ':${PORT}?token=YOUR_JWT');
   ws.send(JSON.stringify({ type: 'subscribe', channel: 'workflows' }));
 `);
 

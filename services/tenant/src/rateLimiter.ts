@@ -6,7 +6,7 @@
  */
 import { Request, Response, NextFunction } from 'express';
 import { Redis } from 'ioredis';
-import { Tenant } from './types';
+import { Tenant } from './types.js';
 
 // Redis client (singleton)
 let redis: Redis | null = null;

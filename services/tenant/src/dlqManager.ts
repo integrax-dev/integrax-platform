@@ -5,7 +5,7 @@
  * Falls back to in-memory for development.
  */
 import { Redis } from 'ioredis';
-import { Event } from './types';
+import { Event } from './types.js';
 
 // Redis client (singleton)
 let redis: Redis | null = null;

@@ -4,7 +4,9 @@
 
 import { Request, Response, NextFunction } from 'express';
 import * as jose from 'jose';
-import { UserRole } from '../types';
+import * as bcrypt from 'bcrypt';
+import { UserRole } from '../types.js';
+import { tenants } from '../store/tenants.js';
 
 // Extend Express Request type
 declare global {
@@ -95,12 +97,34 @@ export async function requireAuth(
         });
       }
 
-      // TODO: Validate API key against tenant's stored hash
-      // For now, accept any key format ixk_*
+      // Validate API key against tenant's stored hash
       if (!apiKey.startsWith('ixk_')) {
         return res.status(401).json({
           success: false,
           error: { code: 'INVALID_API_KEY', message: 'Invalid API key format' },
+        });
+      }
+
+      const tenant = tenants.get(tenantId);
+      if (!tenant) {
+        return res.status(401).json({
+          success: false,
+          error: { code: 'INVALID_TENANT', message: 'Tenant not found or deleted' },
+        });
+      }
+
+      if (tenant.status !== 'active') {
+        return res.status(403).json({
+          success: false,
+          error: { code: 'TENANT_INACTIVE', message: `Tenant status is ${tenant.status}` },
+        });
+      }
+
+      const isValidKey = await bcrypt.compare(apiKey, tenant.apiKeyHash);
+      if (!isValidKey) {
+        return res.status(401).json({
+          success: false,
+          error: { code: 'UNAUTHORIZED_API_KEY', message: 'Invalid API Key' },
         });
       }
 

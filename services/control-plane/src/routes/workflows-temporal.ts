@@ -11,7 +11,7 @@ import { audit } from '../middleware/audit.js';
 import { validate } from '../middleware/validate.js';
 import { z } from 'zod';
 
-const router = Router();
+const router: Router = Router();
 
 // Temporal client (singleton per worker)
 let temporalClient: TemporalClientService | null = null;
@@ -26,28 +26,26 @@ async function getTemporalClient(): Promise<TemporalClientService> {
 
 // Schemas
 const startPaymentSchema = z.object({
-  orderId: z.string(),
-  amount: z.number().positive(),
-  currency: z.string().default('ARS'),
-  provider: z.enum(['mercadopago', 'stripe', 'manual']),
-  customerEmail: z.string().email(),
-  metadata: z.record(z.unknown()).optional(),
+  paymentId: z.string().optional(),
+  source: z.enum(['webhook', 'api', 'cdc']).default('api'),
 });
 
 const startOrderSchema = z.object({
-  customerId: z.string(),
+  orderId: z.string().optional(),
+  customer: z.object({
+    email: z.string().email(),
+    name: z.string(),
+    taxId: z.string().optional(),
+  }),
   items: z.array(z.object({
     productId: z.string(),
+    name: z.string(),
     quantity: z.number().positive(),
-    price: z.number().positive(),
+    unitPrice: z.number().positive(),
   })),
-  shippingAddress: z.object({
-    street: z.string(),
-    city: z.string(),
-    state: z.string(),
-    country: z.string().default('AR'),
-    postalCode: z.string(),
-  }),
+  totalAmount: z.number().positive(),
+  currency: z.string().default('ARS'),
+  paymentMethod: z.string().optional(),
   metadata: z.record(z.unknown()).optional(),
 });
 
@@ -67,19 +65,16 @@ router.post(
       const client = await getTemporalClient();
 
       const handle = await client.startPayment(tenantId, {
-        orderId: req.body.orderId,
-        amount: req.body.amount,
-        currency: req.body.currency,
-        provider: req.body.provider,
-        customerEmail: req.body.customerEmail,
-        metadata: req.body.metadata,
+        paymentId: req.body.paymentId || `pay-${Date.now()}`,
+        tenantId,
+        correlationId: (req.headers['x-correlation-id'] as string) || `corr-${Date.now()}`,
+        source: (req.body.source as any) || 'api',
       });
 
       res.status(201).json({
         success: true,
         data: {
           workflowId: handle.workflowId,
-          runId: handle.firstExecutionRunId,
           status: 'RUNNING',
         },
       });
@@ -112,17 +107,20 @@ router.post(
       const client = await getTemporalClient();
 
       const handle = await client.startOrder(tenantId, {
-        customerId: req.body.customerId,
+        orderId: req.body.orderId || `order-${Date.now()}`,
+        tenantId,
+        correlationId: (req.headers['x-correlation-id'] as string) || `corr-${Date.now()}`,
+        customer: req.body.customer,
         items: req.body.items,
-        shippingAddress: req.body.shippingAddress,
-        metadata: req.body.metadata,
+        totalAmount: req.body.totalAmount,
+        currency: req.body.currency,
+        paymentMethod: req.body.paymentMethod,
       });
 
       res.status(201).json({
         success: true,
         data: {
           workflowId: handle.workflowId,
-          runId: handle.firstExecutionRunId,
           status: 'RUNNING',
         },
       });

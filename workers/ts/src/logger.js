@@ -1,0 +1,24 @@
+import pinoImport from 'pino';
+import { config } from './config.js';
+const transport = config.NODE_ENV === 'development'
+    ? {
+        target: 'pino-pretty',
+        options: {
+            colorize: true,
+            translateTime: 'SYS:standard',
+            ignore: 'pid,hostname',
+        },
+    }
+    : undefined;
+export function createLogger(name) {
+    const pino = typeof pinoImport === 'function' ? pinoImport : pinoImport.default;
+    return pino({
+        name,
+        level: config.LOG_LEVEL,
+        transport,
+        base: {
+            service: 'integrax-worker',
+        },
+    });
+}
+//# sourceMappingURL=logger.js.map

@@ -11,13 +11,21 @@
   },
   "dependencies": {
     "@integrax/connector-sdk": "workspace:*",
-    "nodemailer": "^6.9.8"
+    "nodemailer": "^6.9.8",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/nodemailer": "^6.4.14",
     "typescript": "^5.3.3",
     "vitest": "^1.2.0"
   },
-  "keywords": ["integrax", "connector", "email", "smtp", "nodemailer", "transactional"],
+  "keywords": [
+    "integrax",
+    "connector",
+    "email",
+    "smtp",
+    "nodemailer",
+    "transactional"
+  ],
   "license": "MIT"
 }

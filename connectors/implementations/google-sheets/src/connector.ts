@@ -225,8 +225,7 @@ export class GoogleSheetsConnector extends BaseConnector {
     const client = this.createClient(context.credentials);
 
     const response = await client.get<GoogleValuesResponse>(
-      `/spreadsheets/${input.spreadsheetId}/values/${encodeURIComponent(input.range)}`,
-      { majorDimension: input.majorDimension }
+      `/spreadsheets/${input.spreadsheetId}/values/${encodeURIComponent(input.range)}?majorDimension=${input.majorDimension || 'ROWS'}`
     );
 
     return {
@@ -240,9 +239,8 @@ export class GoogleSheetsConnector extends BaseConnector {
     const client = this.createClient(context.credentials);
 
     const response = await client.put<GoogleUpdateResponse>(
-      `/spreadsheets/${input.spreadsheetId}/values/${encodeURIComponent(input.range)}`,
-      { values: input.values },
-      { valueInputOption: input.valueInputOption }
+      `/spreadsheets/${input.spreadsheetId}/values/${encodeURIComponent(input.range)}?valueInputOption=${input.valueInputOption || 'USER_ENTERED'}`,
+      { values: input.values }
     );
 
     return {
@@ -258,12 +256,8 @@ export class GoogleSheetsConnector extends BaseConnector {
     const client = this.createClient(context.credentials);
 
     const response = await client.post<GoogleAppendResponse>(
-      `/spreadsheets/${input.spreadsheetId}/values/${encodeURIComponent(input.range)}:append`,
-      { values: input.values },
-      {
-        valueInputOption: input.valueInputOption,
-        insertDataOption: input.insertDataOption,
-      }
+      `/spreadsheets/${input.spreadsheetId}/values/${encodeURIComponent(input.range)}:append?valueInputOption=${input.valueInputOption || 'USER_ENTERED'}&insertDataOption=${input.insertDataOption || 'INSERT_ROWS'}`,
+      { values: input.values }
     );
 
     return {
@@ -392,7 +386,7 @@ interface GoogleSpreadsheetResponse {
 
 interface GoogleValuesResponse {
   range: string;
-  majorDimension?: string;
+  majorDimension?: 'ROWS' | 'COLUMNS';
   values?: Array<Array<string | number | boolean | null>>;
 }
 

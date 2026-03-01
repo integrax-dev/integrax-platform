@@ -5,8 +5,8 @@
  * Falls back to in-memory for development.
  */
 import { Kafka, Producer, Consumer, EachMessagePayload } from 'kafkajs';
-import { Event } from './types';
-import { moveToDLQ } from './dlqManager';
+import { Event } from './types.js';
+import { moveToDLQ } from './dlqManager.js';
 
 // Kafka clients
 let kafka: Kafka | null = null;

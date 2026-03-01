@@ -11,13 +11,20 @@
 import { Kafka, Consumer, EachMessagePayload, logLevel } from 'kafkajs';
 import { Client, Connection } from '@temporalio/client';
 import { config } from 'dotenv';
+import { createLogger } from '@integrax/logger';
+import express from 'express';
 
 config();
 
-// Configuration
-const KAFKA_BROKERS = (process.env.KAFKA_BROKERS || 'localhost:9092').split(',');
+const logger = createLogger({ service: 'kafka-consumer', version: '0.1.0' });
+
+const KAFKA_BROKERS = (process.env.KAFKA_BROKERS || '').split(',').filter(Boolean);
+if (KAFKA_BROKERS.length === 0) throw new Error('KAFKA_BROKERS env var is required');
+
 const KAFKA_GROUP_ID = process.env.KAFKA_GROUP_ID || 'integrax-consumer';
-const TEMPORAL_ADDRESS = process.env.TEMPORAL_ADDRESS || 'localhost:7233';
+const TEMPORAL_ADDRESS = process.env.TEMPORAL_ADDRESS as string;
+if (!TEMPORAL_ADDRESS) throw new Error('TEMPORAL_ADDRESS env var is required');
+
 const TEMPORAL_TASK_QUEUE = process.env.TEMPORAL_TASK_QUEUE || 'integrax-workflows';
 
 // Topics to subscribe
@@ -80,7 +87,7 @@ async function handleCDCEvent(topic: string, event: DebeziumEvent): Promise<void
   const table = payload.source.table;
   const operation = payload.op;
 
-  console.log(`[CDC] ${table}.${operation}`);
+  logger.info({ table, operation: operation }, 'CDC event');
 
   const client = await getTemporalClient();
 
@@ -93,7 +100,7 @@ async function handleCDCEvent(topic: string, event: DebeziumEvent): Promise<void
     const eventType = record.event_type as string;
     const eventPayload = record.payload as Record<string, unknown>;
 
-    console.log(`[OUTBOX] ${aggregateType}.${eventType}`);
+    logger.info({ aggregateType, eventType }, 'Outbox event');
 
     // Route to appropriate workflow based on aggregate type
     switch (aggregateType) {
@@ -130,7 +137,7 @@ async function handleCDCEvent(topic: string, event: DebeziumEvent): Promise<void
 
     // Only trigger workflow for new payments or status changes
     if (operation === 'c' || payload.before?.status !== record.status) {
-      console.log(`[PAYMENT] ${record.external_id} -> ${record.status}`);
+      logger.info({ paymentId: record.external_id, status: record.status }, 'Payment CDC');
 
       await client.workflow.start('paymentWorkflow', {
         taskQueue: TEMPORAL_TASK_QUEUE,
@@ -150,7 +157,7 @@ async function handleCDCEvent(topic: string, event: DebeziumEvent): Promise<void
 
 // Handle business events
 async function handleBusinessEvent(topic: string, event: BusinessEvent): Promise<void> {
-  console.log(`[EVENT] ${event.eventType} - ${event.correlationId}`);
+  logger.info({ eventType: event.eventType, correlationId: event.correlationId }, 'Business event');
 
   const client = await getTemporalClient();
 
@@ -184,7 +191,7 @@ async function handleBusinessEvent(topic: string, event: BusinessEvent): Promise
         await handle.signal('cancelOrder', event.data.reason || 'Cancelled by user');
       }
     } catch (error) {
-      console.log(`[ORDER] Workflow not found, starting new one`);
+      logger.warn({ orderId: event.data.orderId }, 'Order workflow not found, skipping signal');
       // Workflow doesn't exist, might need to create one
     }
   }
@@ -223,24 +230,16 @@ async function handleMessage({ topic, partition, message }: EachMessagePayload):
     } else if (value.eventType) {
       await handleBusinessEvent(topic, value as BusinessEvent);
     } else {
-      console.log(`[UNKNOWN] ${topic}: ${JSON.stringify(value).substring(0, 100)}...`);
+      logger.warn({ topic }, 'Unknown message format');
     }
   } catch (error) {
-    console.error(`[ERROR] Failed to process message:`, error);
+    logger.error({ err: error, topic }, 'Failed to process message');
   }
 }
 
 // Main
 async function main() {
-  console.log(`
-╔═══════════════════════════════════════════════════════════╗
-║   INTEGRAX - Kafka Consumer                               ║
-╠═══════════════════════════════════════════════════════════╣
-║   Brokers:    ${KAFKA_BROKERS.join(', ').padEnd(40)}║
-║   Group ID:   ${KAFKA_GROUP_ID.padEnd(40)}║
-║   Temporal:   ${TEMPORAL_ADDRESS.padEnd(40)}║
-╚═══════════════════════════════════════════════════════════╝
-`);
+  logger.info({ brokers: KAFKA_BROKERS, groupId: KAFKA_GROUP_ID, temporal: TEMPORAL_ADDRESS }, 'Starting kafka-consumer');
 
   // Create Kafka consumer
   const kafka = new Kafka({
@@ -252,24 +251,31 @@ async function main() {
   const consumer = kafka.consumer({ groupId: KAFKA_GROUP_ID });
 
   // Connect to Temporal (validate connection)
-  console.log('Connecting to Temporal...');
+  logger.info('Connecting to Temporal...');
   await getTemporalClient();
-  console.log('Temporal connected.');
+  logger.info('Temporal connected');
 
   // Connect to Kafka
-  console.log('Connecting to Kafka...');
+  logger.info('Connecting to Kafka...');
   await consumer.connect();
-  console.log('Kafka connected.');
+  logger.info('Kafka connected');
 
   // Subscribe to topics
-  console.log(`Subscribing to topics: ${TOPICS.join(', ')}`);
+  logger.info({ topics: TOPICS }, 'Subscribing to topics');
   await consumer.subscribe({
     topics: TOPICS,
     fromBeginning: false,
   });
 
+  // Health HTTP sidecar
+  const healthPort = parseInt(process.env.HEALTH_PORT || '3001', 10);
+  const healthApp = express();
+  healthApp.get('/health', (_req, res) => res.json({ status: 'healthy', service: 'kafka-consumer' }));
+  healthApp.get('/ready', (_req, res) => res.json({ status: 'healthy', service: 'kafka-consumer' }));
+  healthApp.listen(healthPort, () => { logger.info({ healthPort }, 'Health sidecar running'); });
+
   // Run consumer
-  console.log('Consumer running. Press Ctrl+C to stop.\n');
+  logger.info('Consumer running');
 
   await consumer.run({
     eachMessage: handleMessage,
@@ -277,12 +283,12 @@ async function main() {
 
   // Handle shutdown
   const shutdown = async () => {
-    console.log('\nShutting down...');
+    logger.info('Shutting down...');
     await consumer.disconnect();
     if (temporalClient) {
       await temporalClient.connection.close();
     }
-    console.log('Consumer stopped.');
+    logger.info('Consumer stopped');
     process.exit(0);
   };
 
@@ -291,6 +297,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('Consumer error:', err);
+  logger.fatal({ err }, 'Consumer fatal error');
   process.exit(1);
 });

@@ -1,6 +1,5 @@
 // Logger
-import { createLogger } from '../../../workers/ts/src/logger.js';
-const logger = createLogger('temporal-worker');
+import { logger } from '../utils/logger.js';
 /**
  * Temporal Worker
  *
@@ -19,7 +18,8 @@ import * as orderActivities from '../activities/order-activities.js';
 import * as connectorActivities from '../activities/connector-activities.js';
 
 const TASK_QUEUE = process.env.TEMPORAL_TASK_QUEUE || 'integrax-workflows';
-const TEMPORAL_ADDRESS = process.env.TEMPORAL_ADDRESS || 'localhost:7233';
+const TEMPORAL_ADDRESS = process.env.TEMPORAL_ADDRESS;
+if (!TEMPORAL_ADDRESS) throw new Error('TEMPORAL_ADDRESS env var is required');
 
 async function run() {
   logger.info(`INTEGRAX - Temporal Worker`);

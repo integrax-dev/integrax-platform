@@ -2,29 +2,31 @@
   "name": "@integrax/realtime",
   "version": "0.1.0",
   "private": true,
+  "description": "WebSocket server for real-time notifications",
   "type": "module",
-  "description": "WebSocket server for IntegraX real-time notifications",
   "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "dev": "tsx watch src/server.ts",
-    "start": "node dist/server.js",
-    "test": "vitest run"
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js"
   },
   "dependencies": {
-    "ws": "^8.16.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
     "ioredis": "^5.3.2",
     "jsonwebtoken": "^9.0.2",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.1",
+    "ws": "^8.14.2",
+    "@integrax/logger": "workspace:*",
+    "@integrax/health": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^20.10.0",
-    "@types/ws": "^8.5.10",
+    "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.5",
+    "@types/node": "^20.10.0",
     "@types/uuid": "^9.0.7",
-    "typescript": "^5.3.0",
+    "@types/ws": "^8.5.10",
     "tsx": "^4.6.2",
-    "vitest": "^1.0.0"
+    "typescript": "^5.3.0"
   }
 }

@@ -11,13 +11,13 @@ import {
   CreateWorkflowSchema,
   WorkflowStatus,
   RunStatus,
-} from '../types';
-import { requireAuth, requireRole, requireTenant } from '../middleware/auth';
-import { audit } from '../middleware/audit';
-import { validate } from '../middleware/validate';
+} from '../types.js';
+import { requireAuth, requireRole, requireTenant } from '../middleware/auth.js';
+import { audit } from '../middleware/audit.js';
+import { validate } from '../middleware/validate.js';
 import { getTemporalClient, TemporalClientService } from '@integrax/temporal-workflows';
 
-const router = Router();
+const router: Router = Router();
 
 // Temporal client instance (lazy initialization)
 let temporalClient: TemporalClientService | null = null;
@@ -424,7 +424,7 @@ router.get(
       ...run,
       input: maskSecrets(run.input),
       output: run.output ? maskSecrets(run.output) : null,
-      steps: run.steps.map((s) => ({
+      steps: run.steps.map((s: any) => ({
         ...s,
         input: maskSecrets(s.input),
         output: s.output ? maskSecrets(s.output) : null,
@@ -497,7 +497,7 @@ router.post(
     if (temporal) {
       try {
         // Determine workflow type based on trigger or default to order
-        const workflowType = workflow.trigger?.type === 'payment.approved' ? 'payment' : 'order';
+        const workflowType = (workflow.trigger?.type as any) === 'payment.approved' ? 'payment' : 'order';
 
         // Start workflow in Temporal
         const handle = await temporal.startWorkflow(
@@ -518,7 +518,7 @@ router.post(
 
         // Start background task to update run status when workflow completes
         handle.result().then(
-          (result) => {
+          (result: any) => {
             const storedRun = workflowRuns.get(runId);
             if (storedRun) {
               storedRun.status = 'success';

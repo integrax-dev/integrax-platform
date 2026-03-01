@@ -1,5 +1,4 @@
-import { createLogger } from '../../../../workers/ts/src/logger.js';
-const logger = createLogger('payment-activities');
+import { logger } from '../utils/logger.js';
 /**
  * Payment Activities
  *
@@ -59,11 +58,15 @@ let pool: Pool | null = null;
 
 function getPool(): Pool {
   if (!pool) {
+    if (!process.env.POSTGRES_HOST) throw new Error('POSTGRES_HOST is required');
+    if (!process.env.POSTGRES_USER) throw new Error('POSTGRES_USER is required');
+    if (!process.env.POSTGRES_PASSWORD) throw new Error('POSTGRES_PASSWORD is required');
+
     pool = new Pool({
-      host: process.env.POSTGRES_HOST || 'localhost',
+      host: process.env.POSTGRES_HOST,
       port: parseInt(process.env.POSTGRES_PORT || '5432'),
-      user: process.env.POSTGRES_USER || 'integrax',
-      password: process.env.POSTGRES_PASSWORD || 'integrax',
+      user: process.env.POSTGRES_USER,
+      password: process.env.POSTGRES_PASSWORD,
       database: process.env.POSTGRES_DB || 'integrax',
     });
   }
@@ -75,9 +78,10 @@ let kafka: Kafka | null = null;
 
 function getKafka(): Kafka {
   if (!kafka) {
+    if (!process.env.KAFKA_BROKERS) throw new Error('KAFKA_BROKERS is required');
     kafka = new Kafka({
       clientId: 'integrax-temporal-worker',
-      brokers: (process.env.KAFKA_BROKERS || 'localhost:9092').split(','),
+      brokers: process.env.KAFKA_BROKERS.split(','),
     });
   }
   return kafka;

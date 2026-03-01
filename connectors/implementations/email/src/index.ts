@@ -11,13 +11,13 @@
 
 import {
   BaseConnector,
-  ConnectorMetadata,
-  ConnectorCapability,
-  AuthConfig,
-  AuthType,
-  ConnectionStatus,
-  OperationResult,
+  ConnectorSpec,
+  ActionDefinition,
+  TestConnectionResult,
+  ResolvedCredentials,
+  ConnectorError,
 } from '@integrax/connector-sdk';
+import { z } from 'zod';
 import * as nodemailer from 'nodemailer';
 import type { Transporter, TransportOptions } from 'nodemailer';
 import type SMTPTransport from 'nodemailer/lib/smtp-transport';
@@ -292,131 +292,124 @@ export class EmailConnector extends BaseConnector {
     });
   }
 
-  getMetadata(): ConnectorMetadata {
+  getSpec(): ConnectorSpec {
     return {
-      id: 'email',
-      name: 'Email/SMTP',
-      version: '0.1.0',
-      description: 'Send transactional and bulk emails via SMTP or popular email providers',
-      author: 'IntegraX',
-      capabilities: [
-        ConnectorCapability.WRITE,
-        ConnectorCapability.BATCH,
-      ],
-      supportedAuthTypes: [AuthType.API_KEY, AuthType.BASIC],
-      configSchema: {
-        type: 'object',
-        properties: {
-          provider: {
-            type: 'string',
-            enum: ['smtp', 'gmail', 'outlook', 'sendgrid', 'ses', 'mailgun', 'zoho'],
-            description: 'Email provider or SMTP for custom server',
-          },
-          host: {
-            type: 'string',
-            description: 'SMTP host (required for smtp provider)',
-          },
-          port: {
-            type: 'number',
-            description: 'SMTP port',
-          },
-          secure: {
-            type: 'boolean',
-            description: 'Use TLS (true for port 465)',
-          },
-          user: {
-            type: 'string',
-            description: 'SMTP username or email',
-          },
-          pass: {
-            type: 'string',
-            description: 'SMTP password or app password',
-          },
-          pool: {
-            type: 'boolean',
-            description: 'Use connection pooling',
-          },
-        },
-        required: ['provider', 'user', 'pass'],
+      metadata: {
+        id: 'email',
+        name: 'Email/SMTP',
+        version: '0.1.0',
+        description: 'Send transactional and bulk emails via SMTP or popular email providers',
+        category: 'notification',
+        status: 'active',
       },
+      authType: 'custom',
+      authSchema: z.object({
+        provider: z.enum(['smtp', 'gmail', 'outlook', 'sendgrid', 'ses', 'mailgun', 'zoho']).default('smtp'),
+        host: z.string().optional(),
+        port: z.number().optional(),
+        secure: z.boolean().optional(),
+        user: z.string(),
+        pass: z.string(),
+      }),
+      actions: this.getActions(),
     };
   }
 
-  async connect(auth: AuthConfig): Promise<ConnectionStatus> {
-    try {
-      const credentials = auth.credentials as EmailProviderConfig & Partial<SmtpConfig>;
-      const provider = credentials.provider || 'smtp';
+  getActions(): ActionDefinition[] {
+    return [
+      {
+        id: 'send_email',
+        name: 'Send Email',
+        description: 'Send a single email',
+        inputSchema: z.any(),
+        outputSchema: z.any(),
+      },
+      {
+        id: 'send_template_email',
+        name: 'Send Template Email',
+        description: 'Send an email using a template',
+        inputSchema: z.any(),
+        outputSchema: z.any(),
+      },
+      {
+        id: 'send_bulk_email',
+        name: 'Send Bulk Email',
+        description: 'Send bulk emails with rate limiting',
+        inputSchema: z.any(),
+        outputSchema: z.any(),
+      },
+    ];
+  }
 
-      // Get provider defaults
-      const providerConfig = PROVIDER_CONFIGS[provider] || {};
-
-      // Build SMTP config
-      this.config = {
-        host: credentials.host || providerConfig.host || 'localhost',
-        port: credentials.port || providerConfig.port || 587,
-        secure: credentials.secure ?? providerConfig.secure ?? false,
-        auth: {
-          user: credentials.auth?.user || (credentials as any).user || '',
-          pass: credentials.auth?.pass || (credentials as any).pass || '',
-        },
-        pool: credentials.pool ?? true,
-        maxConnections: credentials.maxConnections ?? 5,
-        maxMessages: credentials.maxMessages ?? 100,
-        tls: credentials.tls ?? { rejectUnauthorized: true },
-      };
-
-      // Handle SES region
-      if (provider === 'ses' && credentials.region) {
-        this.config.host = `email-smtp.${credentials.region}.amazonaws.com`;
+  protected registerActions(): void {
+    const actions = this.getActions();
+    for (const action of actions) {
+      if (action.id === 'send_email') {
+        this.registerAction(action.id, async (input: any) => this.sendEmail(input));
+      } else if (action.id === 'send_template_email') {
+        this.registerAction(action.id, async (input: any) => this.sendTemplateEmail(input));
+      } else if (action.id === 'send_bulk_email') {
+        this.registerAction(action.id, async (input: any) => this.sendBulkEmail(input));
       }
+    }
+  }
 
-      // Create transporter
-      this.transporter = nodemailer.createTransport(this.config as SMTPTransport.Options);
-
-      // Verify connection
-      await this.transporter.verify();
-
+  async testConnection(credentials: ResolvedCredentials): Promise<TestConnectionResult> {
+    try {
+      await this.connect(credentials);
       return {
-        connected: true,
-        message: `Connected to ${provider} SMTP server`,
+        success: true,
+        testedAt: new Date(),
+        latencyMs: 0,
       };
     } catch (error: any) {
       return {
-        connected: false,
-        error: error.message || 'Failed to connect to SMTP server',
+        success: false,
+        error: { code: 'FAIL', message: error.message || 'Connection failed' },
+        testedAt: new Date(),
+        latencyMs: 0,
       };
     }
   }
 
-  async disconnect(): Promise<void> {
-    if (this.transporter) {
-      this.transporter.close();
-      this.transporter = null;
+  public async connect(credentials: ResolvedCredentials): Promise<void> {
+    const provider = String(credentials.provider || 'smtp') as EmailProvider;
+    const providerConfig = PROVIDER_CONFIGS[provider] || {};
+
+    this.config = {
+      host: credentials.host ? String(credentials.host) : providerConfig.host || 'localhost',
+      port: credentials.port ? Number(credentials.port) : providerConfig.port || 587,
+      secure: credentials.secure !== undefined ? Boolean(credentials.secure) : providerConfig.secure ?? false,
+      auth: {
+        user: String(credentials.user || ''),
+        pass: String(credentials.pass || ''),
+      },
+      pool: credentials.pool !== undefined ? Boolean(credentials.pool) : true,
+      tls: { rejectUnauthorized: true },
+    };
+
+    if (provider === 'ses' && credentials.region) {
+      this.config.host = `email-smtp.${credentials.region}.amazonaws.com`;
     }
+
+    this.transporter = nodemailer.createTransport(this.config as SMTPTransport.Options);
+    await this.transporter.verify();
+  }
+
+  /**
+   * Disconnect transporter
+   */
+  async disconnect(): Promise<void> {
+    this.transporter = null;
     this.config = null;
   }
-
-  async healthCheck(): Promise<ConnectionStatus> {
-    if (!this.transporter) {
-      return { connected: false, error: 'Not connected' };
-    }
-
-    try {
-      await this.transporter.verify();
-      return { connected: true };
-    } catch (error: any) {
-      return { connected: false, error: error.message };
-    }
-  }
-
-  // ==================== Operations ====================
 
   /**
    * Send a single email
    */
-  async sendEmail(input: SendEmailInput): Promise<OperationResult<SendEmailResult>> {
+  async sendEmail(input: SendEmailInput): Promise<any> {
     if (!this.transporter) {
-      return { success: false, error: { code: 'NOT_CONNECTED', message: 'Not connected to SMTP server' } };
+      throw new ConnectorError('NOT_CONNECTED', 'Not connected to SMTP server');
     }
 
     try {
@@ -448,45 +441,36 @@ export class EmailConnector extends BaseConnector {
 
       return {
         success: true,
-        data: {
-          success: true,
-          messageId: result.messageId,
-          accepted: result.accepted as string[],
-          rejected: result.rejected as string[],
-          pending: result.pending as string[],
-          response: result.response,
-          envelope: result.envelope,
-        },
+        messageId: result.messageId,
+        accepted: result.accepted as string[],
+        rejected: result.rejected as string[],
+        pending: result.pending as string[],
       };
     } catch (error: any) {
-      return {
-        success: false,
-        error: {
-          code: 'SEND_FAILED',
-          message: error.message || 'Failed to send email',
-          details: error,
-        },
-      };
+      throw new ConnectorError(
+        'SEND_FAILED',
+        error.message || 'Failed to send email',
+        false,
+        { details: error }
+      );
     }
   }
 
   /**
    * Send email using a template
    */
-  async sendTemplateEmail(input: SendTemplateEmailInput): Promise<OperationResult<SendEmailResult>> {
+  async sendTemplateEmail(input: SendTemplateEmailInput): Promise<any> {
     // Get template
     const template = input.templateId
       ? this.templates.get(input.templateId)
       : Array.from(this.templates.values()).find(t => t.name === input.templateName);
 
     if (!template) {
-      return {
-        success: false,
-        error: {
-          code: 'TEMPLATE_NOT_FOUND',
-          message: `Template not found: ${input.templateId || input.templateName}`,
-        },
-      };
+      throw new ConnectorError(
+        'TEMPLATE_NOT_FOUND',
+        `Template not found: ${input.templateId || input.templateName}`,
+        false
+      );
     }
 
     // Render template
@@ -513,14 +497,14 @@ export class EmailConnector extends BaseConnector {
   /**
    * Send bulk emails with rate limiting
    */
-  async sendBulkEmail(input: BulkEmailInput): Promise<OperationResult<BulkEmailResult>> {
+  async sendBulkEmail(input: BulkEmailInput): Promise<any> {
     if (!this.transporter) {
-      return { success: false, error: { code: 'NOT_CONNECTED', message: 'Not connected to SMTP server' } };
+      throw new ConnectorError('NOT_CONNECTED', 'Not connected to SMTP server');
     }
 
     const batchSize = input.batchSize || 10;
     const delay = input.delayBetweenBatches || 1000;
-    const results: BulkEmailResult['results'] = [];
+    const results: any[] = [];
 
     // Process in batches
     for (let i = 0; i < input.recipients.length; i += batchSize) {
@@ -578,40 +562,29 @@ export class EmailConnector extends BaseConnector {
 
     return {
       success: failed === 0,
-      data: {
-        total: results.length,
-        sent,
-        failed,
-        results,
-      },
+      total: results.length,
+      sent,
+      failed,
+      results,
     };
   }
 
   /**
    * Verify SMTP connection
    */
-  async verifyConnection(): Promise<OperationResult<VerifyConnectionResult>> {
+  async verifyConnection(): Promise<any> {
     if (!this.transporter) {
-      return { success: false, error: { code: 'NOT_CONNECTED', message: 'Not connected to SMTP server' } };
+      throw new ConnectorError('NOT_CONNECTED', 'Not connected to SMTP server');
     }
 
     try {
       await this.transporter.verify();
       return {
         success: true,
-        data: {
-          success: true,
-          message: 'SMTP connection verified',
-        },
+        message: 'SMTP connection verified',
       };
     } catch (error: any) {
-      return {
-        success: false,
-        error: {
-          code: 'VERIFICATION_FAILED',
-          message: error.message,
-        },
-      };
+      throw new ConnectorError('VERIFICATION_FAILED', error.message, false);
     }
   }
 
@@ -644,7 +617,7 @@ export class EmailConnector extends BaseConnector {
     to: EmailRecipient,
     data: ArgentinaBusinessTemplates['facturaEnviada'] & { empresaNombre: string },
     pdfAttachment?: Buffer
-  ): Promise<OperationResult<SendEmailResult>> {
+  ): Promise<any> {
     const attachments = pdfAttachment ? [{
       filename: `Factura_${data.numeroFactura}.pdf`,
       content: pdfAttachment,
@@ -667,7 +640,7 @@ export class EmailConnector extends BaseConnector {
     from: EmailRecipient,
     to: EmailRecipient,
     data: ArgentinaBusinessTemplates['pagoRecibido']
-  ): Promise<OperationResult<SendEmailResult>> {
+  ): Promise<any> {
     return this.sendTemplateEmail({
       from,
       to,
@@ -683,7 +656,7 @@ export class EmailConnector extends BaseConnector {
     from: EmailRecipient,
     to: EmailRecipient,
     data: ArgentinaBusinessTemplates['recordatorioPago']
-  ): Promise<OperationResult<SendEmailResult>> {
+  ): Promise<any> {
     return this.sendTemplateEmail({
       from,
       to,

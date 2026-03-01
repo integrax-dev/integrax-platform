@@ -9,14 +9,14 @@
  */
 
 import * as forge from 'node-forge';
+import { z } from 'zod';
 import { XMLParser, XMLBuilder } from 'fast-xml-parser';
 import {
-  Connector,
+  BaseConnector,
   ConnectorSpec,
-  ConnectorAction,
-  ConnectorCredentials,
+  ActionDefinition,
+  ResolvedCredentials,
   ConnectorError,
-  ErrorCode,
 } from '@integrax/connector-sdk';
 
 // XML Parser configuration
@@ -46,82 +46,94 @@ import {
   FECompUltimoAutorizadoResponse,
 } from './types.js';
 
-export class AfipWsfeConnector implements Connector {
+export class AfipWsfeConnector extends BaseConnector {
   private config: AfipConfig;
   private token: AfipToken | null = null;
 
   constructor(config: AfipConfig) {
+    super();
     this.config = config;
+  }
+
+  protected registerActions(): void {
+    const actions = this.getActions();
+    for (const action of actions) {
+      this.registerAction(action.id, async (input: any) => {
+        // Simple dispatcher since the old code didn't use registerAction
+        const method = action.id as keyof this;
+        if (typeof this[method] === 'function') {
+          return (this as any)[method](input);
+        }
+        throw new ConnectorError('NOT_IMPLEMENTED', 'Action not implemented');
+      });
+    }
   }
 
   // ============================================
   // Connector Interface
   // ============================================
 
-  spec(): ConnectorSpec {
+  getSpec(): ConnectorSpec {
     return {
-      id: 'afip-wsfe',
-      name: 'AFIP WSFE',
-      description: 'Facturación Electrónica AFIP Argentina - Obtención de CAE',
-      version: '0.1.0',
-      auth: {
-        type: 'certificate',
+      metadata: {
+        id: 'afip-wsfe',
+        name: 'AFIP WSFE',
+        description: 'Facturación Electrónica AFIP Argentina - Obtención de CAE',
+        version: '0.1.0',
+        category: 'fiscal',
+        status: 'active',
       },
+      authType: 'custom',
+      authSchema: {} as any,
       actions: this.getActions(),
     };
   }
 
-  async testConnection(credentials: ConnectorCredentials): Promise<boolean> {
+  async testConnection(credentials: ResolvedCredentials): Promise<import('@integrax/connector-sdk').TestConnectionResult> {
     try {
       await this.authenticate();
       // Test with FEDummy (service health check)
       await this.callWsfe('FEDummy', {});
-      return true;
+      return { success: true, testedAt: new Date(), latencyMs: 0 };
     } catch (error) {
-      return false;
+      return { success: false, testedAt: new Date(), latencyMs: 0, error: { code: 'FAIL', message: String(error) } };
     }
   }
 
-  getActions(): ConnectorAction[] {
+  getActions(): ActionDefinition[] {
     return [
       {
         id: 'autorizar_comprobante',
         name: 'Autorizar Comprobante',
         description: 'Solicita CAE para un comprobante (factura, NC, ND)',
-        inputSchema: { type: 'object' },
-        outputSchema: { type: 'object' },
+        inputSchema: z.any(),
+        outputSchema: z.any(),
       },
       {
         id: 'get_ultimo_comprobante',
         name: 'Obtener Último Comprobante',
         description: 'Obtiene el número del último comprobante autorizado',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            puntoVenta: { type: 'number' },
-            tipoComprobante: { type: 'number' },
-          },
-          required: ['puntoVenta', 'tipoComprobante'],
-        },
-        outputSchema: { type: 'object' },
+        inputSchema: z.object({
+          puntoVenta: z.number(),
+          tipoComprobante: z.number(),
+        }),
+        outputSchema: z.any(),
       },
       {
         id: 'get_puntos_venta',
         name: 'Obtener Puntos de Venta',
         description: 'Lista los puntos de venta habilitados',
-        inputSchema: { type: 'object' },
-        outputSchema: { type: 'object' },
+        inputSchema: z.any(),
+        outputSchema: z.any(),
       },
       {
         id: 'get_cotizacion',
         name: 'Obtener Cotización',
         description: 'Obtiene la cotización de una moneda extranjera',
-        inputSchema: {
-          type: 'object',
-          properties: { monedaId: { type: 'string' } },
-          required: ['monedaId'],
-        },
-        outputSchema: { type: 'object' },
+        inputSchema: z.object({
+          monedaId: z.string(),
+        }),
+        outputSchema: z.any(),
       },
     ];
   }
@@ -166,7 +178,7 @@ export class AfipWsfeConnector implements Connector {
 
     if (!response.ok) {
       throw new ConnectorError(
-        ErrorCode.AUTHENTICATION_FAILED,
+        'AUTHENTICATION_FAILED',
         `WSAA authentication failed: ${response.statusText}`
       );
     }
@@ -182,7 +194,7 @@ export class AfipWsfeConnector implements Connector {
       // Check for error
       const errorMatch = responseText.match(/<faultstring>([^<]+)<\/faultstring>/);
       throw new ConnectorError(
-        ErrorCode.AUTHENTICATION_FAILED,
+        'AUTHENTICATION_FAILED',
         `WSAA authentication failed: ${errorMatch?.[1] || 'Unknown error'}`
       );
     }
@@ -241,7 +253,7 @@ export class AfipWsfeConnector implements Connector {
           },
           {
             type: forge.pki.oids.signingTime,
-            value: new Date(),
+            value: new Date() as unknown as string,
           },
         ],
       });
@@ -254,7 +266,7 @@ export class AfipWsfeConnector implements Connector {
       return b64;
     } catch (err) {
       throw new ConnectorError(
-        ErrorCode.AUTHENTICATION_FAILED,
+        'AUTHENTICATION_FAILED',
         'Error firmando TRA (CMS/PKCS#7): ' + (err instanceof Error ? err.message : String(err))
       );
     }
@@ -287,7 +299,7 @@ export class AfipWsfeConnector implements Connector {
 
     if (!response.ok) {
       throw new ConnectorError(
-        ErrorCode.API_ERROR,
+        'API_ERROR',
         `WSFE ${method} failed: ${response.statusText}`
       );
     }
@@ -339,7 +351,7 @@ export class AfipWsfeConnector implements Connector {
     // Check for errors
     const faultMatch = xml.match(/<faultstring>([^<]+)<\/faultstring>/);
     if (faultMatch) {
-      throw new ConnectorError(ErrorCode.API_ERROR, `WSFE error: ${faultMatch[1]}`);
+      throw new ConnectorError('API_ERROR', `WSFE error: ${faultMatch[1]}`);
     }
 
     return null;
@@ -418,22 +430,22 @@ export class AfipWsfeConnector implements Connector {
           MonCotiz: validated.MonCotiz,
           Iva: validated.Iva
             ? {
-                AlicIva: validated.Iva.map((iva) => ({
-                  Id: iva.Id,
-                  BaseImp: iva.BaseImp,
-                  Importe: iva.Importe,
-                })),
-              }
+              AlicIva: validated.Iva.map((iva) => ({
+                Id: iva.Id,
+                BaseImp: iva.BaseImp,
+                Importe: iva.Importe,
+              })),
+            }
             : undefined,
           Tributos: validated.Tributos
             ? {
-                Tributo: validated.Tributos,
-              }
+              Tributo: validated.Tributos,
+            }
             : undefined,
           CbtesAsoc: validated.CbtesAsoc
             ? {
-                CbteAsoc: validated.CbtesAsoc,
-              }
+              CbteAsoc: validated.CbtesAsoc,
+            }
             : undefined,
         },
       },

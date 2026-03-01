@@ -1,5 +1,4 @@
-import { createLogger } from '../../../workers/ts/src/logger.js';
-const logger = createLogger('temporal-client');
+import { logger } from '../utils/logger.js';
 /**
  * Temporal Client Service
  *
@@ -26,8 +25,12 @@ export class TemporalClientService {
   private readonly config: Required<TemporalClientConfig>;
 
   constructor(config: TemporalClientConfig = {}) {
+    if (!config.address && !process.env.TEMPORAL_ADDRESS) {
+      throw new Error('TEMPORAL_ADDRESS environment variable is required');
+    }
+
     this.config = {
-      address: config.address || process.env.TEMPORAL_ADDRESS || 'localhost:7233',
+      address: (config.address || process.env.TEMPORAL_ADDRESS) as string,
       namespace: config.namespace || process.env.TEMPORAL_NAMESPACE || 'default',
       taskQueue: config.taskQueue || process.env.TEMPORAL_TASK_QUEUE || 'integrax-workflows',
     };

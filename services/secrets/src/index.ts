@@ -40,26 +40,17 @@ export class SecretsManager {
     const vaultAddr = config.endpoint || process.env.VAULT_ADDR;
     const vaultToken = config.token || process.env.VAULT_TOKEN;
 
-    // Validate required config in production
-    if (isProduction && !vaultAddr) {
-      throw new Error('VAULT_ADDR environment variable is required in production');
-    }
-
-    if (isProduction && !vaultToken) {
-      throw new Error('VAULT_TOKEN environment variable is required in production');
-    }
-
     if (!vaultAddr) {
-      console.warn('[Secrets] WARNING: Using localhost Vault. Set VAULT_ADDR in production!');
+      throw new Error('VAULT_ADDR environment variable is required');
     }
 
     if (!vaultToken) {
-      console.warn('[Secrets] WARNING: No Vault token configured. Set VAULT_TOKEN!');
+      throw new Error('VAULT_TOKEN environment variable is required');
     }
 
     this.client = vault({
       apiVersion: 'v1',
-      endpoint: vaultAddr || 'http://localhost:8200',
+      endpoint: vaultAddr,
       token: vaultToken,
       namespace: config.namespace || process.env.VAULT_NAMESPACE,
     });

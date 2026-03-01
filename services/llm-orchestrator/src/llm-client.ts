@@ -65,7 +65,7 @@ export class LLMClient {
       input_schema: tool.input_schema,
     }));
 
-    let currentMessages = messages.map((m) => ({
+    let currentMessages: Anthropic.MessageParam[] = messages.map((m) => ({
       role: m.role as 'user' | 'assistant',
       content: m.content,
     }));

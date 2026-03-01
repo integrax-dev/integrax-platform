@@ -4,8 +4,8 @@
  * Integrates with HashiCorp Vault for secure credential storage.
  * Falls back to encrypted in-memory storage for development.
  */
-import { Credential } from './types';
-import { SecretsManager, getSecretsManager, ConnectorCredentials } from '../../secrets/src/index.js';
+import { Credential } from './types.js';
+import { SecretsManager, getSecretsManager, ConnectorCredentials } from '@integrax/secrets';
 
 // In-memory fallback for development (encrypted)
 const memoryStore: Map<string, Credential> = new Map();

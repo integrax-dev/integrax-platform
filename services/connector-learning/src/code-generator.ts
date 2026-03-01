@@ -379,13 +379,13 @@ Output ONLY the TypeScript test code, no markdown or explanations.`,
         })),
         ...(ep.requestBody
           ? [
-              {
-                name: 'body',
-                type: 'object',
-                required: ep.requestBody.required,
-                description: 'Request body',
-              },
-            ]
+            {
+              name: 'body',
+              type: 'object',
+              required: ep.requestBody.required,
+              description: 'Request body',
+            },
+          ]
           : []),
       ],
       outputs: ep.responses.map((r) => ({
@@ -393,7 +393,11 @@ Output ONLY the TypeScript test code, no markdown or explanations.`,
         type: 'object',
         description: r.description,
       })),
-      examples: ep.examples || [],
+      examples: (ep.examples || []).map((ex) => ({
+        ...ex,
+        input: (ex as any).input || (ex as any).requestBody || {},
+        expectedOutput: (ex as any).expectedOutput || (ex as any).response || {},
+      })),
     }));
   }
 

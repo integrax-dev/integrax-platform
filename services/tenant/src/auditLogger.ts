@@ -1,5 +1,5 @@
 // Audit Logger multi-tenant
-import { Log } from './types';
+import { Log } from './types.js';
 
 const logs: Log[] = [];
 

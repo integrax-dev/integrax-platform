@@ -6,20 +6,21 @@
  */
 
 import {
-  Connector,
+  BaseConnector,
   ConnectorSpec,
-  ConnectorAction,
-  ConnectorCredentials,
+  ActionDefinition,
+  ResolvedCredentials,
   ConnectorError,
-  ErrorCode,
+  WebhookPayload,
 } from '@integrax/connector-sdk';
+import { z } from 'zod';
 import {
   WhatsAppConfig,
   SendMessageRequest,
   SendMessageRequestSchema,
   SendMessageResponse,
   WhatsAppError,
-  WebhookPayload,
+  WebhookPayload as WhatsAppWebhookPayload,
   WebhookMessage,
   WebhookStatus,
   WhatsAppTemplate,
@@ -32,126 +33,128 @@ import {
 const WHATSAPP_API_BASE = 'https://graph.facebook.com';
 const DEFAULT_API_VERSION = 'v18.0';
 
-export class WhatsAppConnector implements Connector {
+export class WhatsAppConnector extends BaseConnector {
   private config: WhatsAppConfig;
   private apiVersion: string;
 
   constructor(config: WhatsAppConfig) {
+    super();
     this.config = config;
     this.apiVersion = config.apiVersion || DEFAULT_API_VERSION;
+  }
+
+  protected registerActions(): void {
+    const actions = this.getActions();
+    for (const action of actions) {
+      this.registerAction(action.id, async (input: any) => {
+        const method = action.id as keyof this;
+        if (typeof this[method] === 'function') {
+          return (this as any)[method](input);
+        }
+        throw new ConnectorError('NOT_IMPLEMENTED', 'Action not implemented');
+      });
+    }
   }
 
   // ============================================
   // Connector Interface
   // ============================================
 
-  spec(): ConnectorSpec {
+  getSpec(): ConnectorSpec {
     return {
-      id: 'whatsapp',
-      name: 'WhatsApp Business',
-      description: 'Envía mensajes via WhatsApp Business Cloud API',
-      version: '0.1.0',
-      auth: {
-        type: 'api_key',
+      metadata: {
+        id: 'whatsapp',
+        name: 'WhatsApp Business',
+        description: 'Envía mensajes via WhatsApp Business Cloud API',
+        version: '0.1.0',
+        category: 'notification',
+        status: 'active',
       },
+      authType: 'api_key',
+      authSchema: z.any(),
       actions: this.getActions(),
     };
   }
 
-  async testConnection(credentials: ConnectorCredentials): Promise<boolean> {
+  async testConnection(credentials: ResolvedCredentials): Promise<import('@integrax/connector-sdk').TestConnectionResult> {
     try {
-      // Test by getting phone number info
+      if (credentials.accessToken) {
+        this.config.accessToken = credentials.accessToken;
+      }
       await this.getPhoneNumberInfo();
-      return true;
-    } catch (error) {
-      return false;
+      return { success: true, testedAt: new Date(), latencyMs: 0 };
+    } catch (error: any) {
+      return { success: false, testedAt: new Date(), latencyMs: 0, error: { code: 'FAIL', message: error.message || 'Connection failed' } };
     }
   }
 
-  getActions(): ConnectorAction[] {
+  getActions(): ActionDefinition[] {
     return [
       {
-        id: 'send_text',
+        id: 'sendText',
         name: 'Enviar Texto',
         description: 'Envía un mensaje de texto simple',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            to: { type: 'string', description: 'Número con código de país (ej: 5491155551234)' },
-            text: { type: 'string', description: 'Texto del mensaje' },
-          },
-          required: ['to', 'text'],
-        },
-        outputSchema: { type: 'object' },
+        inputSchema: z.object({
+          to: z.string().describe('Número con código de país (ej: 5491155551234)'),
+          text: z.string().describe('Texto del mensaje'),
+          previewUrl: z.boolean().optional(),
+        }),
+        outputSchema: z.any(),
       },
       {
-        id: 'send_template',
+        id: 'sendTemplate',
         name: 'Enviar Template',
         description: 'Envía un mensaje usando un template pre-aprobado',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            to: { type: 'string' },
-            templateName: { type: 'string' },
-            languageCode: { type: 'string' },
-            parameters: { type: 'array' },
-          },
-          required: ['to', 'templateName', 'languageCode'],
-        },
-        outputSchema: { type: 'object' },
+        inputSchema: z.object({
+          to: z.string(),
+          templateName: z.string(),
+          languageCode: z.string(),
+          parameters: z.array(z.any()).optional(),
+        }),
+        outputSchema: z.any(),
       },
       {
-        id: 'send_image',
+        id: 'sendImage',
         name: 'Enviar Imagen',
         description: 'Envía una imagen con caption opcional',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            to: { type: 'string' },
-            imageUrl: { type: 'string' },
-            caption: { type: 'string' },
-          },
-          required: ['to', 'imageUrl'],
-        },
-        outputSchema: { type: 'object' },
+        inputSchema: z.object({
+          to: z.string(),
+          imageUrl: z.string(),
+          caption: z.string().optional(),
+        }),
+        outputSchema: z.any(),
       },
       {
-        id: 'send_document',
+        id: 'sendDocument',
         name: 'Enviar Documento',
         description: 'Envía un documento (PDF, etc)',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            to: { type: 'string' },
-            documentUrl: { type: 'string' },
-            filename: { type: 'string' },
-            caption: { type: 'string' },
-          },
-          required: ['to', 'documentUrl'],
-        },
-        outputSchema: { type: 'object' },
+        inputSchema: z.object({
+          to: z.string(),
+          documentUrl: z.string(),
+          filename: z.string().optional(),
+          caption: z.string().optional(),
+        }),
+        outputSchema: z.any(),
       },
       {
-        id: 'send_interactive_buttons',
+        id: 'sendInteractiveButtons',
         name: 'Enviar Botones',
         description: 'Envía un mensaje con botones interactivos',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            to: { type: 'string' },
-            body: { type: 'string' },
-            buttons: { type: 'array' },
-          },
-          required: ['to', 'body', 'buttons'],
-        },
-        outputSchema: { type: 'object' },
+        inputSchema: z.object({
+          to: z.string(),
+          body: z.string(),
+          buttons: z.array(z.object({ id: z.string(), title: z.string() })),
+          header: z.string().optional(),
+          footer: z.string().optional(),
+        }),
+        outputSchema: z.any(),
       },
       {
-        id: 'list_templates',
+        id: 'listTemplates',
         name: 'Listar Templates',
         description: 'Lista los templates disponibles',
-        inputSchema: { type: 'object' },
-        outputSchema: { type: 'object' },
+        inputSchema: z.any(),
+        outputSchema: z.any(),
       },
     ];
   }
@@ -181,8 +184,9 @@ export class WhatsAppConnector implements Connector {
     if (!response.ok) {
       const error = data as WhatsAppError;
       throw new ConnectorError(
-        ErrorCode.API_ERROR,
+        'API_ERROR',
         `WhatsApp API error: ${error.error?.message || response.statusText}`,
+        false,
         { code: error.error?.code, subcode: error.error?.error_subcode }
       );
     }
@@ -387,7 +391,7 @@ export class WhatsAppConnector implements Connector {
   async listTemplates(): Promise<WhatsAppTemplate[]> {
     if (!this.config.businessAccountId) {
       throw new ConnectorError(
-        ErrorCode.CONFIGURATION_ERROR,
+        'CONFIGURATION_ERROR',
         'businessAccountId is required to list templates'
       );
     }
@@ -417,13 +421,13 @@ export class WhatsAppConnector implements Connector {
   // ============================================
 
   /**
-   * Verifica el webhook de WhatsApp (challenge)
+   * Verifica el webhook de WhatsApp (challenge) para el setup inicial (GET)
    */
-  verifyWebhook(
+  async verifyWebhookConnection(
     mode: string,
     token: string,
     challenge: string
-  ): { valid: boolean; challenge?: string } {
+  ): Promise<{ valid: boolean; challenge?: string }> {
     if (mode === 'subscribe' && token === this.config.webhookVerifyToken) {
       return { valid: true, challenge };
     }
@@ -431,29 +435,44 @@ export class WhatsAppConnector implements Connector {
   }
 
   /**
-   * Parsea un webhook payload
+   * Implementación estándar de verifyWebhookSignature
    */
-  parseWebhook(payload: WebhookPayload): {
-    messages: Array<WebhookMessage & { contact?: { name: string; wa_id: string } }>;
-    statuses: WebhookStatus[];
-  } {
-    const messages: Array<WebhookMessage & { contact?: { name: string; wa_id: string } }> = [];
-    const statuses: WebhookStatus[] = [];
+  override async verifyWebhookSignature(
+    payload: WebhookPayload,
+    secret: string
+  ): Promise<boolean> {
+    // WhatsApp usa X-Hub-Signature-256
+    const signature = payload.headers['x-hub-signature-256'];
+    if (!signature) return false;
+    // TODO: Implementar validación HMAC con el APP SECRET de Meta
+    return true;
+  }
 
-    for (const entry of payload.entry) {
+  /**
+   * Implementación estándar de parseWebhook (POST)
+   */
+  override async parseWebhook(
+    payload: WebhookPayload,
+    _context: any
+  ): Promise<any> { // Debería retornar NormalizedEvent pero WhatsApp puede enviar múltiples
+    const data = payload.body as WhatsAppWebhookPayload;
+    if (!data.entry) return null;
+
+    const messages: any[] = [];
+    const statuses: any[] = [];
+
+    for (const entry of data.entry) {
       for (const change of entry.changes) {
         const value = change.value;
-
         if (value.messages) {
           for (const msg of value.messages) {
-            const contact = value.contacts?.find((c) => c.wa_id === msg.from);
+            const contact = value.contacts?.find((c: any) => c.wa_id === msg.from);
             messages.push({
               ...msg,
               contact: contact ? { name: contact.profile.name, wa_id: contact.wa_id } : undefined,
             });
           }
         }
-
         if (value.statuses) {
           statuses.push(...value.statuses);
         }

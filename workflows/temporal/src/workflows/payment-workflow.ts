@@ -1,5 +1,4 @@
-import { createLogger } from '../../../../workers/ts/src/logger.js';
-const logger = createLogger('payment-workflow');
+import { logger } from '../utils/logger.js';
 /**
  * Payment Processing Workflow
  *

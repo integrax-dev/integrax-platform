@@ -11,17 +11,18 @@
  */
 
 // Server
-export { app } from './server';
+export { app } from './server.js';
 
 // Routes
-export { tenantsRouter, tenants } from './routes/tenants';
-export { connectorsRouter, CONNECTOR_CATALOG, tenantConnectors } from './routes/connectors';
-export { workflowsRouter, workflows, workflowVersions, workflowRuns } from './routes/workflows';
+export { tenantsRouter } from './routes/tenants.js';
+export { tenants } from './store/tenants.js';
+export { connectorsRouter, CONNECTOR_CATALOG, tenantConnectors } from './routes/connectors.js';
+export { workflowsRouter, workflows, workflowVersions, workflowRuns } from './routes/workflows.js';
 
 // Middleware
-export { requireAuth, requireRole, requireTenant, generateToken, verifyWebhookSignature } from './middleware/auth';
-export { audit, getAuditLogs, auditLog } from './middleware/audit';
-export { validate, validateQuery, validateParams } from './middleware/validate';
+export { requireAuth, requireRole, requireTenant, generateToken, verifyWebhookSignature } from './middleware/auth.js';
+export { audit, getAuditLogs, auditLog } from './middleware/audit.js';
+export { validate, validateQuery, validateParams } from './middleware/validate.js';
 
 // Types
 export type {
@@ -70,4 +71,4 @@ export type {
   // API
   PaginatedResponse,
   APIResponse,
-} from './types';
+} from './types.js';

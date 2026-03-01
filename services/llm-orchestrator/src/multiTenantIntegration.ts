@@ -1,6 +1,6 @@
 // Orquestación multi-tenant: conecta LLM Orchestrator con workflows multi-tenant
 import { Orchestrator, createOrchestrator } from './orchestrator';
-import { multiTenantWorkflow, MultiTenantWorkflowInput, MultiTenantWorkflowOutput } from '../../../workflows/temporal/src/workflows';
+import { multiTenantWorkflow, MultiTenantWorkflowInput, MultiTenantWorkflowOutput } from '@integrax/temporal-workflows';
 import type { OrchestratorConfig, ParsedIntent, GeneratedWorkflow } from './types';
 
 export class MultiTenantIntegrator {
@@ -17,9 +17,9 @@ export class MultiTenantIntegrator {
     const workflowType = parsed.intent === 'process_payment' ? 'payment' : 'order';
     let payload: MultiTenantWorkflowInput['payload'];
     if (workflowType === 'payment') {
-      payload = { tenantId, ...parsed.entities } as import('../../../workflows/temporal/src/workflows/payment-workflow').PaymentWorkflowInput;
+      payload = { tenantId, ...parsed.entities } as import('@integrax/temporal-workflows').PaymentWorkflowInput;
     } else {
-      payload = { tenantId, ...parsed.entities } as import('../../../workflows/temporal/src/workflows/order-workflow').OrderWorkflowInput;
+      payload = { tenantId, ...parsed.entities } as import('@integrax/temporal-workflows').OrderWorkflowInput;
     }
     const input: MultiTenantWorkflowInput = { tenantId, workflowType, payload };
     // 3. Ejecutar workflow multi-tenant

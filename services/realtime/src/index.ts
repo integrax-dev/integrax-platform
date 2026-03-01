@@ -10,6 +10,15 @@ import { Redis } from 'ioredis';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import type { IncomingMessage } from 'http';
+import { createServer, Server as HttpServer } from 'http';
+import express, { Express } from 'express';
+import { createLogger, Logger } from '@integrax/logger';
+import { createHealthManager, HealthManager } from '@integrax/health';
+import { config as loadEnv } from 'dotenv';
+
+loadEnv();
+
+const logger = createLogger({ service: 'realtime', version: '0.1.0' });
 
 // ============================================
 // Types
@@ -69,42 +78,36 @@ export type EventType =
 
 export class RealtimeServer {
   private wss: WebSocketServer | null = null;
+  private httpServer: HttpServer | null = null;
+  private healthManager: HealthManager | null = null;
   private redis: Redis | null = null;
   private redisSub: Redis | null = null;
   private connections: Map<string, ClientConnection> = new Map();
   private tenantConnections: Map<string, Set<string>> = new Map();
   private pingInterval: NodeJS.Timeout | null = null;
   private readonly config: Required<RealtimeConfig>;
+  private logger: Logger = logger;
 
   constructor(config: RealtimeConfig = {}) {
-    // Validate required config in production
-    const isProduction = process.env.NODE_ENV === 'production';
-
-    if (isProduction && !config.jwtSecret && !process.env.JWT_SECRET) {
-      throw new Error('JWT_SECRET environment variable is required in production');
+    if (!config.jwtSecret && !process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET environment variable is required');
     }
 
-    if (isProduction && !config.redisUrl && !process.env.REDIS_URL) {
-      throw new Error('REDIS_URL environment variable is required in production');
-    }
-
-    if (!process.env.JWT_SECRET && !config.jwtSecret) {
-      console.warn('[Realtime] WARNING: Using default JWT secret. Set JWT_SECRET in production!');
-    }
-
-    if (!process.env.REDIS_URL && !config.redisUrl) {
-      console.warn('[Realtime] WARNING: Using localhost Redis. Set REDIS_URL in production!');
+    if (!config.redisUrl && !process.env.REDIS_URL) {
+      throw new Error('REDIS_URL environment variable is required');
     }
 
     this.config = {
       port: config.port || parseInt(process.env.WS_PORT || '3003', 10),
-      redisUrl: config.redisUrl || process.env.REDIS_URL || 'redis://localhost:6379',
-      jwtSecret: config.jwtSecret || process.env.JWT_SECRET || 'integrax-dev-secret-DO-NOT-USE-IN-PRODUCTION',
+      redisUrl: (config.redisUrl || process.env.REDIS_URL) as string,
+      jwtSecret: (config.jwtSecret || process.env.JWT_SECRET) as string,
       pingInterval: config.pingInterval || 30000,
     };
   }
 
   async start(): Promise<void> {
+    this.logger.info({ port: this.config.port }, 'Starting Realtime server');
+
     // Initialize Redis
     this.redis = new Redis(this.config.redisUrl);
     this.redisSub = new Redis(this.config.redisUrl);
@@ -115,8 +118,16 @@ export class RealtimeServer {
       this.handleRedisMessage(channel, message);
     });
 
+    // Initialize HTTP and health
+    const app = express();
+    this.httpServer = createServer(app);
+    this.healthManager = createHealthManager('0.1.0');
+
+    // Add health routes
+    app.use(this.healthManager.router());
+
     // Initialize WebSocket server
-    this.wss = new WebSocketServer({ port: this.config.port });
+    this.wss = new WebSocketServer({ server: this.httpServer });
 
     this.wss.on('connection', (ws, req) => {
       this.handleConnection(ws, req);
@@ -127,7 +138,9 @@ export class RealtimeServer {
       this.pingClients();
     }, this.config.pingInterval);
 
-    console.log(`[Realtime] WebSocket server started on port ${this.config.port}`);
+    this.httpServer.listen(this.config.port, () => {
+      this.logger.info({ port: this.config.port }, 'Realtime server running (HTTP + WS)');
+    });
   }
 
   async stop(): Promise<void> {
@@ -155,7 +168,12 @@ export class RealtimeServer {
       this.wss.close();
     }
 
-    console.log('[Realtime] Server stopped');
+    // Close HTTP server
+    if (this.httpServer) {
+      this.httpServer.close();
+    }
+
+    this.logger.info('Realtime server stopped');
   }
 
   // ============================================
@@ -187,7 +205,7 @@ export class RealtimeServer {
     }
     this.tenantConnections.get(auth.tenantId)!.add(connection.id);
 
-    console.log(`[Realtime] Client connected: ${connection.id} (tenant: ${auth.tenantId})`);
+    this.logger.info({ connectionId: connection.id, tenantId: auth.tenantId }, 'Client connected');
 
     // Send welcome message
     this.send(connection, {
@@ -209,7 +227,7 @@ export class RealtimeServer {
 
     // Handle errors
     ws.on('error', (error) => {
-      console.error(`[Realtime] Client error ${connection.id}:`, error);
+      this.logger.error({ err: error, connectionId: connection.id }, 'Client error');
     });
   }
 
@@ -249,7 +267,7 @@ export class RealtimeServer {
     }
 
     this.connections.delete(connection.id);
-    console.log(`[Realtime] Client disconnected: ${connection.id}`);
+    this.logger.info({ connectionId: connection.id }, 'Client disconnected');
   }
 
   // ============================================
@@ -310,7 +328,7 @@ export class RealtimeServer {
       timestamp: new Date().toISOString(),
     });
 
-    console.log(`[Realtime] ${connection.id} subscribed to ${channel}`);
+    this.logger.info({ connectionId: connection.id, channel }, 'Client subscribed');
   }
 
   private unsubscribe(connection: ClientConnection, channel: string): void {
@@ -363,7 +381,7 @@ export class RealtimeServer {
       const { channel, data, excludeConnectionId } = JSON.parse(message);
       this.deliverToTenant(tenantId, channel, data, excludeConnectionId);
     } catch (error) {
-      console.error('[Realtime] Failed to parse Redis message:', error);
+      this.logger.error({ err: error }, 'Failed to parse Redis message');
     }
   }
 
@@ -480,7 +498,7 @@ export class RealtimeServer {
 
     for (const [id, conn] of this.connections) {
       if (now - conn.lastPing > timeout) {
-        console.log(`[Realtime] Client ${id} timed out`);
+        this.logger.warn({ connectionId: id }, 'Client timed out');
         conn.ws.terminate();
         this.handleDisconnect(conn);
       } else if (conn.ws.readyState === WebSocket.OPEN) {

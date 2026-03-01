@@ -4,37 +4,42 @@
 
 import express from 'express';
 import helmet from 'helmet';
-import { tenantsRouter } from './routes/tenants';
-import { connectorsRouter } from './routes/connectors';
-import { workflowsRouter } from './routes/workflows';
-import { temporalWorkflowsRouter } from './routes/workflows-temporal';
-import { getAuditLogs } from './middleware/audit';
-import { requireAuth, requireRole } from './middleware/auth';
+import { tenantsRouter } from './routes/tenants.js';
+import { connectorsRouter } from './routes/connectors.js';
+import { workflowsRouter } from './routes/workflows.js';
+import { temporalWorkflowsRouter } from './routes/workflows-temporal.js';
+import { getAuditLogs } from './middleware/audit.js';
+import { requireAuth, requireRole } from './middleware/auth.js';
+import { createLogger, requestLogger } from '@integrax/logger';
+import { createHealthManager } from '@integrax/health';
+import { metricsMiddleware } from '@integrax/metrics';
 
-const app = express();
+const app: express.Application = express();
+
+if (!process.env.JWT_SECRET) {
+  console.error('[Control Plane] FATAL: JWT_SECRET environment variable is not set');
+  process.exit(1);
+}
+
+// Logger
+const logger = createLogger({ service: 'control-plane', version: '0.1.0' });
 
 // Security middleware
 app.use(helmet());
 app.use(express.json({ limit: '10mb' }));
 
-// Request logging
-app.use((req, res, next) => {
-  const start = Date.now();
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    console.log(`${req.method} ${req.path} ${res.statusCode} ${duration}ms`);
-  });
-  next();
-});
+// Structured request logging (skips /health and /ready)
+app.use(requestLogger(logger));
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'healthy',
-    version: '0.1.0',
-    timestamp: new Date().toISOString(),
-  });
-});
+// Prometheus HTTP metrics
+app.use(metricsMiddleware({ excludePaths: ['/health', '/ready', '/metrics'] }));
+
+// Health & Readiness
+const health = createHealthManager('0.1.0');
+// TODO: register dependency checks when connections are available
+// health.register('redis', async () => { await redis.ping(); });
+// health.register('postgres', async () => { await pool.query('SELECT 1'); });
+app.use(health.router());
 
 // API info
 app.get('/api', (req, res) => {
@@ -125,7 +130,7 @@ app.get(
 
 // Error handling
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Unhandled error:', err);
+  logger.error({ err, path: req.path, method: req.method }, 'Unhandled error');
 
   res.status(err.status || 500).json({
     success: false,
@@ -154,30 +159,19 @@ const PORT = parseInt(process.env.PORT || '3000', 10);
 const isMainModule = import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}`;
 if (isMainModule || process.env.START_SERVER === 'true') {
   app.listen(PORT, () => {
-    console.log(`
-╔═══════════════════════════════════════════════════════════════╗
-║                                                               ║
-║   ██╗███╗   ██╗████████╗███████╗ ██████╗ ██████╗  █████╗      ║
-║   ██║████╗  ██║╚══██╔══╝██╔════╝██╔════╝ ██╔══██╗██╔══██╗     ║
-║   ██║██╔██╗ ██║   ██║   █████╗  ██║  ███╗██████╔╝███████║     ║
-║   ██║██║╚██╗██║   ██║   ██╔══╝  ██║   ██║██╔══██╗██╔══██║     ║
-║   ██║██║ ╚████║   ██║   ███████╗╚██████╔╝██║  ██║██║  ██║     ║
-║   ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝     ║
-║                                                               ║
-║              Control Plane API v0.1.0                         ║
-╚═══════════════════════════════════════════════════════════════╝
-
-Server running on http://localhost:${PORT}
-
-Endpoints:
-  GET  /health              Health check
-  GET  /api                 API info
-  *    /api/tenants         Tenant management
-  *    /api/connectors      Connector management
-  *    /api/workflows       Workflow management
-  GET  /api/audit           Audit logs
-  GET  /api/metrics         Metrics
-`);
+    logger.info({
+      port: PORT,
+      endpoints: [
+        'GET  /health       Liveness check',
+        'GET  /ready        Readiness check',
+        'GET  /metrics      Prometheus metrics',
+        'GET  /api          API info',
+        '*    /api/tenants   Tenant management',
+        '*    /api/connectors Connector management',
+        '*    /api/workflows Workflow management',
+        'GET  /api/audit     Audit logs',
+      ],
+    }, `Control Plane API v0.1.0 running on port ${PORT}`);
   });
 }
 

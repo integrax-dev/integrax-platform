@@ -1,9 +1,9 @@
 // Admin API base (mock, para Express)
-import { TenantService } from './tenantService';
-import { authMiddleware } from './authMiddleware';
-import { rateLimiter } from './rateLimiter';
-import { rbacMiddleware } from './rbacMiddleware';
-import { logAudit } from './auditLogger';
+import { TenantService } from './tenantService.js';
+import { authMiddleware } from './authMiddleware.js';
+import { rateLimiter } from './rateLimiter.js';
+import { rbacMiddleware } from './rbacMiddleware.js';
+import { logAudit } from './auditLogger.js';
 
 const tenantService = new TenantService();
 

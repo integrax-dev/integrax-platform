@@ -1,4 +1,5 @@
 packages:
+  - 'packages/*'
   - 'connectors/sdk/typescript'
   - 'connectors/implementations/*'
   - 'workers/ts'

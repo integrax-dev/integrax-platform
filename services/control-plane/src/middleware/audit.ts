@@ -4,7 +4,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { ulid } from 'ulid';
-import { AuditEntry } from '../types';
+import { AuditEntry } from '../types.js';
 
 // In-memory audit log (replace with database in production)
 const auditLog: AuditEntry[] = [];
@@ -109,7 +109,7 @@ export function getAuditLogs(options: {
     filtered = filtered.filter((e) => e.userId === options.userId);
   }
   if (options.action) {
-    filtered = filtered.filter((e) => e.action.includes(options.action));
+    filtered = filtered.filter((e) => e.action.includes(options.action as string));
   }
   if (options.startDate) {
     filtered = filtered.filter((e) => e.createdAt >= options.startDate!);

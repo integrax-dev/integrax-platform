@@ -1,5 +1,5 @@
 // Servicio base para gestión de tenants IntegraX
-import { Tenant } from './types';
+import { Tenant } from './types.js';
 
 export class TenantService {
   private tenants: Map<string, Tenant> = new Map();

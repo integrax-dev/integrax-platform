@@ -1,5 +1,5 @@
 // Middleware RBAC multi-tenant
-import { User } from './types';
+import { User } from './types.js';
 
 export function rbacMiddleware(requiredRole: User['role']) {
   return (req: any, res: any, next: any) => {

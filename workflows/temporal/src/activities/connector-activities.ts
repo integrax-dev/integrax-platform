@@ -102,14 +102,11 @@ async function executeEmail(
   const connector = new EmailConnector();
 
   await connector.connect({
-    type: 'basic',
-    credentials: {
-      provider: 'smtp',
-      host: credentials.smtp_host,
-      port: parseInt(credentials.smtp_port || '587', 10),
-      user: credentials.smtp_user,
-      pass: credentials.smtp_password,
-    },
+    provider: 'smtp',
+    host: credentials.smtp_host as string,
+    port: String(parseInt(credentials.smtp_port || '587', 10)),
+    user: credentials.smtp_user as string,
+    pass: credentials.smtp_password as string,
   });
 
   try {
@@ -479,13 +476,11 @@ export async function sendTenantNotification(
         const { EmailConnector } = await import('@integrax/connector-email');
         const connector = new EmailConnector();
         await connector.connect({
-          type: 'basic',
-          credentials: {
-            provider: 'smtp',
-            host: smtpHost,
-            user: smtpUser,
-            pass: smtpPass,
-          },
+          provider: 'smtp',
+          host: smtpHost,
+          port: '587',
+          user: smtpUser,
+          pass: smtpPass,
         });
 
         const result = await connector.sendEmail({

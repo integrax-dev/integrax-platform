@@ -10,10 +10,10 @@ import {
   TenantConnector,
   ConfigureConnectorSchema,
   ConnectorStatus,
-} from '../types';
-import { requireAuth, requireRole, requireTenant } from '../middleware/auth';
-import { audit } from '../middleware/audit';
-import { validate } from '../middleware/validate';
+} from '../types.js';
+import { requireAuth, requireRole, requireTenant } from '../middleware/auth.js';
+import { audit } from '../middleware/audit.js';
+import { validate } from '../middleware/validate.js';
 
 // Connector test functions - dynamic imports to avoid circular dependencies
 interface TestConnectionResult {
@@ -381,7 +381,7 @@ const CONNECTOR_TESTERS: Record<string, ConnectorTester> = {
   tiendanube: testTiendaNube,
 };
 
-const router = Router();
+const router: Router = Router();
 
 // Encryption key (should come from secure vault in production)
 const ENCRYPTION_KEY = process.env.CREDENTIAL_ENCRYPTION_KEY || randomBytes(32).toString('hex');
@@ -711,7 +711,7 @@ router.post(
     // Decrypt credentials for testing
     const decryptedCredentials: Record<string, string> = {};
     for (const [key, value] of Object.entries(tenantConnector.credentials)) {
-      decryptedCredentials[key] = decrypt(value);
+      decryptedCredentials[key] = decrypt(value as string);
     }
 
     // Get the tester for this connector type

@@ -6,14 +6,14 @@
  */
 
 import {
-  Connector,
+  BaseConnector,
   ConnectorSpec,
-  ConnectorAction,
-  ConnectorCredentials,
+  ActionDefinition,
+  ResolvedCredentials,
   HttpClient,
   ConnectorError,
-  ErrorCode,
 } from '@integrax/connector-sdk';
+import { z } from 'zod';
 import {
   ContabiliumConfig,
   ContabiliumCredentials,
@@ -36,12 +36,13 @@ import {
 const CONTABILIUM_API_URL = 'https://rest.contabilium.com/api';
 const CONTABILIUM_AUTH_URL = 'https://rest.contabilium.com/token';
 
-export class ContabiliumConnector implements Connector {
+export class ContabiliumConnector extends BaseConnector {
   private config: ContabiliumConfig;
   private credentials: ContabiliumCredentials;
   private httpClient: HttpClient;
 
   constructor(config: ContabiliumConfig) {
+    super();
     this.config = config;
     this.credentials = {
       clientId: config.clientId,
@@ -54,134 +55,141 @@ export class ContabiliumConnector implements Connector {
   }
 
   // ============================================
-  // Connector Interface
+  // BaseConnector Implementations
   // ============================================
 
-  spec(): ConnectorSpec {
+  protected registerActions(): void {
+    // Actions are registered automatically via getActions or we can register them here.
+    const actions = this.getActions();
+    for (const action of actions) {
+      this.registerAction(action.id, async (input: any) => {
+        // Simple dispatcher since the old code didn't use registerAction
+        const method = action.id as keyof this;
+        if (typeof this[method] === 'function') {
+          return (this as any)[method](input);
+        }
+        throw new ConnectorError('NOT_IMPLEMENTED', 'Action not implemented');
+      });
+    }
+  }
+
+  getSpec(): ConnectorSpec {
     return {
-      id: 'contabilium',
-      name: 'Contabilium',
-      description: 'ERP y sistema contable para PyMEs en Argentina',
-      version: '0.1.0',
-      auth: {
-        type: 'oauth2',
-        oauth2: {
-          authorizationUrl: CONTABILIUM_AUTH_URL,
-          tokenUrl: CONTABILIUM_AUTH_URL,
-          scopes: ['api'],
-        },
+      metadata: {
+        id: 'contabilium',
+        name: 'Contabilium',
+        description: 'ERP y sistema contable para PyMEs en Argentina',
+        version: '0.1.0',
+        category: 'erp',
+        status: 'active',
       },
+      authType: 'oauth2',
+      authSchema: z.any(),
       actions: this.getActions(),
     };
   }
 
-  async testConnection(credentials: ConnectorCredentials): Promise<boolean> {
+  async testConnection(credentials: ResolvedCredentials): Promise<import('@integrax/connector-sdk').TestConnectionResult> {
     try {
       await this.authenticate();
       // Try to get user info or make a simple API call
       await this.request('GET', '/v2/usuarios/me');
-      return true;
+      return { success: true, testedAt: new Date(), latencyMs: 0 };
     } catch (error) {
-      return false;
+      return { success: false, testedAt: new Date(), latencyMs: 0, error: { code: 'FAIL', message: String(error) } };
     }
   }
 
-  getActions(): ConnectorAction[] {
+  getActions(): ActionDefinition[] {
     return [
       // Clientes
       {
         id: 'get_cliente',
         name: 'Obtener Cliente',
         description: 'Obtiene un cliente por ID',
-        inputSchema: { type: 'object', properties: { id: { type: 'number' } }, required: ['id'] },
-        outputSchema: { type: 'object' },
+        inputSchema: z.object({ id: z.number() }),
+        outputSchema: z.any(),
       },
       {
         id: 'search_clientes',
         name: 'Buscar Clientes',
         description: 'Busca clientes por CUIT/CUIL o razón social',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            query: { type: 'string' },
-            page: { type: 'number' },
-            pageSize: { type: 'number' },
-          },
-        },
-        outputSchema: { type: 'object' },
+        inputSchema: z.object({
+          query: z.string().optional(),
+          page: z.number().optional(),
+          pageSize: z.number().optional(),
+        }).passthrough(),
+        outputSchema: z.any(),
       },
       {
         id: 'create_cliente',
         name: 'Crear Cliente',
         description: 'Crea un nuevo cliente',
-        inputSchema: { type: 'object' },
-        outputSchema: { type: 'object' },
+        inputSchema: z.any(),
+        outputSchema: z.any(),
       },
       {
         id: 'update_cliente',
         name: 'Actualizar Cliente',
         description: 'Actualiza un cliente existente',
-        inputSchema: { type: 'object' },
-        outputSchema: { type: 'object' },
+        inputSchema: z.any(),
+        outputSchema: z.any(),
       },
       // Productos
       {
         id: 'get_producto',
         name: 'Obtener Producto',
         description: 'Obtiene un producto por ID',
-        inputSchema: { type: 'object', properties: { id: { type: 'number' } }, required: ['id'] },
-        outputSchema: { type: 'object' },
+        inputSchema: z.object({ id: z.number() }),
+        outputSchema: z.any(),
       },
       {
         id: 'search_productos',
         name: 'Buscar Productos',
         description: 'Busca productos por código o nombre',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            query: { type: 'string' },
-            page: { type: 'number' },
-            pageSize: { type: 'number' },
-          },
-        },
-        outputSchema: { type: 'object' },
+        inputSchema: z.object({
+          query: z.string().optional(),
+          page: z.number().optional(),
+          pageSize: z.number().optional(),
+        }).passthrough(),
+        outputSchema: z.any(),
       },
       {
         id: 'create_producto',
         name: 'Crear Producto',
         description: 'Crea un nuevo producto',
-        inputSchema: { type: 'object' },
-        outputSchema: { type: 'object' },
+        inputSchema: z.any(),
+        outputSchema: z.any(),
       },
       // Comprobantes
       {
         id: 'get_comprobante',
         name: 'Obtener Comprobante',
         description: 'Obtiene un comprobante por ID',
-        inputSchema: { type: 'object', properties: { id: { type: 'number' } }, required: ['id'] },
-        outputSchema: { type: 'object' },
+        inputSchema: z.object({ id: z.number() }),
+        outputSchema: z.any(),
       },
       {
         id: 'create_comprobante',
         name: 'Crear Comprobante',
         description: 'Crea un nuevo comprobante (factura, nota de crédito, etc.)',
-        inputSchema: { type: 'object' },
-        outputSchema: { type: 'object' },
+        inputSchema: z.any(),
+        outputSchema: z.any(),
       },
       {
         id: 'facturar_comprobante',
         name: 'Facturar Comprobante',
         description: 'Solicita CAE a AFIP para un comprobante',
-        inputSchema: { type: 'object', properties: { id: { type: 'number' } }, required: ['id'] },
-        outputSchema: { type: 'object' },
+        inputSchema: z.object({ id: z.number() }),
+        outputSchema: z.any(),
       },
       // Pagos
       {
         id: 'registrar_pago',
         name: 'Registrar Pago',
         description: 'Registra un pago para un comprobante',
-        inputSchema: { type: 'object' },
-        outputSchema: { type: 'object' },
+        inputSchema: z.any(),
+        outputSchema: z.any(),
       },
     ];
   }
@@ -228,12 +236,12 @@ export class ContabiliumConnector implements Connector {
     if (!response.ok) {
       const error = await response.text();
       throw new ConnectorError(
-        ErrorCode.AUTHENTICATION_FAILED,
+        'AUTHENTICATION_FAILED',
         `Contabilium authentication failed: ${error}`
       );
     }
 
-    const data: ContabiliumTokenResponse = await response.json();
+    const data = (await response.json()) as ContabiliumTokenResponse;
     this.credentials.accessToken = data.access_token;
     this.credentials.refreshToken = data.refresh_token;
     this.credentials.expiresAt = Date.now() + data.expires_in * 1000;
@@ -258,7 +266,7 @@ export class ContabiliumConnector implements Connector {
       throw new Error('Token refresh failed');
     }
 
-    const data: ContabiliumTokenResponse = await response.json();
+    const data = (await response.json()) as ContabiliumTokenResponse;
     this.credentials.accessToken = data.access_token;
     this.credentials.refreshToken = data.refresh_token;
     this.credentials.expiresAt = Date.now() + data.expires_in * 1000;
@@ -287,15 +295,16 @@ export class ContabiliumConnector implements Connector {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ Message: response.statusText }));
+      const error = (await response.json().catch(() => ({ Message: response.statusText }))) as any;
       throw new ConnectorError(
-        response.status === 404 ? ErrorCode.NOT_FOUND : ErrorCode.API_ERROR,
+        response.status === 404 ? 'NOT_FOUND' : 'API_ERROR',
         `Contabilium API error: ${error.Message || response.statusText}`,
+        false,
         { status: response.status, error }
       );
     }
 
-    return response.json();
+    return (await response.json()) as T;
   }
 
   // ============================================
@@ -481,6 +490,9 @@ export class ContabiliumConnector implements Connector {
       Fecha: new Date().toISOString().split('T')[0],
       Items: data.items,
       Observaciones: data.observaciones,
+      Moneda: 'ARS',
+      Cotizacion: 1,
+      Pagado: false,
     });
 
     // 3. Facturar (get CAE from AFIP)

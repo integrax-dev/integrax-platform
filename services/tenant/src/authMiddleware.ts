@@ -1,5 +1,5 @@
 // Middleware de autenticación multi-tenant
-import { User } from './types';
+import { User } from './types.js';
 
 export function authMiddleware(req: any, res: any, next: any) {
   // Ejemplo: extraer tenantId y userId de header/token

@@ -2,7 +2,7 @@
  * Tenant Management API Routes
  */
 
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { ulid } from 'ulid';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
@@ -12,15 +12,14 @@ import {
   TenantLimitsSchema,
   TenantStatus,
   TenantPlan,
-} from '../types';
-import { requireAuth, requireRole } from '../middleware/auth';
-import { audit } from '../middleware/audit';
-import { validate } from '../middleware/validate';
+} from '../types.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
+import { audit } from '../middleware/audit.js';
+import { validate } from '../middleware/validate.js';
 
-const router = Router();
+const router: Router = Router();
 
-// In-memory store (replace with database in production)
-const tenants = new Map<string, Tenant>();
+import { tenants } from '../store/tenants.js';
 
 // Default limits per plan
 const PLAN_LIMITS: Record<TenantPlan, typeof TenantLimitsSchema._type> = {
@@ -84,7 +83,7 @@ router.post(
       plan: input.plan,
       status: 'active',
       ownerId,
-      limits: input.limits || PLAN_LIMITS[input.plan],
+      limits: input.limits || PLAN_LIMITS[input.plan as TenantPlan],
       metadata: input.metadata || {},
       apiKeyHash: await bcrypt.hash(apiKey, 10),
       webhookSecret,
@@ -206,7 +205,7 @@ router.patch(
       tenant.plan = updates.plan;
       // Optionally update limits to match new plan
       if (!updates.limits) {
-        tenant.limits = PLAN_LIMITS[updates.plan];
+        tenant.limits = PLAN_LIMITS[updates.plan as TenantPlan];
       }
     }
     if (updates.limits) {
@@ -356,4 +355,4 @@ router.delete(
   }
 );
 
-export { router as tenantsRouter, tenants };
+export { router as tenantsRouter };
