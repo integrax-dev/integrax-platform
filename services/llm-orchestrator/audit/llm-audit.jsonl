@@ -1,0 +1,2 @@
+{"timestamp":"2026-03-02T03:51:37.229Z","type":"llm_drift_analysis_request","connectorId":"mercadopago","evidencePackId":"pack-1","model":"claude-sonnet-4-6","promptLength":874}
+{"timestamp":"2026-03-02T03:51:37.231Z","type":"llm_drift_analysis_response","connectorId":"mercadopago","evidencePackId":"pack-1","model":"claude-sonnet-4-6","estimatedImpact":"low","confidenceScore":0.8,"isExecutable":false}

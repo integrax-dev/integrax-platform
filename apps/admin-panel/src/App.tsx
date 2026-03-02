@@ -8,6 +8,7 @@ import { Workflows } from './pages/Workflows';
 import { Events } from './pages/Events';
 import { Audit } from './pages/Audit';
 import { Settings } from './pages/Settings';
+import { Incidents } from './pages/Incidents';
 import { Login } from './pages/Login';
 import { useAuthStore } from './stores/auth';
 import './index.css';
@@ -47,6 +48,7 @@ export default function App() {
                     <Route path="/workflows" element={<Workflows />} />
                     <Route path="/events" element={<Events />} />
                     <Route path="/audit" element={<Audit />} />
+                    <Route path="/incidents" element={<Incidents />} />
                     <Route path="/settings" element={<Settings />} />
                   </Routes>
                 </Layout>

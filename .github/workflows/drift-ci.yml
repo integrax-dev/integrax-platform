@@ -1,0 +1,203 @@
+name: API Drift Detection CI
+
+on:
+  # Run on every push to main (to capture baseline changes)
+  push:
+    branches: [main]
+
+  # Run on PRs to catch drift before merging
+  pull_request:
+    branches: [main]
+
+  # Scheduled check: every 6 hours against live APIs
+  schedule:
+    - cron: '0 */6 * * *'
+
+  # Allow manual trigger with connector override
+  workflow_dispatch:
+    inputs:
+      connector_id:
+        description: 'Connector to check (leave empty to check all)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  # ─── Unit tests ─────────────────────────────────────────────────────────────
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package:
+          - services/connector-watchdog
+          - contracts/ts
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: '${{ matrix.package }}/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.package }}
+        run: npm ci
+
+      - name: Run tests
+        working-directory: ${{ matrix.package }}
+        run: npm test -- --reporter=verbose
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.package }}
+          path: ${{ matrix.package }}/test-results/
+          if-no-files-found: ignore
+
+  # ─── Contract tests (requires env secrets) ──────────────────────────────────
+  contract-tests:
+    name: Contract Tests
+    runs-on: ubuntu-latest
+    # Only run contract tests on schedule and manual triggers — not on every PR
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    needs: unit-tests
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install contract test dependencies
+        working-directory: contracts/ts
+        run: npm ci
+
+      - name: Run contract validation
+        working-directory: contracts/ts
+        env:
+          MERCADOPAGO_ACCESS_TOKEN: ${{ secrets.MERCADOPAGO_ACCESS_TOKEN }}
+          MERCADOLIBRE_ACCESS_TOKEN: ${{ secrets.MERCADOLIBRE_ACCESS_TOKEN }}
+          GOOGLE_SHEETS_ACCESS_TOKEN: ${{ secrets.GOOGLE_SHEETS_ACCESS_TOKEN }}
+          WHATSAPP_TOKEN: ${{ secrets.WHATSAPP_TOKEN }}
+          CONTABILIUM_API_KEY: ${{ secrets.CONTABILIUM_API_KEY }}
+          SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
+          TIENDANUBE_ACCESS_TOKEN: ${{ secrets.TIENDANUBE_ACCESS_TOKEN }}
+        run: npm run test:contracts
+
+  # ─── Schema fingerprint check ────────────────────────────────────────────────
+  drift-check:
+    name: Schema Drift Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    needs: unit-tests
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Fetch full history so we can compare fingerprints
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install watchdog dependencies
+        working-directory: services/connector-watchdog
+        run: npm ci
+
+      - name: Run drift detection
+        working-directory: services/connector-watchdog
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_OWNER: ${{ github.repository_owner }}
+          GITHUB_REPO: ${{ github.event.repository.name }}
+          CONNECTOR_ID: ${{ github.event.inputs.connector_id }}
+          MERCADOPAGO_OPENAPI_URL: ${{ vars.MERCADOPAGO_OPENAPI_URL }}
+          MERCADOLIBRE_OPENAPI_URL: ${{ vars.MERCADOLIBRE_OPENAPI_URL }}
+          AFIP_OPENAPI_URL: ${{ vars.AFIP_OPENAPI_URL }}
+          SHOPIFY_OPENAPI_URL: ${{ vars.SHOPIFY_OPENAPI_URL }}
+          TIENDANUBE_OPENAPI_URL: ${{ vars.TIENDANUBE_OPENAPI_URL }}
+          CONTABILIUM_OPENAPI_URL: ${{ vars.CONTABILIUM_OPENAPI_URL }}
+          GOOGLE_SHEETS_OPENAPI_URL: ${{ vars.GOOGLE_SHEETS_OPENAPI_URL }}
+          WHATSAPP_OPENAPI_URL: ${{ vars.WHATSAPP_OPENAPI_URL }}
+        run: npx tsx ../../scripts/run-drift-check.ts
+
+      - name: Upload evidence packs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drift-evidence-${{ github.run_number }}
+          path: |
+            .drift/evidence/
+            .drift/fingerprints/
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Upload drift reports as PR comment
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const reports = [];
+            try {
+              const dir = '.drift/reports';
+              const files = fs.readdirSync(dir);
+              for (const f of files.filter(f => f.endsWith('.json'))) {
+                reports.push(JSON.parse(fs.readFileSync(`${dir}/${f}`, 'utf-8')));
+              }
+            } catch {}
+
+            if (reports.length === 0) return;
+
+            const body = [
+              '## ⚠️ API Drift Detected',
+              '',
+              '| Connector | Severity | Changes |',
+              '|-----------|----------|---------|',
+              ...reports.map(r =>
+                `| ${r.connectorId} | **${r.severity}** | ${r.changes.length} change(s) |`
+              ),
+              '',
+              'See the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for full evidence packs.',
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
+  # ─── Lint & type-check ───────────────────────────────────────────────────────
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Type-check watchdog
+        working-directory: services/connector-watchdog
+        run: |
+          npm ci
+          npx tsc --noEmit
+
+      - name: Type-check contracts
+        working-directory: contracts/ts
+        run: |
+          npm ci
+          npx tsc --noEmit

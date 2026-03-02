@@ -1,0 +1,32 @@
+{
+  "name": "@integrax/connector-watchdog",
+  "version": "1.0.0",
+  "description": "API drift detection, schema fingerprinting, and evidence pack automation for IntegraX connectors",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": [
+    "integrax",
+    "drift-detection",
+    "api-monitoring",
+    "schema-fingerprinting"
+  ],
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@types/node": "^20.19.35",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^1.6.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

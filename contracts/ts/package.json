@@ -1,0 +1,21 @@
+{
+  "name": "@integrax/contracts",
+  "version": "1.0.0",
+  "description": "Contract tests and schema validation for IntegraX connectors",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:contracts": "vitest run src/__tests__/contract-tester.test.ts",
+    "lint": "tsc --noEmit"
+  },
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@types/node": "^20.19.35",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^1.6.1"
+  }
+}

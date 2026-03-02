@@ -9,6 +9,7 @@ const navItems = [
   { path: '/workflows', label: 'Workflows', icon: '⚡' },
   { path: '/events', label: 'Eventos', icon: '📨' },
   { path: '/audit', label: 'Auditoría', icon: '📋' },
+  { path: '/incidents', label: 'Incidentes', icon: '🚨' },
   { path: '/settings', label: 'Configuración', icon: '⚙️' },
 ];
 
