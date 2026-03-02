@@ -9,7 +9,17 @@ function normalizeEnv(value: string | undefined): AppEnv {
 
 export const appEnv: AppEnv = normalizeEnv(import.meta.env.VITE_APP_ENV ?? import.meta.env.MODE);
 export const isProdEnv = appEnv === 'prod';
-export const allowDemoFallbacks = appEnv === 'dev' || appEnv === 'staging';
+
+function parseBoolean(value: string | undefined): boolean | null {
+  if (value == null) return null;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'true' || normalized === '1' || normalized === 'yes') return true;
+  if (normalized === 'false' || normalized === '0' || normalized === 'no') return false;
+  return null;
+}
+
+const explicitDemoFallbacks = parseBoolean(import.meta.env.VITE_ENABLE_DEMO_FALLBACKS);
+export const allowDemoFallbacks = explicitDemoFallbacks ?? (appEnv === 'dev' || appEnv === 'staging');
 
 export function getAdminApiBaseUrl(): string {
   return (import.meta.env.VITE_ADMIN_API_BASE_URL ?? '').trim().replace(/\/$/, '');

@@ -9,7 +9,6 @@ Este módulo implementa los servicios base para multi-tenancy:
 - Ingesta y enrutamiento de eventos
 - DLQ por tenant
 - Métricas y alertas
-- API de administración
 
 ## Archivos principales
 - types.ts: Tipos base multi-tenant
@@ -22,4 +21,3 @@ Este módulo implementa los servicios base para multi-tenancy:
 - eventRouter.ts: Ingesta y enrutamiento de eventos
 - dlqManager.ts: Dead Letter Queue por tenant
 - metrics.ts: Métricas y alertas por tenant
-- adminApi.ts: Endpoints de administración
