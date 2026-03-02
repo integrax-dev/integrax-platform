@@ -6,7 +6,12 @@
 
 import { RealtimeServer } from './index.js';
 
-const PORT = parseInt(process.env.WS_PORT || '3003', 10);
+function parsePositiveInt(value: string | undefined, fallback: number): number {
+  const parsed = Number.parseInt(value ?? String(fallback), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+const PORT = parsePositiveInt(process.env.WS_PORT, 3003);
 
 if (!process.env.JWT_SECRET) {
   console.error('[Realtime] FATAL: JWT_SECRET environment variable is not set');
@@ -35,16 +40,6 @@ async function main() {
 
   const server = new RealtimeServer({ port: PORT });
 
-  // Graceful shutdown
-  const shutdown = async (signal: string) => {
-    console.log(`\n[Realtime] Received ${signal}, shutting down...`);
-    await server.stop();
-    process.exit(0);
-  };
-
-  process.on('SIGINT', () => shutdown('SIGINT'));
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-
   await server.start();
 
   const HOST = process.env.HOST || '0.0.0.0';
@@ -66,14 +61,31 @@ Example client connection:
 `);
 
   // Log stats periodically
-  setInterval(() => {
+  const statsInterval = setInterval(() => {
     const stats = server.getStats();
     if (stats.totalConnections > 0) {
       console.log(`[Realtime] Stats: ${stats.totalConnections} connections`);
     }
   }, 60000);
-}
 
+  let shuttingDown = false;
+  const shutdown = async (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+
+    console.log(`\n[Realtime] Received ${signal}, shutting down...`);
+    clearInterval(statsInterval);
+    await server.stop();
+    process.exit(0);
+  };
+
+  process.on('SIGINT', () => {
+    void shutdown('SIGINT');
+  });
+  process.on('SIGTERM', () => {
+    void shutdown('SIGTERM');
+  });
+}
 main().catch((error) => {
   console.error('[Realtime] Failed to start server:', error);
   process.exit(1);

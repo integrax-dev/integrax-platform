@@ -51,16 +51,23 @@ async function run() {
   logger.info('Press Ctrl+C to stop.');
 
   // Handle shutdown
+  let shuttingDown = false;
   const shutdown = async () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+
     logger.info('Shutting down worker...');
     await worker.shutdown();
     await connection.close();
     logger.info('Worker stopped.');
-    process.exit(0);
   };
 
-  process.on('SIGINT', shutdown);
-  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', () => {
+    void shutdown();
+  });
+  process.on('SIGTERM', () => {
+    void shutdown();
+  });
 
   // Run the worker
   await worker.run();

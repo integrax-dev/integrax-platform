@@ -9,6 +9,7 @@ import type { LLMConfig, Message, ToolDefinition, ToolResult } from './types';
 
 const DEFAULT_MODEL = 'claude-sonnet-4-20250514';
 const DEFAULT_MAX_TOKENS = 4096;
+const DEFAULT_MAX_TOOL_ROUNDS = 8;
 
 export class LLMClient {
   private client: Anthropic;
@@ -69,9 +70,15 @@ export class LLMClient {
       role: m.role as 'user' | 'assistant',
       content: m.content,
     }));
+    let rounds = 0;
 
     // Loop until we get a final response (no more tool calls)
     while (true) {
+      rounds += 1;
+      if (rounds > DEFAULT_MAX_TOOL_ROUNDS) {
+        throw new Error(`Tool loop exceeded ${DEFAULT_MAX_TOOL_ROUNDS} rounds`);
+      }
+
       const response = await this.client.messages.create({
         model: this.model,
         max_tokens: this.maxTokens,

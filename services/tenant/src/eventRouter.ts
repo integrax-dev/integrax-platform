@@ -5,6 +5,7 @@
  * Falls back to in-memory for development.
  */
 import { Kafka, Producer, Consumer, EachMessagePayload } from 'kafkajs';
+import { randomUUID } from 'node:crypto';
 import { Event } from './types.js';
 import { moveToDLQ } from './dlqManager.js';
 
@@ -16,28 +17,67 @@ let consumer: Consumer | null = null;
 // In-memory fallback for development
 const memoryEvents: Map<string, Event> = new Map();
 const eventHandlers: Map<string, (event: Event) => Promise<void>> = new Map();
+const memoryConsumers: Map<string, Map<string, (event: Event) => Promise<void>>> = new Map();
 
 const EVENT_TOPIC_PREFIX = 'integrax.events';
+
+function parsePositiveInt(value: string | undefined, fallback: number): number {
+  const parsed = Number.parseInt(value ?? String(fallback), 10);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return fallback;
+  }
+  return parsed;
+}
+
+const MEMORY_EVENT_LIMIT = Math.max(100, parsePositiveInt(process.env.EVENT_ROUTER_MEMORY_LIMIT, 10000));
+
+function parseKafkaBrokers(raw: string): string[] {
+  return raw
+    .split(',')
+    .map((broker) => broker.trim())
+    .filter((broker) => broker.length > 0);
+}
+
+function trimMemoryEvents(): void {
+  while (memoryEvents.size > MEMORY_EVENT_LIMIT) {
+    const oldestKey = memoryEvents.keys().next().value as string | undefined;
+    if (!oldestKey) {
+      break;
+    }
+    memoryEvents.delete(oldestKey);
+  }
+}
 
 /**
  * Initialize Kafka connection
  */
 export async function initializeEventRouter(): Promise<void> {
   const brokers = process.env.KAFKA_BROKERS;
+  const saslUsername = process.env.KAFKA_SASL_USERNAME;
+  const saslPassword = process.env.KAFKA_SASL_PASSWORD;
 
   if (!brokers) {
     console.warn('[EventRouter] KAFKA_BROKERS not set. Using in-memory storage.');
     return;
   }
 
+  if (saslUsername && !saslPassword) {
+    throw new Error('[EventRouter] KAFKA_SASL_PASSWORD is required when KAFKA_SASL_USERNAME is set');
+  }
+
+  const parsedBrokers = parseKafkaBrokers(brokers);
+  if (parsedBrokers.length === 0) {
+    throw new Error('[EventRouter] KAFKA_BROKERS is set but contains no valid brokers');
+  }
+
   kafka = new Kafka({
     clientId: process.env.KAFKA_CLIENT_ID || 'integrax-event-router',
-    brokers: brokers.split(','),
-    ...(process.env.KAFKA_SASL_USERNAME && {
+    brokers: parsedBrokers,
+    ...(saslUsername && {
       sasl: {
         mechanism: 'plain',
-        username: process.env.KAFKA_SASL_USERNAME,
-        password: process.env.KAFKA_SASL_PASSWORD || '',
+        username: saslUsername,
+        password: saslPassword as string,
       },
       ssl: true,
     }),
@@ -54,7 +94,7 @@ export async function initializeEventRouter(): Promise<void> {
 export async function ingestEvent(
   event: Omit<Event, 'id' | 'receivedAt' | 'status'>
 ): Promise<Event> {
-  const id = `evt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const id = `evt_${randomUUID()}`;
   const now = new Date().toISOString();
 
   const newEvent: Event = {
@@ -87,6 +127,7 @@ export async function ingestEvent(
   } else {
     // Development fallback
     memoryEvents.set(`${event.tenantId}:${id}`, newEvent);
+    trimMemoryEvents();
 
     // Process immediately in dev mode if handler exists
     const handler = eventHandlers.get(event.type);
@@ -98,6 +139,20 @@ export async function ingestEvent(
       } catch (error) {
         newEvent.status = 'failed';
         await moveToDLQ(newEvent, error instanceof Error ? error.message : 'Unknown error');
+      }
+    }
+
+    const tenantConsumers = memoryConsumers.get(event.tenantId);
+    if (tenantConsumers) {
+      for (const consume of tenantConsumers.values()) {
+        try {
+          await consume(newEvent);
+          newEvent.status = 'processed';
+          newEvent.processedAt = new Date().toISOString();
+        } catch (error) {
+          newEvent.status = 'failed';
+          await moveToDLQ(newEvent, error instanceof Error ? error.message : 'Unknown error');
+        }
       }
     }
   }
@@ -203,7 +258,10 @@ export async function startConsumer(
   handler: (event: Event) => Promise<void>
 ): Promise<void> {
   if (!kafka) {
-    // Register handler for in-memory mode
+    // Register consumer handler for in-memory mode
+    const existing = memoryConsumers.get(tenantId) ?? new Map<string, (event: Event) => Promise<void>>();
+    existing.set(groupId, handler);
+    memoryConsumers.set(tenantId, existing);
     console.log(`[EventRouter] Consumer registered for tenant ${tenantId} (in-memory mode)`);
     return;
   }
@@ -244,6 +302,7 @@ export async function stopConsumer(): Promise<void> {
     await consumer.disconnect();
     consumer = null;
   }
+  memoryConsumers.clear();
 }
 
 /**
@@ -286,4 +345,5 @@ export async function closeEventRouter(): Promise<void> {
   kafka = null;
   memoryEvents.clear();
   eventHandlers.clear();
+  memoryConsumers.clear();
 }

@@ -31,6 +31,11 @@ export interface RealtimeConfig {
   pingInterval?: number;
 }
 
+function parsePositiveInt(value: string | undefined, fallback: number): number {
+  const parsed = Number.parseInt(value ?? String(fallback), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 export interface ClientConnection {
   id: string;
   ws: WebSocket;
@@ -98,10 +103,10 @@ export class RealtimeServer {
     }
 
     this.config = {
-      port: config.port || parseInt(process.env.WS_PORT || '3003', 10),
+      port: config.port ?? parsePositiveInt(process.env.WS_PORT, 3003),
       redisUrl: (config.redisUrl || process.env.REDIS_URL) as string,
       jwtSecret: (config.jwtSecret || process.env.JWT_SECRET) as string,
-      pingInterval: config.pingInterval || 30000,
+      pingInterval: config.pingInterval ?? parsePositiveInt(process.env.WS_PING_INTERVAL_MS, 30000),
     };
   }
 
@@ -146,6 +151,7 @@ export class RealtimeServer {
   async stop(): Promise<void> {
     if (this.pingInterval) {
       clearInterval(this.pingInterval);
+      this.pingInterval = null;
     }
 
     // Close all connections

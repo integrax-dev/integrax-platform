@@ -1,4 +1,5 @@
 import { logger } from '../utils/logger.js';
+import { parseCsvList, parsePositiveInt } from '../utils/env.js';
 /**
  * Payment Activities
  *
@@ -64,7 +65,7 @@ function getPool(): Pool {
 
     pool = new Pool({
       host: process.env.POSTGRES_HOST,
-      port: parseInt(process.env.POSTGRES_PORT || '5432'),
+      port: parsePositiveInt(process.env.POSTGRES_PORT, 5432),
       user: process.env.POSTGRES_USER,
       password: process.env.POSTGRES_PASSWORD,
       database: process.env.POSTGRES_DB || 'integrax',
@@ -79,9 +80,12 @@ let kafka: Kafka | null = null;
 function getKafka(): Kafka {
   if (!kafka) {
     if (!process.env.KAFKA_BROKERS) throw new Error('KAFKA_BROKERS is required');
+    const brokers = parseCsvList(process.env.KAFKA_BROKERS);
+    if (brokers.length === 0) throw new Error('KAFKA_BROKERS must include at least one broker');
+
     kafka = new Kafka({
       clientId: 'integrax-temporal-worker',
-      brokers: process.env.KAFKA_BROKERS.split(','),
+      brokers,
     });
   }
   return kafka;

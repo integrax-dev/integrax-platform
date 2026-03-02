@@ -18,7 +18,19 @@ config();
 
 const logger = createLogger({ service: 'kafka-consumer', version: '0.1.0' });
 
-const KAFKA_BROKERS = (process.env.KAFKA_BROKERS || '').split(',').filter(Boolean);
+function parsePositiveInt(value: string | undefined, fallback: number): number {
+  const parsed = Number.parseInt(value ?? String(fallback), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function parseKafkaBrokers(raw: string | undefined): string[] {
+  return (raw ?? '')
+    .split(',')
+    .map((broker) => broker.trim())
+    .filter((broker) => broker.length > 0);
+}
+
+const KAFKA_BROKERS = parseKafkaBrokers(process.env.KAFKA_BROKERS);
 if (KAFKA_BROKERS.length === 0) throw new Error('KAFKA_BROKERS env var is required');
 
 const KAFKA_GROUP_ID = process.env.KAFKA_GROUP_ID || 'integrax-consumer';
@@ -268,11 +280,49 @@ async function main() {
   });
 
   // Health HTTP sidecar
-  const healthPort = parseInt(process.env.HEALTH_PORT || '3001', 10);
+  const healthPort = parsePositiveInt(process.env.HEALTH_PORT, 3001);
   const healthApp = express();
   healthApp.get('/health', (_req, res) => res.json({ status: 'healthy', service: 'kafka-consumer' }));
   healthApp.get('/ready', (_req, res) => res.json({ status: 'healthy', service: 'kafka-consumer' }));
-  healthApp.listen(healthPort, () => { logger.info({ healthPort }, 'Health sidecar running'); });
+  const healthServer = healthApp.listen(healthPort, () => { logger.info({ healthPort }, 'Health sidecar running'); });
+
+  // Handle shutdown
+  let shuttingDown = false;
+  const shutdown = async () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+
+    logger.info('Shutting down...');
+    try {
+      await consumer.stop();
+    } catch (err) {
+      logger.warn({ err }, 'Failed to stop consumer loop cleanly');
+    }
+
+    try {
+      await consumer.disconnect();
+    } catch (err) {
+      logger.warn({ err }, 'Failed to disconnect Kafka consumer cleanly');
+    }
+
+    if (temporalClient) {
+      await temporalClient.connection.close();
+    }
+
+    await new Promise<void>((resolve) => {
+      healthServer.close(() => resolve());
+    });
+
+    logger.info('Consumer stopped');
+    process.exit(0);
+  };
+
+  process.on('SIGINT', () => {
+    void shutdown();
+  });
+  process.on('SIGTERM', () => {
+    void shutdown();
+  });
 
   // Run consumer
   logger.info('Consumer running');
@@ -280,20 +330,6 @@ async function main() {
   await consumer.run({
     eachMessage: handleMessage,
   });
-
-  // Handle shutdown
-  const shutdown = async () => {
-    logger.info('Shutting down...');
-    await consumer.disconnect();
-    if (temporalClient) {
-      await temporalClient.connection.close();
-    }
-    logger.info('Consumer stopped');
-    process.exit(0);
-  };
-
-  process.on('SIGINT', shutdown);
-  process.on('SIGTERM', shutdown);
 }
 
 main().catch((err) => {

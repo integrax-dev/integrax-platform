@@ -16,6 +16,11 @@ import { metricsMiddleware } from '@integrax/metrics';
 
 const app: express.Application = express();
 
+function parsePositiveInt(value: string | undefined, fallback: number): number {
+  const parsed = Number.parseInt(value ?? String(fallback), 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
 if (!process.env.JWT_SECRET) {
   console.error('[Control Plane] FATAL: JWT_SECRET environment variable is not set');
   process.exit(1);
@@ -81,8 +86,8 @@ app.get(
       action: action as string,
       startDate: startDate ? new Date(startDate as string) : undefined,
       endDate: endDate ? new Date(endDate as string) : undefined,
-      limit: limit ? parseInt(limit as string) : undefined,
-      offset: offset ? parseInt(offset as string) : undefined,
+      limit: limit ? parsePositiveInt(limit as string, 50) : undefined,
+      offset: offset ? parsePositiveInt(offset as string, 0) : undefined,
     });
 
     res.json({
@@ -90,8 +95,8 @@ app.get(
       data: result.entries,
       pagination: {
         total: result.total,
-        limit: limit ? parseInt(limit as string) : 50,
-        offset: offset ? parseInt(offset as string) : 0,
+        limit: limit ? parsePositiveInt(limit as string, 50) : 50,
+        offset: offset ? parsePositiveInt(offset as string, 0) : 0,
       },
     });
   }
@@ -153,7 +158,7 @@ app.use((req, res) => {
 });
 
 // Start server
-const PORT = parseInt(process.env.PORT || '3000', 10);
+const PORT = parsePositiveInt(process.env.PORT, 3000);
 
 // ESM entry point check
 const isMainModule = import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}`;
