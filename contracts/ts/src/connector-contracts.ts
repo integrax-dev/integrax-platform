@@ -123,9 +123,18 @@ export const AFIP_CONTRACT: ConnectorContract = {
         'Content-Type': 'text/xml; charset=utf-8',
         SOAPAction: 'http://ar.gov.afip.dif.FEV1/FEDummy',
       },
+      body: `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+               xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <FEDummy xmlns="http://ar.gov.afip.dif.FEV1/" />
+  </soap:Body>
+</soap:Envelope>`,
+      responseParser: 'text',
       responseSchema: {
-        type: 'object',
-        nullable: true,
+        type: 'string',
+        pattern: 'FEDummyResult|appserver|dbserver|authserver',
       },
     },
   ],

@@ -1,0 +1,75 @@
+{
+  "generatedAt": "2026-03-02T04:59:18.901Z",
+  "mode": "live-http",
+  "entries": [
+    {
+      "connectorId": "mercadopago",
+      "baseUrl": "https://api.mercadopago.com",
+      "status": "skipped_missing_auth",
+      "authEnvVar": "MERCADOPAGO_ACCESS_TOKEN",
+      "details": "Falta variable MERCADOPAGO_ACCESS_TOKEN",
+      "checkedAt": "2026-03-02T04:59:18.625Z"
+    },
+    {
+      "connectorId": "mercadolibre",
+      "baseUrl": "https://api.mercadolibre.com",
+      "status": "skipped_missing_auth",
+      "authEnvVar": "MERCADOLIBRE_ACCESS_TOKEN",
+      "details": "Falta variable MERCADOLIBRE_ACCESS_TOKEN",
+      "checkedAt": "2026-03-02T04:59:18.626Z"
+    },
+    {
+      "connectorId": "afip-wsfe",
+      "baseUrl": "https://wswhomo.afip.gov.ar",
+      "status": "failed_real",
+      "summary": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1,
+        "violations": 1
+      },
+      "details": "Respuesta real no conforma contrato esperado",
+      "checkedAt": "2026-03-02T04:59:18.626Z"
+    },
+    {
+      "connectorId": "google-sheets",
+      "baseUrl": "https://sheets.googleapis.com",
+      "status": "skipped_missing_auth",
+      "authEnvVar": "GOOGLE_SHEETS_ACCESS_TOKEN",
+      "details": "Falta variable GOOGLE_SHEETS_ACCESS_TOKEN",
+      "checkedAt": "2026-03-02T04:59:18.901Z"
+    },
+    {
+      "connectorId": "whatsapp-business",
+      "baseUrl": "https://graph.facebook.com/v18.0",
+      "status": "skipped_missing_auth",
+      "authEnvVar": "WHATSAPP_TOKEN",
+      "details": "Falta variable WHATSAPP_TOKEN",
+      "checkedAt": "2026-03-02T04:59:18.901Z"
+    },
+    {
+      "connectorId": "contabilium",
+      "baseUrl": "https://app.contabilium.com/api",
+      "status": "skipped_missing_auth",
+      "authEnvVar": "CONTABILIUM_API_KEY",
+      "details": "Falta variable CONTABILIUM_API_KEY",
+      "checkedAt": "2026-03-02T04:59:18.901Z"
+    },
+    {
+      "connectorId": "shopify",
+      "baseUrl": "https://example.myshopify.com/admin/api/2024-01",
+      "status": "skipped_missing_auth",
+      "authEnvVar": "SHOPIFY_ACCESS_TOKEN",
+      "details": "Falta variable SHOPIFY_ACCESS_TOKEN",
+      "checkedAt": "2026-03-02T04:59:18.901Z"
+    },
+    {
+      "connectorId": "tiendanube",
+      "baseUrl": "https://api.tiendanube.com/v1",
+      "status": "skipped_missing_auth",
+      "authEnvVar": "TIENDANUBE_ACCESS_TOKEN",
+      "details": "Falta variable TIENDANUBE_ACCESS_TOKEN",
+      "checkedAt": "2026-03-02T04:59:18.901Z"
+    }
+  ]
+}

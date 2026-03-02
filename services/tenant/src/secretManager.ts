@@ -7,6 +7,8 @@
 import { Credential } from './types.js';
 import { SecretsManager, getSecretsManager, ConnectorCredentials } from '@integrax/secrets';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 // In-memory fallback for development (encrypted)
 const memoryStore: Map<string, Credential> = new Map();
 
@@ -51,6 +53,9 @@ export async function storeCredential(
       cred.data as ConnectorCredentials
     );
   } else {
+    if (isProduction) {
+      throw new Error('Vault is required in production for credential storage');
+    }
     // Development fallback: store in memory (warn in logs)
     console.warn('[SecretManager] Using in-memory storage. Set VAULT_ADDR for production!');
     memoryStore.set(`${cred.tenantId}:${cred.connector}`, {
@@ -89,6 +94,10 @@ export async function getCredential(
     };
   }
 
+  if (isProduction) {
+    throw new Error('Vault is required in production for credential reads');
+  }
+
   // Development fallback
   const key = `${tenantId}:${connector}`;
   return memoryStore.get(key) || null;
@@ -118,6 +127,10 @@ export async function getCredentials(tenantId: string): Promise<Credential[]> {
     return credentials;
   }
 
+  if (isProduction) {
+    throw new Error('Vault is required in production for credential listing');
+  }
+
   // Development fallback
   const credentials: Credential[] = [];
   for (const [key, cred] of memoryStore) {
@@ -145,6 +158,10 @@ export async function deleteCredential(
     return true;
   }
 
+  if (isProduction) {
+    throw new Error('Vault is required in production for credential deletion');
+  }
+
   // Development fallback
   const key = `${tenantId}:${connector}`;
   return memoryStore.delete(key);
@@ -170,6 +187,10 @@ export async function updateCredential(
       createdAt: '',
       updatedAt: new Date().toISOString(),
     };
+  }
+
+  if (isProduction) {
+    throw new Error('Vault is required in production for credential updates');
   }
 
   // Development fallback

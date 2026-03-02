@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import './Pages.css';
+import { fetchAdminJson } from '../lib/adminApi';
+import { allowDemoFallbacks } from '../lib/runtime';
 
 
 type Tenant = {
@@ -11,6 +13,12 @@ type Tenant = {
   created: string;
 };
 
+const MOCK_TENANTS: Tenant[] = [
+  { id: 'tn-acme', name: 'Acme SA', plan: 'enterprise', status: 'active', events: 320450, created: '2025-11-12' },
+  { id: 'tn-globex', name: 'Globex', plan: 'professional', status: 'active', events: 124300, created: '2025-08-01' },
+  { id: 'tn-umbrella', name: 'Umbrella', plan: 'starter', status: 'suspended', events: 12040, created: '2025-05-19' },
+];
+
 export function Tenants() {
   const [showModal, setShowModal] = useState(false);
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -18,20 +26,34 @@ export function Tenants() {
   const [error, setError] = useState<string|null>(null);
 
   useEffect(() => {
-    setLoading(true);
-    fetch('/api/admin/tenants')
-      .then(res => {
-        if (!res.ok) throw new Error('Error al cargar tenants');
-        return res.json();
-      })
-      .then(data => {
-        setTenants(data.tenants || []);
-        setLoading(false);
-      })
-      .catch(err => {
-        setError(err.message);
-        setLoading(false);
-      });
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const data = await fetchAdminJson<{ tenants: Tenant[] }>('/api/admin/tenants');
+        if (!cancelled) setTenants(data.tenants || []);
+      } catch {
+        if (allowDemoFallbacks) {
+          if (!cancelled) {
+            setTenants(MOCK_TENANTS);
+            setError(null);
+          }
+        } else if (!cancelled) {
+          setError('No se pudo cargar tenants');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (

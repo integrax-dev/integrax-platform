@@ -1,0 +1,56 @@
+[
+  {
+    "type": "graphql",
+    "id": "gql:platform-api",
+    "url": "https://staging-api.example.com/graphql",
+    "query": "{ __typename }",
+    "authEnvVar": "GRAPHQL_TOKEN",
+    "authHeader": "Authorization"
+  },
+  {
+    "type": "grpc",
+    "id": "grpc:health",
+    "target": "staging-grpc.example.com:443",
+    "method": "grpc.health.v1.Health/Check",
+    "data": { "service": "" },
+    "plaintext": false
+  },
+  {
+    "type": "sql",
+    "id": "sql:orders",
+    "connectionEnvVar": "ORDERS_DB_URL",
+    "query": "select 1 as ok",
+    "expectedMinRows": 1
+  },
+  {
+    "type": "kafka",
+    "id": "kafka:orders-topic",
+    "brokersEnvVar": "KAFKA_BROKERS",
+    "topic": "integrax.orders",
+    "clientId": "integrax-surface-check-staging",
+    "saslUsernameEnvVar": "KAFKA_SASL_USERNAME",
+    "saslPasswordEnvVar": "KAFKA_SASL_PASSWORD"
+  },
+  {
+    "type": "cdc",
+    "id": "cdc:orders-connector",
+    "url": "http://debezium:8083/connectors/orders-connector/status",
+    "expectedConnectorState": "RUNNING",
+    "expectedTaskState": "RUNNING"
+  },
+  {
+    "type": "webhook",
+    "id": "webhook:orders-ingress",
+    "url": "https://staging-api.example.com/webhooks/orders",
+    "method": "POST",
+    "expectedStatus": 200,
+    "hmacSecretEnvVar": "WEBHOOK_SECRET",
+    "signatureHeader": "X-Signature",
+    "signaturePrefix": "sha256="
+  },
+  {
+    "type": "redis",
+    "id": "redis:cache",
+    "urlEnvVar": "REDIS_URL"
+  }
+]

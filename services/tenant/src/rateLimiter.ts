@@ -8,6 +8,8 @@ import { Request, Response, NextFunction } from 'express';
 import { Redis } from 'ioredis';
 import { Tenant } from './types.js';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 // Redis client (singleton)
 let redis: Redis | null = null;
 
@@ -142,6 +144,9 @@ export function rateLimiter(options: { getTenantPlan?: (tenantId: string) => Pro
 
       // Check rate limit
       const redisClient = getRedis();
+      if (!redisClient && isProduction) {
+        throw new Error('REDIS_URL is required in production for rate limiting');
+      }
       const result = redisClient
         ? await checkRateLimitRedis(redisClient, tenantId, config)
         : checkRateLimitMemory(tenantId, config);
@@ -183,6 +188,10 @@ export async function getTenantUsage(tenantId: string): Promise<{
   const config = await getTenantLimit(tenantId);
   const redisClient = getRedis();
 
+  if (!redisClient && isProduction) {
+    throw new Error('REDIS_URL is required in production for usage metrics');
+  }
+
   if (redisClient) {
     const key = `ratelimit:${tenantId}`;
     const now = Date.now();
@@ -212,6 +221,10 @@ export async function getTenantUsage(tenantId: string): Promise<{
  */
 export async function resetTenantRateLimit(tenantId: string): Promise<void> {
   const redisClient = getRedis();
+
+  if (!redisClient && isProduction) {
+    throw new Error('REDIS_URL is required in production for rate limit reset');
+  }
 
   if (redisClient) {
     await redisClient.del(`ratelimit:${tenantId}`);

@@ -1,5 +1,7 @@
 import './Pages.css';
 import { useEffect, useState } from 'react';
+import { fetchAdminJson } from '../lib/adminApi';
+import { allowDemoFallbacks } from '../lib/runtime';
 
 type Event = {
   id: string;
@@ -11,26 +13,77 @@ type Event = {
   error?: string;
 };
 
+const MOCK_EVENTS: Event[] = [
+  {
+    id: 'evt_001',
+    type: 'order.created',
+    tenant: 'Acme SA',
+    connector: 'Shopify',
+    status: 'processed',
+    time: 'hace 1 min',
+  },
+  {
+    id: 'evt_002',
+    type: 'payment.updated',
+    tenant: 'Globex',
+    connector: 'MercadoPago',
+    status: 'pending',
+    time: 'hace 3 min',
+  },
+  {
+    id: 'evt_003',
+    type: 'invoice.created',
+    tenant: 'Umbrella',
+    connector: 'AFIP',
+    status: 'failed',
+    time: 'hace 7 min',
+    error: 'Timeout en servicio externo',
+  },
+  {
+    id: 'evt_004',
+    type: 'message.sent',
+    tenant: 'Acme SA',
+    connector: 'WhatsApp',
+    status: 'dlq',
+    time: 'hace 10 min',
+    error: 'Payload inválido',
+  },
+];
+
 export function Events() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string|null>(null);
 
   useEffect(() => {
-    setLoading(true);
-    fetch('/api/admin/events')
-      .then(res => {
-        if (!res.ok) throw new Error('Error al cargar eventos');
-        return res.json();
-      })
-      .then(data => {
-        setEvents(data.events || []);
-        setLoading(false);
-      })
-      .catch(err => {
-        setError(err.message);
-        setLoading(false);
-      });
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const data = await fetchAdminJson<{ events: Event[] }>('/api/admin/events');
+        if (!cancelled) setEvents(data.events || []);
+      } catch {
+        if (allowDemoFallbacks) {
+          if (!cancelled) {
+            setEvents(MOCK_EVENTS);
+            setError(null);
+          }
+        } else if (!cancelled) {
+          setError('No se pudo cargar eventos');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (

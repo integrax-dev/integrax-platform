@@ -26,10 +26,15 @@ export interface ContractEndpoint {
   expectedStatus: number;
   /** Optional static headers to add (e.g. Content-Type) */
   headers?: Record<string, string>;
+  /** Optional request body for probes (useful for SOAP/XML endpoints) */
+  body?: string;
+  /** Response parser mode */
+  responseParser?: 'json' | 'text' | 'auto';
 }
 
 export interface JsonSchema {
   type?: string;
+  pattern?: string;
   properties?: Record<string, JsonSchema>;
   required?: string[];
   items?: JsonSchema;
@@ -116,6 +121,20 @@ export function validateSchema(
       });
     }
     return violations;
+  }
+
+  if (schema.pattern && typeof value === 'string') {
+    const regex = new RegExp(schema.pattern);
+    if (!regex.test(value)) {
+      violations.push({
+        endpointId: '',
+        field: path,
+        expected: `match pattern ${schema.pattern}`,
+        actual: value,
+        severity: 'critical',
+      });
+      return violations;
+    }
   }
 
   if (schema.anyOf) {
@@ -240,15 +259,27 @@ export class ContractTester {
       const response = await fetchFn(url, {
         method: endpoint.method,
         headers,
+        body: endpoint.body,
       });
 
       const latencyMs = Date.now() - start;
       let body: unknown;
 
-      try {
-        body = await response.json();
-      } catch {
-        body = null;
+      const rawText = await response.text();
+      if (endpoint.responseParser === 'text') {
+        body = rawText;
+      } else if (endpoint.responseParser === 'json') {
+        try {
+          body = JSON.parse(rawText) as unknown;
+        } catch {
+          body = null;
+        }
+      } else {
+        try {
+          body = JSON.parse(rawText) as unknown;
+        } catch {
+          body = rawText;
+        }
       }
 
       const violations: ContractViolation[] = [];

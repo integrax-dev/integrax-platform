@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth';
+import { allowDemoFallbacks } from '../lib/runtime';
 import './Login.css';
 
 export function Login() {
@@ -76,12 +77,14 @@ export function Login() {
           </button>
         </form>
 
-        <div className="login-footer">
-          <p className="demo-hint">
-            Demo: usa cualquier email/contraseña.<br />
-            Incluye "admin" en el email para rol de administrador.
-          </p>
-        </div>
+        {allowDemoFallbacks && (
+          <div className="login-footer">
+            <p className="demo-hint">
+              Demo: usa cualquier email/contraseña.<br />
+              Incluye "admin" en el email para rol de administrador.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

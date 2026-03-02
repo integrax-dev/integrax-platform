@@ -1,6 +1,8 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { fetchAdminJson } from '../lib/adminApi';
+import { allowDemoFallbacks, appEnv } from '../lib/runtime';
 
 interface User {
   id: string;
@@ -28,20 +30,23 @@ export const useAuthStore = create<AuthState>()(
 
       login: async (email: string, password: string) => {
         try {
-          const res = await fetch('/api/admin/login', {
+          const data = await fetchAdminJson<{ user: User; token: string }>('/api/admin/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password }),
           });
-          if (!res.ok) throw new Error('Credenciales inválidas');
-          const data = await res.json();
           set({ user: data.user, token: data.token, isAuthenticated: true });
         } catch {
-          // Backend not reachable — mock login for demo/preview
           if (!email || !password) {
             set({ user: null, token: null, isAuthenticated: false });
             throw new Error('Credenciales inválidas');
           }
+
+          if (!allowDemoFallbacks) {
+            set({ user: null, token: null, isAuthenticated: false });
+            throw new Error('Servicio de autenticación no disponible');
+          }
+
           const role = email.includes('admin') ? 'platform_admin' : 'operator';
           set({
             user: { id: 'demo-1', email, name: email.split('@')[0], role },
@@ -60,7 +65,7 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: 'integrax-auth',
+      name: `integrax-auth-${appEnv}`,
     }
   )
 );

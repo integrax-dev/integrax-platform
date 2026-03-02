@@ -12,6 +12,8 @@ import {
 import './Dashboard.css';
 
 import { useEffect, useState } from 'react';
+import { fetchAdminJson } from '../lib/adminApi';
+import { allowDemoFallbacks } from '../lib/runtime';
 
 type DashboardData = {
   eventsData: Array<{ name: string; events: number; success: number; failed: number }>;
@@ -28,21 +30,71 @@ type DashboardData = {
   };
 };
 
+const MOCK_DASHBOARD_DATA: DashboardData = {
+  eventsData: [
+    { name: '00:00', events: 120, success: 115, failed: 5 },
+    { name: '04:00', events: 90, success: 86, failed: 4 },
+    { name: '08:00', events: 220, success: 210, failed: 10 },
+    { name: '12:00', events: 360, success: 342, failed: 18 },
+    { name: '16:00', events: 410, success: 392, failed: 18 },
+    { name: '20:00', events: 280, success: 267, failed: 13 },
+  ],
+  connectorUsage: [
+    { name: 'MercadoPago', calls: 1820 },
+    { name: 'Shopify', calls: 1240 },
+    { name: 'WhatsApp', calls: 980 },
+    { name: 'AFIP', calls: 760 },
+  ],
+  recentEvents: [
+    { id: 'evt-1001', type: 'order.created', tenant: 'Acme SA', status: 'success', time: 'hace 2 min' },
+    { id: 'evt-1002', type: 'invoice.synced', tenant: 'Globex', status: 'success', time: 'hace 5 min' },
+    { id: 'evt-1003', type: 'payment.failed', tenant: 'Umbrella', status: 'failed', time: 'hace 9 min' },
+  ],
+  stats: {
+    tenants: 24,
+    eventsToday: 12480,
+    connectors: 17,
+    uptime: 99.94,
+    tenantsChange: '+3 este mes',
+    eventsChange: '+12% vs ayer',
+    connectorsChange: '+2 este mes',
+  },
+};
+
 export function Dashboard() {
   const [data, setData] = useState<DashboardData|null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string|null>(null);
 
   useEffect(() => {
-    setLoading(true);
-    fetch('/api/admin/dashboard')
-      .then(res => {
-        if (!res.ok) throw new Error('Error al cargar dashboard');
-        return res.json();
-      })
-      .then(setData)
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false));
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await fetchAdminJson<DashboardData>('/api/admin/dashboard');
+        if (!cancelled) setData(response);
+      } catch {
+        if (allowDemoFallbacks) {
+          if (!cancelled) {
+            setData(MOCK_DASHBOARD_DATA);
+            setError(null);
+          }
+        } else if (!cancelled) {
+          setError('No se pudo cargar el dashboard');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (loading) return <div className="dashboard">Cargando...</div>;

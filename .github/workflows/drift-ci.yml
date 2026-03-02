@@ -201,3 +201,6 @@ jobs:
         run: |
           npm ci
           npx tsc --noEmit
+
+      - name: Validate service registry
+        run: npm run validate:services

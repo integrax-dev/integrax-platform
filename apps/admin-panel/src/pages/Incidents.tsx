@@ -6,7 +6,7 @@
  * Admins can view evidence packs and dismiss/resolve incidents.
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import './Pages.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────

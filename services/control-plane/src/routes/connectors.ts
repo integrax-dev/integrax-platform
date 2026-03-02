@@ -383,8 +383,22 @@ const CONNECTOR_TESTERS: Record<string, ConnectorTester> = {
 
 const router: Router = Router();
 
-// Encryption key (should come from secure vault in production)
-const ENCRYPTION_KEY = process.env.CREDENTIAL_ENCRYPTION_KEY || randomBytes(32).toString('hex');
+function getCredentialEncryptionKey(): string {
+  const key = process.env.CREDENTIAL_ENCRYPTION_KEY;
+
+  if (process.env.NODE_ENV === 'production' && (!key || key.length < 32)) {
+    throw new Error('CREDENTIAL_ENCRYPTION_KEY is required in production and must be at least 32 characters');
+  }
+
+  if (!key) {
+    console.warn('[Connectors] WARNING: Using ephemeral encryption key outside production');
+    return randomBytes(32).toString('hex');
+  }
+
+  return key;
+}
+
+const ENCRYPTION_KEY = getCredentialEncryptionKey();
 
 // Available connectors catalog
 const CONNECTOR_CATALOG: ConnectorDefinition[] = [

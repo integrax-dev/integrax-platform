@@ -1,0 +1,69 @@
+{
+  "generatedAt": "2026-03-02T05:07:45.358Z",
+  "mode": "multi-protocol-live",
+  "results": [
+    {
+      "id": "http:mercadopago",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:07:45.074Z",
+      "details": "Falta variable MERCADOPAGO_ACCESS_TOKEN"
+    },
+    {
+      "id": "http:mercadolibre",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:07:45.074Z",
+      "details": "Falta variable MERCADOLIBRE_ACCESS_TOKEN"
+    },
+    {
+      "id": "http:afip-wsfe",
+      "protocol": "http-contract",
+      "status": "failed_real",
+      "checkedAt": "2026-03-02T05:07:45.074Z",
+      "details": "Fallas 1/1, violations=1",
+      "metadata": {
+        "connectorId": "afip-wsfe",
+        "total": 1,
+        "passed": 0,
+        "failed": 1,
+        "violations": 1
+      }
+    },
+    {
+      "id": "http:google-sheets",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:07:45.357Z",
+      "details": "Falta variable GOOGLE_SHEETS_ACCESS_TOKEN"
+    },
+    {
+      "id": "http:whatsapp-business",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:07:45.358Z",
+      "details": "Falta variable WHATSAPP_TOKEN"
+    },
+    {
+      "id": "http:contabilium",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:07:45.358Z",
+      "details": "Falta variable CONTABILIUM_API_KEY"
+    },
+    {
+      "id": "http:shopify",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:07:45.358Z",
+      "details": "Falta variable SHOPIFY_ACCESS_TOKEN"
+    },
+    {
+      "id": "http:tiendanube",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:07:45.358Z",
+      "details": "Falta variable TIENDANUBE_ACCESS_TOKEN"
+    }
+  ]
+}

@@ -1,0 +1,118 @@
+{
+  "generatedAt": "2026-03-02T05:12:28.806Z",
+  "mode": "multi-protocol-live",
+  "results": [
+    {
+      "id": "http:mercadopago",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:12:25.808Z",
+      "details": "Falta variable MERCADOPAGO_ACCESS_TOKEN"
+    },
+    {
+      "id": "http:mercadolibre",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:12:25.809Z",
+      "details": "Falta variable MERCADOLIBRE_ACCESS_TOKEN"
+    },
+    {
+      "id": "http:afip-wsfe",
+      "protocol": "http-contract",
+      "status": "failed_real",
+      "checkedAt": "2026-03-02T05:12:25.809Z",
+      "details": "Fallas 1/1, violations=1",
+      "metadata": {
+        "connectorId": "afip-wsfe",
+        "total": 1,
+        "passed": 0,
+        "failed": 1,
+        "violations": 1
+      }
+    },
+    {
+      "id": "http:google-sheets",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:12:26.077Z",
+      "details": "Falta variable GOOGLE_SHEETS_ACCESS_TOKEN"
+    },
+    {
+      "id": "http:whatsapp-business",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:12:26.077Z",
+      "details": "Falta variable WHATSAPP_TOKEN"
+    },
+    {
+      "id": "http:contabilium",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:12:26.077Z",
+      "details": "Falta variable CONTABILIUM_API_KEY"
+    },
+    {
+      "id": "http:shopify",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:12:26.077Z",
+      "details": "Falta variable SHOPIFY_ACCESS_TOKEN"
+    },
+    {
+      "id": "http:tiendanube",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:12:26.077Z",
+      "details": "Falta variable TIENDANUBE_ACCESS_TOKEN"
+    },
+    {
+      "id": "gql:platform-api",
+      "protocol": "graphql",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:12:26.077Z",
+      "details": "Falta variable GRAPHQL_TOKEN"
+    },
+    {
+      "id": "grpc:health",
+      "protocol": "grpc",
+      "status": "skipped_missing_dependency",
+      "checkedAt": "2026-03-02T05:12:26.077Z",
+      "details": "grpcurl no está instalado"
+    },
+    {
+      "id": "sql:orders",
+      "protocol": "sql",
+      "status": "skipped_missing_config",
+      "checkedAt": "2026-03-02T05:12:26.080Z",
+      "details": "Falta variable ORDERS_DB_URL"
+    },
+    {
+      "id": "kafka:orders-topic",
+      "protocol": "kafka",
+      "status": "skipped_missing_config",
+      "checkedAt": "2026-03-02T05:12:26.080Z",
+      "details": "Falta brokers (KAFKA_BROKERS)"
+    },
+    {
+      "id": "cdc:orders-connector",
+      "protocol": "cdc",
+      "status": "failed_real",
+      "checkedAt": "2026-03-02T05:12:26.080Z",
+      "details": "fetch failed"
+    },
+    {
+      "id": "webhook:orders-ingress",
+      "protocol": "webhook",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:12:28.806Z",
+      "details": "Falta variable WEBHOOK_SECRET"
+    },
+    {
+      "id": "redis:cache",
+      "protocol": "redis",
+      "status": "skipped_missing_config",
+      "checkedAt": "2026-03-02T05:12:28.806Z",
+      "details": "Falta variable REDIS_URL"
+    }
+  ]
+}

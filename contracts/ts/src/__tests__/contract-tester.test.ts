@@ -130,6 +130,13 @@ describe('validateSchema', () => {
     const violations = validateSchema([], schema);
     expect(violations.length).toBeGreaterThan(0);
   });
+
+  it('validates string pattern', () => {
+    const schema: JsonSchema = { type: 'string', pattern: 'FEDummyResult|appserver' };
+    expect(validateSchema('<FEDummyResult>ok</FEDummyResult>', schema)).toHaveLength(0);
+    const violations = validateSchema('<soap>error</soap>', schema);
+    expect(violations.length).toBeGreaterThan(0);
+  });
 });
 
 // ─── ContractTester tests ─────────────────────────────────────────────────────
@@ -180,12 +187,19 @@ describe('ContractTester', () => {
       const pathname = new URL(url as string).pathname;
       const mockData = responses[pathname];
       if (!mockData) {
-        return { ok: false, status: 404, json: async () => ({}) } as Response;
+        return {
+          ok: false,
+          status: 404,
+          text: async () => JSON.stringify({}),
+        } as Response;
       }
+      const rawBody = typeof mockData.body === 'string'
+        ? mockData.body
+        : JSON.stringify(mockData.body);
       return {
         ok: mockData.status >= 200 && mockData.status < 300,
         status: mockData.status,
-        json: async () => mockData.body,
+        text: async () => rawBody,
       } as Response;
     };
   }
@@ -288,7 +302,7 @@ describe('ContractTester', () => {
     let capturedHeaders: Record<string, string> = {};
     const fetchFn = async (_url: RequestInfo | URL, opts?: RequestInit) => {
       capturedHeaders = (opts?.headers ?? {}) as Record<string, string>;
-      return { ok: true, status: 200, json: async () => ({ status: 'ok' }) } as Response;
+      return { ok: true, status: 200, text: async () => JSON.stringify({ status: 'ok' }) } as Response;
     };
 
     process.env.TEST_API_KEY = 'my-secret';
@@ -303,5 +317,48 @@ describe('ContractTester', () => {
     const contract = { ...SIMPLE_CONTRACT, endpoints: [SIMPLE_CONTRACT.endpoints[1]] };
     const result = await tester.runSuite(contract, fetchFn);
     expect(result.runAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it('sends endpoint body and validates text response with pattern', async () => {
+    const soapContract: ConnectorContract = {
+      connectorId: 'afip-wsfe',
+      name: 'AFIP WSFE',
+      baseUrl: 'https://wswhomo.afip.gov.ar',
+      endpoints: [
+        {
+          id: 'SOAP FEDummy',
+          method: 'POST',
+          path: '/wsfev1/service.asmx',
+          description: 'Health check',
+          expectedStatus: 200,
+          headers: {
+            'Content-Type': 'text/xml; charset=utf-8',
+            SOAPAction: 'http://ar.gov.afip.dif.FEV1/FEDummy',
+          },
+          body: '<Envelope><Body><FEDummy/></Body></Envelope>',
+          responseParser: 'text',
+          responseSchema: {
+            type: 'string',
+            pattern: 'FEDummyResult|appserver',
+          },
+        },
+      ],
+    };
+
+    let capturedBody = '';
+    const fetchFn = async (_url: RequestInfo | URL, opts?: RequestInit) => {
+      capturedBody = String(opts?.body ?? '');
+      return {
+        ok: true,
+        status: 200,
+        text: async () => '<FEDummyResult><appserver>OK</appserver></FEDummyResult>',
+      } as Response;
+    };
+
+    const result = await tester.runSuite(soapContract, fetchFn as typeof fetch);
+
+    expect(capturedBody).toContain('FEDummy');
+    expect(result.passed).toBe(true);
+    expect(result.summary.failed).toBe(0);
   });
 });
