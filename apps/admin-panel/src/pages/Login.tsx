@@ -21,7 +21,7 @@ export function Login() {
     try {
       await login(email, password);
       navigate('/');
-    } catch (err) {
+    } catch {
       setError('Credenciales inválidas');
     } finally {
       setLoading(false);

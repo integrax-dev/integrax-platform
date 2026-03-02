@@ -1,0 +1,202 @@
+{
+  "generatedAt": "2026-03-02T05:27:37.507Z",
+  "mode": "multi-protocol-live",
+  "results": [
+    {
+      "id": "http:mercadopago",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:27:34.504Z",
+      "details": "Falta variable MERCADOPAGO_ACCESS_TOKEN",
+      "recommendations": [],
+      "metadata": {
+        "decisionSignals": [],
+        "decisionRules": []
+      }
+    },
+    {
+      "id": "http:mercadolibre",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:27:34.505Z",
+      "details": "Falta variable MERCADOLIBRE_ACCESS_TOKEN",
+      "recommendations": [],
+      "metadata": {
+        "decisionSignals": [],
+        "decisionRules": []
+      }
+    },
+    {
+      "id": "http:afip-wsfe",
+      "protocol": "http-contract",
+      "status": "verified_real",
+      "checkedAt": "2026-03-02T05:27:34.505Z",
+      "details": "Contrato validado contra API real",
+      "metadata": {
+        "connectorId": "afip-wsfe",
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "violations": 0,
+        "decisionSignals": [],
+        "decisionRules": []
+      },
+      "recommendations": []
+    },
+    {
+      "id": "http:google-sheets",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:27:34.799Z",
+      "details": "Falta variable GOOGLE_SHEETS_ACCESS_TOKEN",
+      "recommendations": [],
+      "metadata": {
+        "decisionSignals": [],
+        "decisionRules": []
+      }
+    },
+    {
+      "id": "http:whatsapp-business",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:27:34.799Z",
+      "details": "Falta variable WHATSAPP_TOKEN",
+      "recommendations": [],
+      "metadata": {
+        "decisionSignals": [],
+        "decisionRules": []
+      }
+    },
+    {
+      "id": "http:contabilium",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:27:34.799Z",
+      "details": "Falta variable CONTABILIUM_API_KEY",
+      "recommendations": [],
+      "metadata": {
+        "decisionSignals": [],
+        "decisionRules": []
+      }
+    },
+    {
+      "id": "http:shopify",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:27:34.799Z",
+      "details": "Falta variable SHOPIFY_ACCESS_TOKEN",
+      "recommendations": [],
+      "metadata": {
+        "decisionSignals": [],
+        "decisionRules": []
+      }
+    },
+    {
+      "id": "http:tiendanube",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:27:34.799Z",
+      "details": "Falta variable TIENDANUBE_ACCESS_TOKEN",
+      "recommendations": [],
+      "metadata": {
+        "decisionSignals": [],
+        "decisionRules": []
+      }
+    },
+    {
+      "id": "gql:platform-api",
+      "protocol": "graphql",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:27:34.799Z",
+      "details": "Falta variable GRAPHQL_TOKEN",
+      "recommendations": [],
+      "metadata": {
+        "decisionSignals": [],
+        "decisionRules": []
+      }
+    },
+    {
+      "id": "grpc:health",
+      "protocol": "grpc",
+      "status": "skipped_missing_dependency",
+      "checkedAt": "2026-03-02T05:27:34.799Z",
+      "details": "grpcurl no está instalado",
+      "recommendations": [],
+      "metadata": {
+        "decisionSignals": [],
+        "decisionRules": []
+      }
+    },
+    {
+      "id": "sql:orders",
+      "protocol": "sql",
+      "status": "skipped_missing_config",
+      "checkedAt": "2026-03-02T05:27:34.802Z",
+      "details": "Falta variable ORDERS_DB_URL",
+      "recommendations": [],
+      "metadata": {
+        "decisionSignals": [],
+        "decisionRules": []
+      }
+    },
+    {
+      "id": "kafka:orders-topic",
+      "protocol": "kafka",
+      "status": "skipped_missing_config",
+      "checkedAt": "2026-03-02T05:27:34.803Z",
+      "details": "Falta brokers (KAFKA_BROKERS)",
+      "recommendations": [],
+      "metadata": {
+        "decisionSignals": [],
+        "decisionRules": []
+      }
+    },
+    {
+      "id": "cdc:orders-connector",
+      "protocol": "cdc",
+      "status": "failed_real",
+      "checkedAt": "2026-03-02T05:27:34.803Z",
+      "details": "fetch failed",
+      "recommendations": [
+        "Verificar conectividad de red, DNS, firewall y reachability del endpoint",
+        "Verificar disponibilidad de Debezium Connect y estado RUNNING de connector/tasks",
+        "Revisar conectividad de red desde runner hacia DEBEZIUM_CONNECT_URL",
+        "Inspeccionar logs del servicio y volver a correr verify:surface con trazas habilitadas"
+      ],
+      "metadata": {
+        "decisionSignals": [
+          "network_error"
+        ],
+        "decisionRules": [
+          "network-error",
+          "cdc-baseline",
+          "generic-fallback"
+        ]
+      }
+    },
+    {
+      "id": "webhook:orders-ingress",
+      "protocol": "webhook",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:27:37.507Z",
+      "details": "Falta variable WEBHOOK_SECRET",
+      "recommendations": [],
+      "metadata": {
+        "decisionSignals": [],
+        "decisionRules": []
+      }
+    },
+    {
+      "id": "redis:cache",
+      "protocol": "redis",
+      "status": "skipped_missing_config",
+      "checkedAt": "2026-03-02T05:27:37.507Z",
+      "details": "Falta variable REDIS_URL",
+      "recommendations": [],
+      "metadata": {
+        "decisionSignals": [],
+        "decisionRules": []
+      }
+    }
+  ]
+}

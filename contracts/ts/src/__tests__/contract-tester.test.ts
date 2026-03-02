@@ -300,7 +300,7 @@ describe('ContractTester', () => {
     };
 
     let capturedHeaders: Record<string, string> = {};
-    const fetchFn = async (_url: RequestInfo | URL, opts?: RequestInit) => {
+    const fetchFn = async (_url: string | URL | Request, opts?: RequestInit) => {
       capturedHeaders = (opts?.headers ?? {}) as Record<string, string>;
       return { ok: true, status: 200, text: async () => JSON.stringify({ status: 'ok' }) } as Response;
     };
@@ -346,7 +346,7 @@ describe('ContractTester', () => {
     };
 
     let capturedBody = '';
-    const fetchFn = async (_url: RequestInfo | URL, opts?: RequestInit) => {
+    const fetchFn = async (_url: string | URL | Request, opts?: RequestInit) => {
       capturedBody = String(opts?.body ?? '');
       return {
         ok: true,

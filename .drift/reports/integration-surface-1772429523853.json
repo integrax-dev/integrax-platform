@@ -1,0 +1,231 @@
+{
+  "generatedAt": "2026-03-02T05:32:03.851Z",
+  "mode": "multi-protocol-live",
+  "results": [
+    {
+      "id": "http:mercadopago",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:32:00.864Z",
+      "details": "Falta variable MERCADOPAGO_ACCESS_TOKEN",
+      "metadata": {
+        "failureCode": "AUTH_MISSING",
+        "decisionSignals": [],
+        "decisionRules": [],
+        "decisionSource": "structured"
+      },
+      "recommendations": []
+    },
+    {
+      "id": "http:mercadolibre",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:32:00.864Z",
+      "details": "Falta variable MERCADOLIBRE_ACCESS_TOKEN",
+      "metadata": {
+        "failureCode": "AUTH_MISSING",
+        "decisionSignals": [],
+        "decisionRules": [],
+        "decisionSource": "structured"
+      },
+      "recommendations": []
+    },
+    {
+      "id": "http:afip-wsfe",
+      "protocol": "http-contract",
+      "status": "verified_real",
+      "checkedAt": "2026-03-02T05:32:00.864Z",
+      "details": "Contrato validado contra API real",
+      "metadata": {
+        "connectorId": "afip-wsfe",
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "violations": 0,
+        "decisionSignals": [],
+        "decisionRules": [],
+        "decisionSource": "structured"
+      },
+      "recommendations": []
+    },
+    {
+      "id": "http:google-sheets",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:32:01.150Z",
+      "details": "Falta variable GOOGLE_SHEETS_ACCESS_TOKEN",
+      "metadata": {
+        "failureCode": "AUTH_MISSING",
+        "decisionSignals": [],
+        "decisionRules": [],
+        "decisionSource": "structured"
+      },
+      "recommendations": []
+    },
+    {
+      "id": "http:whatsapp-business",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:32:01.150Z",
+      "details": "Falta variable WHATSAPP_TOKEN",
+      "metadata": {
+        "failureCode": "AUTH_MISSING",
+        "decisionSignals": [],
+        "decisionRules": [],
+        "decisionSource": "structured"
+      },
+      "recommendations": []
+    },
+    {
+      "id": "http:contabilium",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:32:01.150Z",
+      "details": "Falta variable CONTABILIUM_API_KEY",
+      "metadata": {
+        "failureCode": "AUTH_MISSING",
+        "decisionSignals": [],
+        "decisionRules": [],
+        "decisionSource": "structured"
+      },
+      "recommendations": []
+    },
+    {
+      "id": "http:shopify",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:32:01.150Z",
+      "details": "Falta variable SHOPIFY_ACCESS_TOKEN",
+      "metadata": {
+        "failureCode": "AUTH_MISSING",
+        "decisionSignals": [],
+        "decisionRules": [],
+        "decisionSource": "structured"
+      },
+      "recommendations": []
+    },
+    {
+      "id": "http:tiendanube",
+      "protocol": "http-contract",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:32:01.150Z",
+      "details": "Falta variable TIENDANUBE_ACCESS_TOKEN",
+      "metadata": {
+        "failureCode": "AUTH_MISSING",
+        "decisionSignals": [],
+        "decisionRules": [],
+        "decisionSource": "structured"
+      },
+      "recommendations": []
+    },
+    {
+      "id": "gql:platform-api",
+      "protocol": "graphql",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:32:01.150Z",
+      "details": "Falta variable GRAPHQL_TOKEN",
+      "metadata": {
+        "failureCode": "AUTH_MISSING",
+        "decisionSignals": [],
+        "decisionRules": [],
+        "decisionSource": "structured"
+      },
+      "recommendations": []
+    },
+    {
+      "id": "grpc:health",
+      "protocol": "grpc",
+      "status": "skipped_missing_dependency",
+      "checkedAt": "2026-03-02T05:32:01.150Z",
+      "details": "grpcurl no está instalado",
+      "metadata": {
+        "failureCode": "DEPENDENCY_MISSING",
+        "decisionSignals": [],
+        "decisionRules": [],
+        "decisionSource": "structured"
+      },
+      "recommendations": []
+    },
+    {
+      "id": "sql:orders",
+      "protocol": "sql",
+      "status": "skipped_missing_config",
+      "checkedAt": "2026-03-02T05:32:01.155Z",
+      "details": "Falta variable ORDERS_DB_URL",
+      "metadata": {
+        "failureCode": "CONFIG_MISSING",
+        "decisionSignals": [],
+        "decisionRules": [],
+        "decisionSource": "structured"
+      },
+      "recommendations": []
+    },
+    {
+      "id": "kafka:orders-topic",
+      "protocol": "kafka",
+      "status": "skipped_missing_config",
+      "checkedAt": "2026-03-02T05:32:01.155Z",
+      "details": "Falta brokers (KAFKA_BROKERS)",
+      "metadata": {
+        "failureCode": "CONFIG_MISSING",
+        "decisionSignals": [],
+        "decisionRules": [],
+        "decisionSource": "structured"
+      },
+      "recommendations": []
+    },
+    {
+      "id": "cdc:orders-connector",
+      "protocol": "cdc",
+      "status": "failed_real",
+      "checkedAt": "2026-03-02T05:32:01.155Z",
+      "details": "fetch failed",
+      "metadata": {
+        "failureCode": "NETWORK_ERROR",
+        "decisionSignals": [
+          "network_error"
+        ],
+        "decisionRules": [
+          "network-error",
+          "cdc-baseline",
+          "generic-fallback"
+        ],
+        "decisionSource": "structured"
+      },
+      "recommendations": [
+        "Verificar conectividad de red, DNS, firewall y reachability del endpoint",
+        "Verificar disponibilidad de Debezium Connect y estado RUNNING de connector/tasks",
+        "Revisar conectividad de red desde runner hacia DEBEZIUM_CONNECT_URL",
+        "Inspeccionar logs del servicio y volver a correr verify:surface con trazas habilitadas"
+      ]
+    },
+    {
+      "id": "webhook:orders-ingress",
+      "protocol": "webhook",
+      "status": "skipped_missing_auth",
+      "checkedAt": "2026-03-02T05:32:03.851Z",
+      "details": "Falta variable WEBHOOK_SECRET",
+      "metadata": {
+        "failureCode": "AUTH_MISSING",
+        "decisionSignals": [],
+        "decisionRules": [],
+        "decisionSource": "structured"
+      },
+      "recommendations": []
+    },
+    {
+      "id": "redis:cache",
+      "protocol": "redis",
+      "status": "skipped_missing_config",
+      "checkedAt": "2026-03-02T05:32:03.851Z",
+      "details": "Falta variable REDIS_URL",
+      "metadata": {
+        "failureCode": "CONFIG_MISSING",
+        "decisionSignals": [],
+        "decisionRules": [],
+        "decisionSource": "structured"
+      },
+      "recommendations": []
+    }
+  ]
+}

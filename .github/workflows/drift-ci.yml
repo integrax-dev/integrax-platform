@@ -202,5 +202,18 @@ jobs:
           npm ci
           npx tsc --noEmit
 
+      - name: Lint admin-panel (strict)
+        working-directory: apps/admin-panel
+        run: |
+          npm ci
+          npm run lint:strict
+
+      - name: Type-check admin-panel
+        working-directory: apps/admin-panel
+        run: npm run typecheck
+
       - name: Validate service registry
         run: npm run validate:services
+
+      - name: Root quality gate
+        run: npm run quality:gate

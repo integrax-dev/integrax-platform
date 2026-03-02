@@ -11,17 +11,21 @@ import { config } from 'dotenv';
 config();
 
 import Redis from 'ioredis';
-import { Pool } from 'pg';
+
+function parsePositiveInt(raw: string | undefined, fallback: number): number {
+  const parsed = Number.parseInt(raw ?? String(fallback), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
 
 // ============ Configuration ============
 
 const CONFIG = {
   // Cuántos "pagos" simular
-  totalJobs: parseInt(process.env.STRESS_JOBS || '1000', 10),
+  totalJobs: parsePositiveInt(process.env.STRESS_JOBS, 1000),
   // Concurrencia (jobs procesados en paralelo)
-  concurrency: parseInt(process.env.STRESS_CONCURRENCY || '50', 10),
+  concurrency: parsePositiveInt(process.env.STRESS_CONCURRENCY, 50),
   // Simular latencia de API externa (ms)
-  simulatedLatency: parseInt(process.env.STRESS_LATENCY || '50', 10),
+  simulatedLatency: parsePositiveInt(process.env.STRESS_LATENCY, 50),
 };
 
 // ============ Colors ============
@@ -85,7 +89,7 @@ async function processPaymentJob(job: PaymentJob): Promise<{ success: boolean; d
 
     const duration = performance.now() - start;
     return { success: true, duration };
-  } catch (error) {
+  } catch {
     const duration = performance.now() - start;
     return { success: false, duration };
   }
