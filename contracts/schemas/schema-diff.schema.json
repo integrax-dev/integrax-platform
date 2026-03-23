@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://integrax.example.com/schema-diff.schema.json",
+  "title": "Structure Diff and Mapping Blueprint",
+  "description": "Output format for the deterministic Schema Diff Engine",
+  "type": "object",
+  "properties": {
+    "sourceSchemaId": {
+      "type": "string",
+      "description": "Identifier of the source system (System A) schema"
+    },
+    "targetSchemaId": {
+      "type": "string",
+      "description": "Identifier of the target system (System B) schema"
+    },
+    "hasDifferences": {
+      "type": "boolean",
+      "description": "True if structural or type differences were found"
+    },
+    "mismatches": {
+      "type": "object",
+      "properties": {
+        "addedFields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Paths of fields present in target but not in source"
+        },
+        "removedFields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Paths of fields present in source but not in target"
+        },
+        "typeChanges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": { "type": "string" },
+              "fromType": { "type": "string" },
+              "toType": { "type": "string" }
+            },
+            "required": ["path", "fromType", "toType"]
+          },
+          "description": "Fields that have different data types"
+        }
+      },
+      "required": ["addedFields", "removedFields", "typeChanges"]
+    },
+    "blueprint": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "description": "Transformation rules (JSONLogic or similar deterministic format) to resolve the mismatch"
+      },
+      "description": "Proposed transformation rules to bridge the schemas"
+    },
+    "requiresLLMFallback": {
+      "type": "boolean",
+      "description": "True if deterministic rules could not resolve the differences and LLM fallback is needed"
+    }
+  },
+  "required": ["sourceSchemaId", "targetSchemaId", "hasDifferences", "mismatches", "requiresLLMFallback"]
+}
