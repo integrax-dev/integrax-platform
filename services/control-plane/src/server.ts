@@ -8,6 +8,7 @@ import { tenantsRouter } from './routes/tenants.js';
 import { connectorsRouter } from './routes/connectors.js';
 import { workflowsRouter } from './routes/workflows.js';
 import { temporalWorkflowsRouter } from './routes/workflows-temporal.js';
+import { schemasRouter } from './routes/schemas.js';
 import { getAuditLogs } from './middleware/audit.js';
 import { requireAuth, requireRole } from './middleware/auth.js';
 import { createLogger, requestLogger } from '@integrax/logger';
@@ -67,6 +68,7 @@ app.use('/api/tenants', tenantsRouter);
 app.use('/api/connectors', connectorsRouter);
 app.use('/api/workflows', workflowsRouter);
 app.use('/api/workflows/temporal', temporalWorkflowsRouter);
+app.use('/api/schemas', schemasRouter);
 
 // Audit logs endpoint
 app.get(
