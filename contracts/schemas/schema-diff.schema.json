@@ -1,63 +1,104 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://integrax.example.com/schema-diff.schema.json",
-  "title": "Structure Diff and Mapping Blueprint",
-  "description": "Output format for the deterministic Schema Diff Engine",
+  "$id": "https://integrax.example.com/schema-bridge-report.schema.json",
+  "title": "Schema Bridge Report",
+  "description": "Output format for the Schema Bridge Similarity Engine",
   "type": "object",
   "properties": {
-    "sourceSchemaId": {
+    "id": {
       "type": "string",
-      "description": "Identifier of the source system (System A) schema"
+      "description": "Unique identifier for this report"
     },
-    "targetSchemaId": {
+    "tenantId": {
+      "type": "string"
+    },
+    "connectorAId": {
       "type": "string",
-      "description": "Identifier of the target system (System B) schema"
+      "description": "Identifier of the source connector (e.g., SAP)"
     },
-    "hasDifferences": {
-      "type": "boolean",
-      "description": "True if structural or type differences were found"
+    "connectorBId": {
+      "type": "string",
+      "description": "Identifier of the target connector (e.g., Coupa)"
     },
-    "mismatches": {
+    "inferredSchemaA": {
       "type": "object",
-      "properties": {
-        "addedFields": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Paths of fields present in target but not in source"
-        },
-        "removedFields": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Paths of fields present in source but not in target"
-        },
-        "typeChanges": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "path": { "type": "string" },
-              "fromType": { "type": "string" },
-              "toType": { "type": "string" }
-            },
-            "required": ["path", "fromType", "toType"]
-          },
-          "description": "Fields that have different data types"
-        }
-      },
-      "required": ["addedFields", "removedFields", "typeChanges"]
+      "description": "Schema inferred from samples of Connector A"
     },
-    "blueprint": {
+    "inferredSchemaB": {
+      "type": "object",
+      "description": "Schema inferred from samples of Connector B"
+    },
+    "diffs": {
       "type": "array",
       "items": {
         "type": "object",
-        "description": "Transformation rules (JSONLogic or similar deterministic format) to resolve the mismatch"
-      },
-      "description": "Proposed transformation rules to bridge the schemas"
+        "properties": {
+          "kind": { "type": "string", "enum": ["field_added", "field_removed", "type_changed", "format_changed", "nullability_changed", "rename_candidate", "constraint_changed"] },
+          "pathA": { "type": ["string", "null"] },
+          "pathB": { "type": ["string", "null"] },
+          "breakingScore": { "type": "number", "minimum": 0, "maximum": 1 }
+        },
+        "required": ["kind", "breakingScore"]
+      }
     },
-    "requiresLLMFallback": {
-      "type": "boolean",
-      "description": "True if deterministic rules could not resolve the differences and LLM fallback is needed"
+    "mappings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "pathA": { "type": ["string", "null"] },
+          "pathB": { "type": ["string", "null"] },
+          "confidence": { "type": "number" },
+          "transform": {
+            "type": "object",
+            "properties": {
+              "kind": { "type": "string" },
+              "coercionFn": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          }
+        },
+        "required": ["id", "confidence", "transform"]
+      }
+    },
+    "resolvedConflicts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "resolution": { "type": "string", "enum": ["deterministic", "heuristic", "ambiguous"] },
+          "confidence": { "type": "number" },
+          "llmRequired": { "type": "boolean" },
+          "llmReason": { "type": "string" }
+        },
+        "required": ["resolution", "confidence", "llmRequired"]
+      }
+    },
+    "requirementsReport": {
+      "type": "object",
+      "description": "Summary of functional requirements for integration"
+    },
+    "generatedTransformTs": {
+      "type": "string",
+      "description": "TypeScript code snippet capable of mapping A to B"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
     }
   },
-  "required": ["sourceSchemaId", "targetSchemaId", "hasDifferences", "mismatches", "requiresLLMFallback"]
+  "required": [
+    "id",
+    "connectorAId",
+    "connectorBId",
+    "inferredSchemaA",
+    "inferredSchemaB",
+    "diffs",
+    "mappings",
+    "resolvedConflicts",
+    "requirementsReport",
+    "generatedTransformTs",
+    "generatedAt"
+  ]
 }
