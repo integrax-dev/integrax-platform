@@ -39,10 +39,12 @@ export class SchemaBridge {
   constructor(config: SchemaBridgeConfig = {}) {
     this.inferrer = new SchemaInferrer({
       businessTypeProviders: config.businessTypeProviders,
+      maxExamples: config.maxExamples,
     });
     this.differ = new SchemaDiffer();
     this.similarity = new SimilarityEngine({
       businessTypeWeights: config.businessTypeWeights,
+      ontologyProviders: config.ontologyProviders,
     });
     this.resolver = new ConflictResolver({
       autoAcceptThreshold: config.autoAcceptThreshold,

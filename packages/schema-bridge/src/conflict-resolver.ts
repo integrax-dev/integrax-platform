@@ -6,8 +6,7 @@
  *   - heuristic
  *   - ambiguous
  *
- * Los rename_candidate ahora se aceptan por score absoluto y por margen relativo
- * contra el segundo mejor candidato.
+ * Los rename_candidate se aceptan por evidencia corroborada y margen relativo.
  */
 
 import { ulid } from 'ulid';
@@ -27,16 +26,6 @@ const HUMAN_REVIEW_THRESHOLD = 0.70;
 const MIN_CONFIDENCE_MARGIN = 0.15;
 
 const MONEY_FIELD = /monto|importe|precio|amount|valor|costo|tarifa|total/i;
-const LEGACY_FIELD_MAP: Record<string, string> = {
-  id_pago: 'payment_id',
-  nro_comprobante: 'voucher_number',
-  fecha_alta: 'created_at',
-  razon_social: 'company_name',
-  id_cliente: 'customer_id',
-  nro_pedido: 'order_number',
-  id_orden: 'order_id',
-  cod_producto: 'product_code',
-};
 
 function normalizeType(node: { type: string | string[] }): string {
   if (Array.isArray(node.type)) return node.type.find(t => t !== 'null') ?? 'null';
@@ -69,15 +58,40 @@ function isHighConfidenceRename(
   const margin = diff.similarity.margin ?? 0;
   const reciprocalMargin = diff.similarity.reciprocalMargin ?? 0;
   const minimumMargin = Math.min(margin, reciprocalMargin);
+  const dominantMargin = Math.max(margin, reciprocalMargin);
+  const decision = diff.similarity.decision;
+  const evidence = diff.similarity.evidenceBreakdown;
 
-  if (combined >= 0.98) return true;
+  if (decision === 'auto_accept' && combined >= 0.90) return true;
+  if (
+    decision === 'auto_accept' &&
+    combined >= 0.80 &&
+    dominantMargin >= 0.60 &&
+    minimumMargin >= 0.12
+  ) {
+    return true;
+  }
+  if (
+    decision === 'auto_accept' &&
+    combined >= 0.80 &&
+    minimumMargin >= 0.12 &&
+    (evidence?.ontology ?? 0) >= 0.90 &&
+    (diff.similarity.value ?? 0) >= 0.50 &&
+    (evidence?.structural ?? 0) >= 0.95
+  ) {
+    return true;
+  }
   if (combined >= config.autoAcceptThreshold && minimumMargin >= config.minConfidenceMargin) {
     return true;
   }
 
   return (
+    decision === 'auto_accept' &&
     combined >= config.humanReviewThreshold &&
-    (diff.similarity.value ?? 0) >= 0.60 &&
+    (
+      (diff.similarity.value ?? 0) >= 0.60 ||
+      Math.max(evidence?.businessType ?? 0, evidence?.ontology ?? 0) >= 0.90
+    ) &&
     minimumMargin >= Math.max(0.25, config.minConfidenceMargin * 1.7)
   );
 }
@@ -215,7 +229,11 @@ function resolveHeuristic(
 
   if (kind === 'rename_candidate' && diff.similarity) {
     const { combined, margin = 0, reciprocalMargin = 0 } = diff.similarity;
-    if (combined >= config.humanReviewThreshold && !isHighConfidenceRename(diff, config)) {
+    if (
+      combined >= config.humanReviewThreshold &&
+      diff.similarity.decision === 'review' &&
+      !isHighConfidenceRename(diff, config)
+    ) {
       return {
         diff,
         resolution: 'heuristic',
@@ -258,26 +276,6 @@ function resolveHeuristic(
     }
   }
 
-  if (kind === 'field_removed' && pathA) {
-    const sourceField = pathA.split('.').pop() ?? pathA;
-    const alias = LEGACY_FIELD_MAP[sourceField];
-    if (alias) {
-      const transform: TransformSpec = {
-        kind: 'rename',
-        fromPath: pathA,
-        toPath: alias,
-        description: `Campo legacy "${pathA}" -> campo estandar "${alias}"`,
-      };
-      return {
-        diff,
-        resolution: 'heuristic',
-        mapping: makeMapping(pathA, alias, transform, 0.75),
-        confidence: 0.75,
-        llmRequired: false,
-      };
-    }
-  }
-
   if (kind === 'constraint_changed') {
     const transform: TransformSpec = {
       kind: 'identity',
@@ -314,7 +312,8 @@ function resolveAmbiguous(diff: FieldDiff): ResolvedConflict {
     reason = `Campo "${pathA}" eliminado en Sistema B sin candidato de renombrado. Verificar si fue eliminado, renombrado o movido.`;
   } else if (kind === 'rename_candidate' && diff.similarity) {
     reason =
-      `Similitud insuficiente (${(diff.similarity.combined * 100).toFixed(0)}%) entre "${pathA}" y "${pathB}". ` +
+      `Evidencia insuficiente (${(diff.similarity.combined * 100).toFixed(0)}%) entre "${pathA}" y "${pathB}". ` +
+      `Decision propuesta: ${diff.similarity.decision ?? 'reject'}. ` +
       `Margen source ${((diff.similarity.margin ?? 0) * 100).toFixed(0)}%, ` +
       `margen target ${((diff.similarity.reciprocalMargin ?? 0) * 100).toFixed(0)}%.`;
   } else {

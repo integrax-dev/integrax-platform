@@ -8,7 +8,7 @@
  */
 
 import { Context } from '@temporalio/activity';
-import type { BridgeReport, FieldMapping } from '@integrax/schema-bridge';
+import type { BridgeReport } from '@integrax/schema-bridge';
 import { Redis } from 'ioredis';
 import { Pool } from 'pg';
 
@@ -68,6 +68,11 @@ export interface SchemaDiffInput {
     renameSimilarityThreshold?: number;
     enableLlmEscalation?: boolean;
   };
+}
+
+export interface QueryableClient {
+  query<T = any>(text: string, values?: unknown[]): Promise<{ rows: T[]; rowCount?: number }>;
+  release?: () => void;
 }
 
 // ─── Traducción BridgeReport → DiffResult ────────────────────────────────────
@@ -162,13 +167,24 @@ function bridgeToDiffResult(report: BridgeReport, input: SchemaDiffInput): DiffR
 
 // ─── Temporal Activity ────────────────────────────────────────────────────────
 
-// Instancia global de redis - reutilizable entre invocaciones
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+let redisClient: Redis | null = null;
+let postgresPool: Pool | null = null;
 
-// Pool global de Postgres
-const pgPool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/integrax',
-});
+function getRedisClient(): Redis {
+  if (!redisClient) {
+    redisClient = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+  }
+  return redisClient;
+}
+
+function getPgPool(): Pool {
+  if (!postgresPool) {
+    postgresPool = new Pool({
+      connectionString: process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/integrax',
+    });
+  }
+  return postgresPool;
+}
 
 /**
  * Activity de Temporal que ejecuta el motor de comparación de schemas.
@@ -187,13 +203,13 @@ export async function generateSchemaDiff(input: SchemaDiffInput & { options?: { 
   const schemaA = inferrer.infer(input.samplesA);
   const schemaB = inferrer.infer(input.samplesB);
   
-  const cacheKey = `integrax:schemadiff:v1:${schemaA.fingerprint}:${schemaB.fingerprint}`;
+  const cacheKey = `integrax:schemadiff:v2:${schemaA.fingerprint}:${schemaB.fingerprint}`;
 
   // 2. Verificar caché en Redis (Omitir si forceRecalculate = true)
   if (!input.options?.forceRecalculate) {
     ctx.heartbeat({ stage: 'checking_cache' });
     try {
-      const cached = await redis.get(cacheKey);
+      const cached = await getRedisClient().get(cacheKey);
       if (cached) {
         ctx.log.info(`✅ Cache HIT para fingerprints ${schemaA.fingerprint} y ${schemaB.fingerprint}`);
         return JSON.parse(cached) as DiffResult;
@@ -231,7 +247,7 @@ export async function generateSchemaDiff(input: SchemaDiffInput & { options?: { 
   try {
     ctx.heartbeat({ stage: 'saving_cache' });
     // Guardamos 30 días (30 * 24 * 60 * 60)
-    await redis.setex(cacheKey, 2592000, JSON.stringify(diffResult));
+    await getRedisClient().setex(cacheKey, 2592000, JSON.stringify(diffResult));
   } catch (error) {
     ctx.log.warn(`⚠️ Error guardando en Redis el key ${cacheKey}`, { error });
   }
@@ -254,55 +270,11 @@ export async function persistDiffResult(result: DiffResult): Promise<void> {
     tenantId
   });
 
-  const client = await pgPool.connect();
+  const client = await getPgPool().connect();
   try {
-    await client.query('BEGIN');
-
-    // 1. Upsert Inventario de Schemas (inmutabilidad por fingerprint)
-    await client.query(`
-      INSERT INTO schema_inventory (fingerprint, schema_definition)
-      VALUES ($1, $2) ON CONFLICT (fingerprint) DO NOTHING
-    `, [result.sourceFingerprint, JSON.stringify(result.fullSchemaA)]);
-
-    await client.query(`
-      INSERT INTO schema_inventory (fingerprint, schema_definition)
-      VALUES ($1, $2) ON CONFLICT (fingerprint) DO NOTHING
-    `, [result.targetFingerprint, JSON.stringify(result.fullSchemaB)]);
-
-    // 2. Gestionar Versiones del Conector Fuente
-    await updateConnectorVersion(client, result.sourceSchemaId, tenantId, result.sourceFingerprint);
-
-    // 3. Gestionar Versiones del Conector Destino
-    await updateConnectorVersion(client, result.targetSchemaId, tenantId, result.targetFingerprint);
-
-    // 4. Persistir el reporte de comparación (Audit Trail)
-    const query = `
-      INSERT INTO schema_diff_reports (
-        id, tenant_id, source_connector_id, target_connector_id, 
-        source_fingerprint, target_fingerprint, has_differences, diff_payload, created_at
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, NOW()
-      ) ON CONFLICT (id) DO UPDATE SET
-        diff_payload = $8;
-    `;
-
-    const values = [
-      result.reportId,
-      tenantId,
-      result.sourceSchemaId,
-      result.targetSchemaId,
-      result.sourceFingerprint,
-      result.targetFingerprint,
-      result.hasDifferences,
-      JSON.stringify(result)
-    ];
-
-    await client.query(query, values);
-    
-    await client.query('COMMIT');
+    await persistDiffResultTransactional(client, result, tenantId);
     ctx.log.info(`✅ Reporte ${result.reportId} y versiones procesadas exitosamente.`);
   } catch (error) {
-    await client.query('ROLLBACK');
     ctx.log.error(`❌ Error al persistir el reporte ${result.reportId} en Postgres`, { error });
     throw error;
   } finally {
@@ -314,26 +286,99 @@ export async function persistDiffResult(result: DiffResult): Promise<void> {
  * Lógica interna para decidir si se crea una nueva versión de un conector.
  * Si el fingerprint cambió respecto a la última versión, incrementa version_number.
  */
-async function updateConnectorVersion(client: any, connectorId: string, tenantId: string, fingerprint: string): Promise<void> {
+export async function persistDiffResultTransactional(
+  client: QueryableClient,
+  result: DiffResult,
+  tenantId = result.tenantId || 'system',
+): Promise<void> {
+  await client.query('BEGIN');
+
+  try {
+    await upsertSchemaInventory(client, result.sourceFingerprint, result.fullSchemaA);
+    await upsertSchemaInventory(client, result.targetFingerprint, result.fullSchemaB);
+
+    await ensureConnectorVersion(client, result.sourceSchemaId, tenantId, result.sourceFingerprint, result.reportId);
+    await ensureConnectorVersion(client, result.targetSchemaId, tenantId, result.targetFingerprint, result.reportId);
+
+    await upsertSchemaDiffReport(client, result, tenantId);
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  }
+}
+
+async function upsertSchemaInventory(client: QueryableClient, fingerprint: string, definition: unknown): Promise<void> {
+  await client.query(`
+    INSERT INTO schema_inventory (fingerprint, schema_definition)
+    VALUES ($1, $2)
+    ON CONFLICT (fingerprint) DO NOTHING
+  `, [fingerprint, JSON.stringify(definition)]);
+}
+
+async function upsertSchemaDiffReport(client: QueryableClient, result: DiffResult, tenantId: string): Promise<void> {
+  await client.query(`
+    INSERT INTO schema_diff_reports (
+      id, tenant_id, source_connector_id, target_connector_id,
+      source_fingerprint, target_fingerprint, has_differences, diff_payload, created_at
+    ) VALUES (
+      $1, $2, $3, $4, $5, $6, $7, $8, NOW()
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      diff_payload = EXCLUDED.diff_payload,
+      has_differences = EXCLUDED.has_differences,
+      source_fingerprint = EXCLUDED.source_fingerprint,
+      target_fingerprint = EXCLUDED.target_fingerprint
+  `, [
+    result.reportId,
+    tenantId,
+    result.sourceSchemaId,
+    result.targetSchemaId,
+    result.sourceFingerprint,
+    result.targetFingerprint,
+    result.hasDifferences,
+    JSON.stringify(result),
+  ]);
+}
+
+export async function ensureConnectorVersion(
+  client: QueryableClient,
+  connectorId: string,
+  tenantId: string,
+  fingerprint: string,
+  reportId: string,
+): Promise<void> {
   const lastVersionRes = await client.query(`
     SELECT fingerprint, version_number 
     FROM connector_schema_versions 
     WHERE connector_id = $1 AND tenant_id = $2 
-    ORDER BY version_number DESC LIMIT 1
+    ORDER BY version_number DESC
+    LIMIT 1
+    FOR UPDATE
   `, [connectorId, tenantId]);
 
   if (lastVersionRes.rows.length === 0) {
-    // Primera versión
     await client.query(`
       INSERT INTO connector_schema_versions (connector_id, tenant_id, fingerprint, version_number, metadata)
       VALUES ($1, $2, $3, 1, $4)
-    `, [connectorId, tenantId, fingerprint, JSON.stringify({ source: 'auto-discovery', first_seen: new Date() })]);
-  } else if (lastVersionRes.rows[0].fingerprint !== fingerprint) {
-    // Cambio detectado -> Nueva versión
+    `, [connectorId, tenantId, fingerprint, JSON.stringify({
+      source: 'auto-discovery',
+      report_id: reportId,
+      first_seen: new Date().toISOString(),
+    })]);
+    return;
+  }
+
+  if (lastVersionRes.rows[0].fingerprint !== fingerprint) {
     const newVersion = lastVersionRes.rows[0].version_number + 1;
     await client.query(`
       INSERT INTO connector_schema_versions (connector_id, tenant_id, fingerprint, version_number, metadata)
       VALUES ($1, $2, $3, $4, $5)
-    `, [connectorId, tenantId, fingerprint, newVersion, JSON.stringify({ source: 'auto-discovery', detected_at: new Date(), previous_fingerprint: lastVersionRes.rows[0].fingerprint })]);
+    `, [connectorId, tenantId, fingerprint, newVersion, JSON.stringify({
+      source: 'auto-discovery',
+      report_id: reportId,
+      detected_at: new Date().toISOString(),
+      previous_fingerprint: lastVersionRes.rows[0].fingerprint,
+    })]);
   }
 }

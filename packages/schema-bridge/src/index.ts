@@ -26,6 +26,7 @@ export {
   defaultBusinessTypeWeights,
   detectBusinessFormat,
 } from './business-type-registry.js';
+export { defaultOntologyProviders } from './ontology-registry.js';
 export { SchemaInferrer, createSchemaInferrer } from './schema-inferrer.js';
 export { SchemaDiffer, createSchemaDiffer } from './schema-differ.js';
 export { SimilarityEngine, createSimilarityEngine, normalizeName } from './similarity-engine.js';
@@ -72,8 +73,14 @@ export type {
   BusinessTypeDetectionContext,
   BusinessTypeProvider,
   BusinessTypeWeightMap,
+  FieldEvidence,
+  OntologyMatch,
+  OntologyMatchContext,
+  OntologyProvider,
   ConflictResolverConfig,
   SchemaInferrerConfig,
+  SimilarityDecision,
+  SimilarityEvidenceBreakdown,
   SimilarityEngineConfig,
   SchemaBridgeConfig,
 } from './types.js';

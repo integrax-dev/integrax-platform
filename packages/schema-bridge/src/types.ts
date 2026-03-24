@@ -25,6 +25,8 @@ export interface SchemaNode {
   itemSchema?: SchemaNode;
   /** Valores posibles si se detectó un enum */
   enum?: unknown[];
+  /** Calidad y cobertura observada de las muestras para este campo. */
+  evidence?: FieldEvidence;
 }
 
 export interface SchemaField {
@@ -37,7 +39,7 @@ export interface SchemaField {
 
 export interface InferredJsonSchema {
   fields: SchemaField[];
-  /** SHA-256 (16 chars) del esquema canonicalizado */
+  /** SHA-256 (32 chars) del esquema canonicalizado */
   fingerprint: string;
   /** Total de muestras procesadas */
   sampleCount: number;
@@ -55,6 +57,35 @@ export interface BusinessTypeProvider {
 }
 
 export type BusinessTypeWeightMap = Record<string, number>;
+
+export interface FieldEvidence {
+  sampleCount: number;
+  nonNullCount: number;
+  nullCount: number;
+  uniqueCount: number;
+  coverageRatio: number;
+  placeholderCount: number;
+  placeholderRatio: number;
+  evidenceQuality: number;
+}
+
+export interface OntologyMatchContext {
+  pathA: string;
+  pathB: string;
+  nodeA: SchemaNode | null;
+  nodeB: SchemaNode | null;
+}
+
+export interface OntologyMatch {
+  score: number;
+  label: string;
+  reason: string;
+}
+
+export interface OntologyProvider {
+  id: string;
+  match(context: OntologyMatchContext): OntologyMatch | null;
+}
 
 // ─── Diff ────────────────────────────────────────────────────────────────────
 
@@ -78,6 +109,20 @@ export interface SimilarityScore {
   margin?: number;
   /** Difference between this candidate and the runner-up for the same target field. */
   reciprocalMargin?: number;
+  decision?: SimilarityDecision;
+  evidenceQuality?: number;
+  evidenceBreakdown?: SimilarityEvidenceBreakdown;
+}
+
+export type SimilarityDecision = 'auto_accept' | 'review' | 'reject';
+
+export interface SimilarityEvidenceBreakdown {
+  lexical: number;
+  value: number;
+  structural: number;
+  businessType: number;
+  ontology: number;
+  sufficiency: number;
 }
 
 export interface FieldDiff {
@@ -260,10 +305,12 @@ export interface CompareOptions {
 
 export interface SchemaInferrerConfig {
   businessTypeProviders?: BusinessTypeProvider[];
+  maxExamples?: number;
 }
 
 export interface SimilarityEngineConfig {
   businessTypeWeights?: BusinessTypeWeightMap;
+  ontologyProviders?: OntologyProvider[];
 }
 
 export interface ConflictResolverConfig {
@@ -306,8 +353,12 @@ export interface SchemaBridgeConfig {
   logger?: { info: (...a: unknown[]) => void; warn: (...a: unknown[]) => void; error: (...a: unknown[]) => void };
   /** Business types inyectables para semántica específica de dominio. */
   businessTypeProviders?: BusinessTypeProvider[];
+  /** Ontologías opcionales para alias y conocimiento semántico externo. */
+  ontologyProviders?: OntologyProvider[];
   /** Pesos inyectables para tipos de negocio. */
   businessTypeWeights?: BusinessTypeWeightMap;
+  /** Cantidad máxima de examples retenidos por campo para la señal estadística. */
+  maxExamples?: number;
   /** Umbral mínimo de margen entre el mejor candidato y el segundo. */
   confidenceMarginThreshold?: number;
   /** Umbral absoluto de auto-aceptación para renombrados. */

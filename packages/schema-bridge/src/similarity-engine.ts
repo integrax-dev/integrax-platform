@@ -1,16 +1,28 @@
 /**
  * Similarity Engine
  *
- * Detecta renombrados usando señal lexical, semántica y estadística.
- * La señal de valores no ignora categorías ambiguas: las degrada matemáticamente
- * usando entropía, cardinalidad e información intrínseca del token.
+ * Construye evidencia explícita por canal:
+ *   - lexical
+ *   - value distribution
+ *   - structural/path context
+ *   - business type
+ *   - ontology
+ *
+ * La decisión final no surge de un promedio opaco, sino de reglas de
+ * corroboración entre canales más márgenes competitivos.
  */
 
-import { defaultBusinessTypeWeights } from './business-type-registry.js';
+import {
+  defaultBusinessTypeWeights,
+} from './business-type-registry.js';
+import { defaultOntologyProviders } from './ontology-registry.js';
 import type {
   FieldDiff,
+  OntologyProvider,
   SchemaNode,
+  SimilarityDecision,
   SimilarityEngineConfig,
+  SimilarityEvidenceBreakdown,
   SimilarityScore,
 } from './types.js';
 
@@ -29,6 +41,14 @@ interface CandidateScore {
   diffB: FieldDiff;
 }
 
+interface PathContext {
+  leaf: string;
+  ancestors: string[];
+  arrayAncestors: string[];
+  depth: number;
+  signature: string;
+}
+
 const PLACEHOLDER_TOKENS = new Set([
   '',
   '<null>',
@@ -40,17 +60,15 @@ const PLACEHOLDER_TOKENS = new Set([
   'undefined',
   'unknown',
   '-',
+  'tbd',
 ]);
 
-/**
- * Converts camelCase, PascalCase and kebab-case to snake_case for comparison.
- */
-export function normalizeName(s: string): string {
-  if (/^[A-Z0-9_]+$/.test(s)) {
-    return s.toLowerCase().replace(/__+/g, '_').replace(/^_|_$/g, '');
+export function normalizeName(value: string): string {
+  if (/^[A-Z0-9_]+$/.test(value)) {
+    return value.toLowerCase().replace(/__+/g, '_').replace(/^_|_$/g, '');
   }
 
-  return s
+  return value
     .replace(/([A-Z])/g, '_$1')
     .replace(/-/g, '_')
     .toLowerCase()
@@ -58,104 +76,65 @@ export function normalizeName(s: string): string {
     .replace(/^_|_$/g, '');
 }
 
-function levenshtein(a: string, b: string): number {
-  const m = a.length;
-  const n = b.length;
-  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
-    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function levenshtein(left: string, right: string): number {
+  const rows = left.length + 1;
+  const cols = right.length + 1;
+  const dp: number[][] = Array.from({ length: rows }, (_, row) =>
+    Array.from({ length: cols }, (_, col) => (row === 0 ? col : col === 0 ? row : 0))
   );
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      dp[i][j] = a[i - 1] === b[j - 1]
-        ? dp[i - 1][j - 1]
-        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+
+  for (let row = 1; row < rows; row++) {
+    for (let col = 1; col < cols; col++) {
+      dp[row][col] = left[row - 1] === right[col - 1]
+        ? dp[row - 1][col - 1]
+        : 1 + Math.min(dp[row - 1][col], dp[row][col - 1], dp[row - 1][col - 1]);
     }
   }
-  return dp[m][n];
+
+  return dp[left.length][right.length];
 }
 
-function levenshteinSimilarity(a: string, b: string): number {
-  if (a === b) return 1.0;
-  const maxLen = Math.max(a.length, b.length);
-  if (maxLen === 0) return 1.0;
-  return 1 - levenshtein(a, b) / maxLen;
+function levenshteinSimilarity(left: string, right: string): number {
+  if (left === right) return 1;
+  const maxLength = Math.max(left.length, right.length);
+  if (maxLength === 0) return 1;
+  return 1 - levenshtein(left, right) / maxLength;
 }
 
-function trigrams(s: string): Set<string> {
+function trigrams(value: string): Set<string> {
   const result = new Set<string>();
-  const padded = `  ${s}  `;
-  for (let i = 0; i < padded.length - 2; i++) {
-    result.add(padded.slice(i, i + 3));
+  const padded = `  ${value}  `;
+  for (let index = 0; index < padded.length - 2; index++) {
+    result.add(padded.slice(index, index + 3));
   }
   return result;
 }
 
-function jaccardSimilarity(a: string, b: string): number {
-  const ta = trigrams(a.toLowerCase());
-  const tb = trigrams(b.toLowerCase());
-  if (ta.size === 0 && tb.size === 0) return 1.0;
-  const intersection = [...ta].filter(t => tb.has(t)).length;
-  const union = new Set([...ta, ...tb]).size;
+function jaccardSimilarity(left: string, right: string): number {
+  const leftTrigrams = trigrams(left.toLowerCase());
+  const rightTrigrams = trigrams(right.toLowerCase());
+  if (leftTrigrams.size === 0 && rightTrigrams.size === 0) return 1;
+  const intersection = [...leftTrigrams].filter(token => rightTrigrams.has(token)).length;
+  const union = new Set([...leftTrigrams, ...rightTrigrams]).size;
   return union === 0 ? 0 : intersection / union;
 }
 
-const SYNONYM_PAIRS: [string, string][] = [
-  ['id', 'codigo'], ['id', 'identificador'], ['id', 'nro'], ['id', 'numero'],
-  ['codigo', 'code'], ['codigo', 'identificador'],
-  ['nombre', 'name'], ['nombre', 'first_name'], ['nombre', 'fname'], ['apellido', 'surname'], ['apellido', 'last_name'], ['apellido', 'lname'],
-  ['given_name', 'first_name'], ['given_name', 'fname'], ['family_name', 'last_name'], ['family_name', 'lname'],
-  ['cliente', 'customer'], ['cliente', 'comprador'], ['cliente', 'buyer'],
-  ['proveedor', 'vendor'], ['proveedor', 'supplier'],
-  ['monto', 'amount'], ['monto', 'importe'], ['monto', 'valor'], ['monto', 'total'],
-  ['precio', 'price'], ['precio', 'costo'], ['precio', 'tarifa'], ['precio', 'rate'],
-  ['importe', 'amount'], ['importe', 'valor'], ['importe', 'total'],
-  ['fecha', 'date'], ['fecha', 'timestamp'], ['fecha', 'created_at'],
-  ['fecha_creacion', 'created_at'], ['fecha_actualizacion', 'updated_at'],
-  ['email', 'correo'], ['email', 'mail'], ['email', 'e_mail'],
-  ['telefono', 'phone'], ['telefono', 'celular'], ['telefono', 'mobile'],
-  ['direccion', 'address'], ['calle', 'street'],
-  ['factura', 'invoice'], ['comprobante', 'receipt'], ['comprobante', 'voucher'],
-  ['pedido', 'order'], ['orden', 'order'],
-  ['producto', 'product'], ['articulo', 'item'], ['articulo', 'product'],
-  ['stock', 'quantity'], ['stock', 'qty'], ['cantidad', 'quantity'], ['cantidad', 'qty'], ['qty_value', 'quantity'],
-  ['cuit', 'tax_id'], ['cuit', 'rut'], ['cuit', 'nit'],
-  ['dni', 'documento'], ['dni', 'identification'], ['dni', 'id_number'],
-  ['iva', 'vat'], ['iva', 'tax'], ['neto', 'net_amount'],
-  ['cae', 'fiscal_code'], ['punto_venta', 'branch_id'],
-  ['estado', 'status'], ['estado', 'state'], ['estado_pago', 'payment_status'],
-  ['activo', 'active'], ['activo', 'enabled'],
-  ['url', 'link'], ['url', 'href'], ['url', 'website'], ['imagen', 'image'], ['imagen', 'photo'],
-  ['descripcion', 'description'], ['descripcion', 'detail'],
-  ['tipo', 'type'], ['tipo', 'kind'], ['tipo', 'category'],
-  ['moneda', 'currency'], ['moneda', 'currency_code'],
-];
+function semanticSimilarity(left: string, right: string): number {
+  const normalizedLeft = normalizeName(left);
+  const normalizedRight = normalizeName(right);
+  if (normalizedLeft === normalizedRight) return 1;
 
-const SYNONYM_MAP = new Map<string, Set<string>>();
-for (const [a, b] of SYNONYM_PAIRS) {
-  const na = normalizeName(a);
-  const nb = normalizeName(b);
-  if (!SYNONYM_MAP.has(na)) SYNONYM_MAP.set(na, new Set());
-  if (!SYNONYM_MAP.has(nb)) SYNONYM_MAP.set(nb, new Set());
-  SYNONYM_MAP.get(na)!.add(nb);
-  SYNONYM_MAP.get(nb)!.add(na);
-}
+  const leftTokens = normalizedLeft.split('_').filter(Boolean);
+  const rightTokens = normalizedRight.split('_').filter(Boolean);
+  if (leftTokens.length === 0 || rightTokens.length === 0) return 0;
 
-function semanticSimilarity(a: string, b: string): number {
-  const na = normalizeName(a);
-  const nb = normalizeName(b);
-  if (na === nb) return 1.0;
-
-  if (SYNONYM_MAP.get(na)?.has(nb) || SYNONYM_MAP.get(nb)?.has(na)) return 1.0;
-  if (na.includes(nb) || nb.includes(na)) return 0.5;
-
-  const tokensA = na.split('_').filter(Boolean);
-  const tokensB = nb.split('_').filter(Boolean);
-  const shared = tokensA.filter(t => tokensB.includes(t)).length;
-  if (shared > 0) {
-    return shared / Math.max(tokensA.length, tokensB.length) * 0.6;
-  }
-
-  return 0.0;
+  const shared = leftTokens.filter(token => rightTokens.includes(token)).length;
+  if (shared === 0) return 0;
+  return shared / Math.max(leftTokens.length, rightTokens.length);
 }
 
 function normalizeValueForMatching(value: unknown): string {
@@ -200,7 +179,7 @@ function tokenReliability(token: string): number {
   }
   if (/^[a-z]{1,3}$/i.test(normalized)) return 0.12;
 
-  return 1.0;
+  return 1;
 }
 
 function intrinsicTokenInformation(token: string): number {
@@ -208,19 +187,23 @@ function intrinsicTokenInformation(token: string): number {
 
   const lengthWeight = Math.sqrt(Math.min(1, token.length / 12)) * Math.min(1, token.length / 3);
   const uniqueCharRatio = new Set(token).size / token.length;
-  const shapeWeight = lengthWeight * uniqueCharRatio;
   const classCount =
     Number(/[a-z]/i.test(token)) +
     Number(/\d/.test(token)) +
     Number(/[^a-z0-9]/i.test(token));
-  const classWeight = classCount / 3;
 
-  return (0.6 * lengthWeight + 0.25 * shapeWeight + 0.15 * classWeight) * tokenReliability(token);
+  return clamp01(
+    (
+      0.55 * lengthWeight +
+      0.25 * uniqueCharRatio +
+      0.20 * (classCount / 3)
+    ) * tokenReliability(token)
+  );
 }
 
 function primaryType(node: SchemaNode | null): string {
   if (!node) return 'unknown';
-  if (Array.isArray(node.type)) return node.type.find(t => t !== 'null') ?? 'null';
+  if (Array.isArray(node.type)) return node.type.find(type => type !== 'null') ?? 'null';
   return node.type;
 }
 
@@ -231,21 +214,24 @@ function valueReliability(node: SchemaNode, weights: Map<string, number>): numbe
   if (node.format && weights.has(node.format)) {
     return weights.get(node.format)!;
   }
-  return 1.0;
+  return 1;
+}
+
+function evidenceSufficiency(nodeA: SchemaNode | null, nodeB: SchemaNode | null): number {
+  const qualityA = nodeA?.evidence?.evidenceQuality ?? 0.35;
+  const qualityB = nodeB?.evidence?.evidenceQuality ?? 0.35;
+  return Math.sqrt(qualityA * qualityB);
 }
 
 function buildValueProfile(node: SchemaNode): ValueProfile {
   const counts = new Map<string, number>();
-
   for (const example of node.examples) {
     const normalized = normalizeValueForMatching(example);
     counts.set(normalized, (counts.get(normalized) ?? 0) + 1);
   }
-
   const total = node.examples.length;
   const unique = counts.size;
   const entropy = shannonEntropy(counts, total);
-
   return { total, unique, entropy, counts };
 }
 
@@ -256,31 +242,33 @@ function valueSimilarity(nodeA: SchemaNode | null, nodeB: SchemaNode | null, wei
   const profileB = buildValueProfile(nodeB);
   if (profileA.total === 0 || profileB.total === 0) return 0;
 
-  const overlappingTokens = [...profileA.counts.keys()].filter(token => profileB.counts.has(token));
-  if (overlappingTokens.length === 0) return 0;
+  const sharedTokens = [...profileA.counts.keys()].filter(token => profileB.counts.has(token));
+  if (sharedTokens.length === 0) return 0;
 
   let overlapCount = 0;
-  let weightedOverlapInformation = 0;
-  for (const token of overlappingTokens) {
+  let overlapInformation = 0;
+  for (const token of sharedTokens) {
     const overlap = Math.min(profileA.counts.get(token) ?? 0, profileB.counts.get(token) ?? 0);
     overlapCount += overlap;
-    weightedOverlapInformation += intrinsicTokenInformation(token) * overlap;
+    overlapInformation += intrinsicTokenInformation(token) * overlap;
   }
 
   const overlapRatio = overlapCount / Math.max(profileA.total, profileB.total);
-  const averageOverlapInformation = overlapCount === 0 ? 0 : weightedOverlapInformation / overlapCount;
-  const entropySignal = Math.max(profileA.entropy, profileB.entropy);
-  const cardinalitySignal = Math.sqrt(Math.min(1, Math.min(profileA.unique, profileB.unique) / 3));
-  const diversitySignal =
-    Math.sqrt(Math.min(1, (profileA.unique / Math.max(1, profileA.total)) * (profileB.unique / Math.max(1, profileB.total))));
+  const overlapQuality = overlapCount === 0 ? 0 : overlapInformation / overlapCount;
+  const entropyAlignment = 1 - Math.abs(profileA.entropy - profileB.entropy);
+  const cardinalityAlignment = Math.min(profileA.unique, profileB.unique) / Math.max(profileA.unique, profileB.unique, 1);
+  const diversityAlignment = Math.sqrt(
+    Math.min(1, profileA.unique / Math.max(1, profileA.total)) *
+    Math.min(1, profileB.unique / Math.max(1, profileB.total))
+  );
+  const sufficiency = evidenceSufficiency(nodeA, nodeB);
   const reliability = Math.sqrt(valueReliability(nodeA, weights) * valueReliability(nodeB, weights));
 
-  const score =
-    overlapRatio *
-    (0.30 * averageOverlapInformation + 0.30 * entropySignal + 0.25 * cardinalitySignal + 0.15 * diversitySignal) *
-    reliability;
+  const overlapSignal = Math.sqrt(overlapRatio * overlapQuality);
+  const distributionSignal = Math.sqrt(Math.max(0, entropyAlignment) * Math.max(0, cardinalityAlignment));
+  const score = overlapSignal * (0.65 + 0.35 * distributionSignal) * Math.max(0.35, diversityAlignment) * sufficiency * reliability;
 
-  return Math.max(0, Math.min(1, score));
+  return clamp01(score);
 }
 
 function businessTypeSimilarity(
@@ -305,86 +293,284 @@ function fieldName(path: string): string {
 }
 
 function arrayDepth(path: string): number {
-  const matches = path.match(/\[\*\]/g);
-  return matches ? matches.length : 0;
+  return path.match(/\[\*\]/g)?.length ?? 0;
 }
 
-function pathTokens(path: string): string[] {
-  return path
+function pathContext(path: string): PathContext {
+  const segments = path
     .split('.')
-    .map(segment => normalizeName(segment.replace(/\[\*\]/g, '')))
-    .filter(Boolean);
+    .filter(Boolean)
+    .map(segment => ({
+      raw: segment,
+      token: normalizeName(segment.replace(/\[\*\]/g, '')),
+      isArray: segment.includes('[*]'),
+    }))
+    .filter(segment => segment.token.length > 0);
+
+  const leafSegment = segments[segments.length - 1];
+  const ancestors = segments.slice(0, -1).map(segment => segment.token);
+  const arrayAncestors = segments.filter(segment => segment.isArray).map(segment => segment.token);
+
+  return {
+    leaf: leafSegment?.token ?? '',
+    ancestors,
+    arrayAncestors,
+    depth: arrayAncestors.length,
+    signature: segments.map(segment => `${segment.token}${segment.isArray ? '[]' : ''}`).join('/'),
+  };
 }
 
-function parentTokens(path: string): string[] {
-  const tokens = pathTokens(path);
-  return tokens.slice(0, -1);
+function longestCommonSubsequenceRatio(left: string[], right: string[]): number {
+  if (left.length === 0 || right.length === 0) return 0;
+  const dp = Array.from({ length: left.length + 1 }, () => Array(right.length + 1).fill(0));
+
+  for (let row = 1; row <= left.length; row++) {
+    for (let col = 1; col <= right.length; col++) {
+      dp[row][col] = left[row - 1] === right[col - 1]
+        ? dp[row - 1][col - 1] + 1
+        : Math.max(dp[row - 1][col], dp[row][col - 1]);
+    }
+  }
+
+  return dp[left.length][right.length] / Math.max(left.length, right.length);
+}
+
+function jaccardTokens(left: string[], right: string[]): number {
+  const leftSet = new Set(left);
+  const rightSet = new Set(right);
+  if (leftSet.size === 0 && rightSet.size === 0) return 1;
+  const intersection = [...leftSet].filter(token => rightSet.has(token)).length;
+  const union = new Set([...leftSet, ...rightSet]).size;
+  return union === 0 ? 0 : intersection / union;
 }
 
 function structuralSimilarity(pathA: string, pathB: string): number {
-  const depthScore = Math.max(0.4, 1 - 0.15 * Math.abs(arrayDepth(pathA) - arrayDepth(pathB)));
-  const parentsA = new Set(parentTokens(pathA).slice(-4));
-  const parentsB = new Set(parentTokens(pathB).slice(-4));
+  const contextA = pathContext(pathA);
+  const contextB = pathContext(pathB);
 
-  if (parentsA.size === 0 && parentsB.size === 0) return depthScore;
+  const lineageOverlap = jaccardTokens(contextA.ancestors, contextB.ancestors);
+  const orderedLineage = longestCommonSubsequenceRatio(contextA.ancestors, contextB.ancestors);
+  const arrayOverlap = jaccardTokens(contextA.arrayAncestors, contextB.arrayAncestors);
+  const arrayDepthAlignment = Math.max(0.35, 1 - 0.15 * Math.abs(contextA.depth - contextB.depth));
+  const flattenTolerance =
+    Math.abs(contextA.depth - contextB.depth) <= 1
+      ? 1
+      : lineageOverlap >= 0.6 && orderedLineage >= 0.5
+        ? 0.72
+        : 0.4;
 
-  const sharedParents = [...parentsA].filter(token => parentsB.has(token)).length;
-  const unionParents = new Set([...parentsA, ...parentsB]).size || 1;
-  const parentScore = sharedParents / unionParents;
-
-  return 0.7 * depthScore + 0.3 * parentScore;
+  return clamp01(
+    Math.max(
+      0.40 * lineageOverlap + 0.25 * orderedLineage + 0.20 * arrayOverlap + 0.15 * arrayDepthAlignment,
+      0.55 * flattenTolerance + 0.45 * Math.max(lineageOverlap, orderedLineage),
+    )
+  );
 }
 
-function combinedScore(
+function ontologyEvidence(
   pathA: string,
   pathB: string,
   nodeA: SchemaNode | null,
   nodeB: SchemaNode | null,
-  weights: Map<string, number>,
-): SimilarityScore {
-  const a = fieldName(pathA);
-  const b = fieldName(pathB);
-  const lev = levenshteinSimilarity(normalizeName(a), normalizeName(b));
-  const jac = jaccardSimilarity(normalizeName(a), normalizeName(b));
-  const sem = semanticSimilarity(a, b);
-  const val = valueSimilarity(nodeA, nodeB, weights);
-  const business = businessTypeSimilarity(nodeA, nodeB, weights);
-  const structural = structuralSimilarity(pathA, pathB);
-  const lexical = 0.45 * lev + 0.35 * jac + 0.20 * sem;
-  const structurallyWeightedLexical = lexical * (0.75 + 0.25 * structural);
-  const structurallyWeightedValue = val * (0.80 + 0.20 * structural);
-  const probabilistic =
-    business >= 0.9
-      ? 0.62 * structurallyWeightedValue + 0.30 * business + 0.08 * structurallyWeightedLexical
-      : 0.80 * structurallyWeightedValue + 0.10 * business + 0.10 * structurallyWeightedLexical;
-  const strongValueFloor =
-    structural >= 0.55 && (
-      val >= 0.85 ||
-      (business >= 0.9 && val >= 0.65)
-    )
-      ? 0.72 + 0.06 * business
-      : 0;
+  providers: OntologyProvider[],
+): number {
+  let best = 0;
+  for (const provider of providers) {
+    const match = provider.match({ pathA, pathB, nodeA, nodeB });
+    if (match) {
+      best = Math.max(best, match.score);
+    }
+  }
+  return clamp01(best);
+}
 
-  const combined =
-    sem >= 1.0
-      ? 1.0
-      : business >= 0.95 && val >= 0.88 && structural >= 0.75
-        ? Math.max(probabilistic, 0.96)
-        : Math.max(structurallyWeightedLexical, probabilistic, strongValueFloor);
+function lexicalEvidence(pathA: string, pathB: string): Pick<SimilarityScore, 'levenshtein' | 'jaccard' | 'semantic'> & { lexical: number } {
+  const left = normalizeName(fieldName(pathA));
+  const right = normalizeName(fieldName(pathB));
+  const levenshteinScore = levenshteinSimilarity(left, right);
+  const jaccardScore = jaccardSimilarity(left, right);
+  const semanticScore = semanticSimilarity(left, right);
+  const lexicalScore = clamp01(Math.max(
+    semanticScore,
+    Math.min(1, (levenshteinScore + jaccardScore) / 2 + semanticScore * 0.25),
+    Math.min(levenshteinScore, jaccardScore),
+  ));
 
   return {
-    levenshtein: lev,
-    jaccard: jac,
-    semantic: sem,
-    value: val,
-    combined: Math.max(0, Math.min(1, combined)),
+    levenshtein: levenshteinScore,
+    jaccard: jaccardScore,
+    semantic: semanticScore,
+    lexical: lexicalScore,
   };
 }
 
-function comparisonSort(a: CandidateScore, b: CandidateScore): number {
-  if (b.score.combined !== a.score.combined) return b.score.combined - a.score.combined;
-  if ((b.score.margin ?? 0) !== (a.score.margin ?? 0)) return (b.score.margin ?? 0) - (a.score.margin ?? 0);
-  return (b.score.reciprocalMargin ?? 0) - (a.score.reciprocalMargin ?? 0);
+function deriveConfidence(breakdown: SimilarityEvidenceBreakdown): number {
+  const corroboratedName = Math.max(breakdown.lexical, breakdown.ontology);
+  const corroboratedType = Math.max(breakdown.businessType, breakdown.ontology);
+  const corroboratedValue = Math.min(
+    breakdown.value,
+    Math.max(0.45, breakdown.structural),
+    Math.max(0.35, breakdown.sufficiency),
+  );
+
+  if (breakdown.value >= 0.90 && breakdown.structural >= 0.60 && breakdown.sufficiency >= 0.72) {
+    return 0.96;
+  }
+  if (breakdown.value >= 0.80 && corroboratedType >= 0.85 && breakdown.structural >= 0.45 && breakdown.sufficiency >= 0.60) {
+    return 0.92;
+  }
+  if (breakdown.value >= 0.70 && corroboratedType >= 0.95 && breakdown.lexical >= 0.72 && breakdown.structural >= 0.60) {
+    return 0.94;
+  }
+  if (breakdown.value >= 0.70 && breakdown.structural >= 0.80 && breakdown.sufficiency >= 0.70) {
+    return 0.86;
+  }
+  if (breakdown.value >= 0.55 && breakdown.structural >= 0.55 && breakdown.sufficiency >= 0.70) {
+    return 0.82;
+  }
+  if (corroboratedType >= 0.90 && breakdown.value >= 0.18 && breakdown.structural >= 0.55 && breakdown.sufficiency >= 0.70) {
+    return 0.82;
+  }
+  if (corroboratedType >= 0.90 && breakdown.value >= 0.18 && breakdown.structural >= 0.90 && breakdown.sufficiency >= 0.70) {
+    return 0.84;
+  }
+  if (breakdown.value >= 0.72 && corroboratedName >= 0.50 && breakdown.structural >= 0.45) {
+    return 0.88;
+  }
+  if (corroboratedName >= 0.90 && breakdown.structural >= 0.40) {
+    return 0.84;
+  }
+  if (corroboratedType >= 0.92 && breakdown.value >= 0.50 && breakdown.sufficiency >= 0.55) {
+    return 0.81;
+  }
+
+  return clamp01(Math.max(
+    corroboratedValue,
+    Math.min(corroboratedName, Math.max(0.35, breakdown.structural)),
+    Math.min(
+      corroboratedType,
+      Math.max(0.30, breakdown.sufficiency),
+      Math.max(breakdown.lexical, breakdown.value, breakdown.ontology),
+    ),
+  ));
+}
+
+function decisionFor(score: SimilarityScore): SimilarityDecision {
+  const sourceMargin = score.margin ?? 0;
+  const targetMargin = score.reciprocalMargin ?? 0;
+  const margin = Math.min(sourceMargin, targetMargin);
+  const dominantMargin = Math.max(sourceMargin, targetMargin);
+  const breakdown = score.evidenceBreakdown ?? {
+    lexical: 0,
+    value: 0,
+    structural: 0,
+    businessType: 0,
+    ontology: 0,
+    sufficiency: 0,
+  };
+
+  if (
+    score.combined >= 0.90 &&
+    margin >= 0.16 &&
+    breakdown.sufficiency >= 0.68 &&
+    (
+      (breakdown.value >= 0.78 && breakdown.structural >= 0.50) ||
+      (Math.max(breakdown.lexical, breakdown.ontology) >= 0.90 && breakdown.structural >= 0.40)
+    )
+  ) {
+    return 'auto_accept';
+  }
+
+  if (
+    score.combined >= 0.84 &&
+    margin >= 0.30 &&
+    breakdown.value >= 0.70 &&
+    breakdown.structural >= 0.80 &&
+    breakdown.sufficiency >= 0.70
+  ) {
+    return 'auto_accept';
+  }
+
+  if (
+    score.combined >= 0.80 &&
+    margin >= 0.45 &&
+    breakdown.value >= 0.55 &&
+    breakdown.structural >= 0.55 &&
+    breakdown.sufficiency >= 0.70
+  ) {
+    return 'auto_accept';
+  }
+
+  if (
+    score.combined >= 0.82 &&
+    margin >= 0.45 &&
+    Math.max(breakdown.businessType, breakdown.ontology) >= 0.90 &&
+    breakdown.value >= 0.18 &&
+    breakdown.structural >= 0.90
+  ) {
+    return 'auto_accept';
+  }
+
+  if (
+    score.combined >= 0.80 &&
+    margin >= 0.30 &&
+    Math.max(breakdown.ontology, breakdown.businessType) >= 0.90 &&
+    breakdown.value >= 0.50 &&
+    breakdown.structural >= 0.55
+  ) {
+    return 'auto_accept';
+  }
+
+  if (
+    score.combined >= 0.80 &&
+    margin >= 0.12 &&
+    breakdown.ontology >= 0.90 &&
+    breakdown.value >= 0.50 &&
+    breakdown.structural >= 0.95
+  ) {
+    return 'auto_accept';
+  }
+
+  if (
+    score.combined >= 0.80 &&
+    dominantMargin >= 0.63 &&
+    margin >= 0.12 &&
+    breakdown.value >= 0.70 &&
+    breakdown.structural >= 0.55 &&
+    breakdown.sufficiency >= 0.70
+  ) {
+    return 'auto_accept';
+  }
+
+  if (
+    score.combined >= 0.80 &&
+    dominantMargin >= 0.60 &&
+    margin >= 0.12 &&
+    Math.max(breakdown.businessType, breakdown.ontology) >= 0.90 &&
+    breakdown.value >= 0.18 &&
+    breakdown.structural >= 0.55
+  ) {
+    return 'auto_accept';
+  }
+
+  if (
+    score.combined >= 0.70 &&
+    (
+      margin >= 0.08 ||
+      breakdown.value >= 0.70 ||
+      Math.max(breakdown.businessType, breakdown.ontology) >= 0.90
+    )
+  ) {
+    return 'review';
+  }
+
+  return 'reject';
+}
+
+function comparisonSort(left: CandidateScore, right: CandidateScore): number {
+  if (right.score.combined !== left.score.combined) return right.score.combined - left.score.combined;
+  if ((right.score.margin ?? 0) !== (left.score.margin ?? 0)) return (right.score.margin ?? 0) - (left.score.margin ?? 0);
+  return (right.score.reciprocalMargin ?? 0) - (left.score.reciprocalMargin ?? 0);
 }
 
 function bucketKey(type: string, path: string): string {
@@ -392,13 +578,7 @@ function bucketKey(type: string, path: string): string {
 }
 
 function arrayContextKey(path: string): string {
-  const arrays = path
-    .split('.')
-    .filter(segment => segment.includes('[*]'))
-    .map(segment => normalizeName(segment.replace(/\[\*\]/g, '')))
-    .filter(Boolean)
-    .slice(-3);
-  return arrays.join('/');
+  return pathContext(path).arrayAncestors.slice(-3).join('/');
 }
 
 function topTwoScores(values: number[]): [number, number] {
@@ -417,14 +597,51 @@ function topTwoScores(values: number[]): [number, number] {
   return [best, second];
 }
 
+function buildScore(
+  pathA: string,
+  pathB: string,
+  nodeA: SchemaNode | null,
+  nodeB: SchemaNode | null,
+  weights: Map<string, number>,
+  ontologyProviders: OntologyProvider[],
+): SimilarityScore {
+  const lexical = lexicalEvidence(pathA, pathB);
+  const value = valueSimilarity(nodeA, nodeB, weights);
+  const businessType = businessTypeSimilarity(nodeA, nodeB, weights);
+  const ontology = ontologyEvidence(pathA, pathB, nodeA, nodeB, ontologyProviders);
+  const structural = structuralSimilarity(pathA, pathB);
+  const sufficiency = evidenceSufficiency(nodeA, nodeB);
+
+  const evidenceBreakdown: SimilarityEvidenceBreakdown = {
+    lexical: lexical.lexical,
+    value,
+    structural,
+    businessType,
+    ontology,
+    sufficiency,
+  };
+
+  return {
+    levenshtein: lexical.levenshtein,
+    jaccard: lexical.jaccard,
+    semantic: lexical.semantic,
+    value,
+    combined: deriveConfidence(evidenceBreakdown),
+    evidenceBreakdown,
+    evidenceQuality: sufficiency,
+  };
+}
+
 export class SimilarityEngine {
   private readonly weights: Map<string, number>;
+  private readonly ontologyProviders: OntologyProvider[];
 
   constructor(config: SimilarityEngineConfig = {}) {
     this.weights = new Map(Object.entries({
       ...defaultBusinessTypeWeights,
       ...(config.businessTypeWeights ?? {}),
     }));
+    this.ontologyProviders = config.ontologyProviders ?? defaultOntologyProviders;
   }
 
   findRenameCandidates(
@@ -436,26 +653,26 @@ export class SimilarityEngine {
     const addedByDepthBucket = new Map<string, FieldDiff[]>();
     const addedByPrimaryType = new Map<string, FieldDiff[]>();
 
-    for (const dB of added) {
-      const primary = primaryType(dB.nodeB);
-      const exactKey = `${bucketKey(primary, dB.pathB!)}:${arrayContextKey(dB.pathB!)}`;
-      const depthKey = bucketKey(primary, dB.pathB!);
-      addedByExactBucket.set(exactKey, [...(addedByExactBucket.get(exactKey) ?? []), dB]);
-      addedByDepthBucket.set(depthKey, [...(addedByDepthBucket.get(depthKey) ?? []), dB]);
-      addedByPrimaryType.set(primary, [...(addedByPrimaryType.get(primary) ?? []), dB]);
+    for (const addedDiff of added) {
+      const primary = primaryType(addedDiff.nodeB);
+      const exactKey = `${bucketKey(primary, addedDiff.pathB!)}:${arrayContextKey(addedDiff.pathB!)}`;
+      const depthKey = bucketKey(primary, addedDiff.pathB!);
+      addedByExactBucket.set(exactKey, [...(addedByExactBucket.get(exactKey) ?? []), addedDiff]);
+      addedByDepthBucket.set(depthKey, [...(addedByDepthBucket.get(depthKey) ?? []), addedDiff]);
+      addedByPrimaryType.set(primary, [...(addedByPrimaryType.get(primary) ?? []), addedDiff]);
     }
 
     const comparisons: CandidateScore[] = [];
 
-    for (const dA of removed) {
-      const typeA = primaryType(dA.nodeA);
-      const exactKey = `${bucketKey(typeA, dA.pathA!)}:${arrayContextKey(dA.pathA!)}`;
+    for (const removedDiff of removed) {
+      const typeA = primaryType(removedDiff.nodeA);
+      const exactKey = `${bucketKey(typeA, removedDiff.pathA!)}:${arrayContextKey(removedDiff.pathA!)}`;
       const candidates = new Map<string, FieldDiff>();
 
       for (const candidate of addedByExactBucket.get(exactKey) ?? []) {
         candidates.set(candidate.pathB!, candidate);
       }
-      for (const candidate of addedByDepthBucket.get(bucketKey(typeA, dA.pathA!)) ?? []) {
+      for (const candidate of addedByDepthBucket.get(bucketKey(typeA, removedDiff.pathA!)) ?? []) {
         candidates.set(candidate.pathB!, candidate);
       }
       for (const candidate of addedByPrimaryType.get(typeA) ?? []) {
@@ -467,13 +684,20 @@ export class SimilarityEngine {
         }
       }
 
-      for (const dB of candidates.values()) {
+      for (const addedDiff of candidates.values()) {
         comparisons.push({
-          pathA: dA.pathA!,
-          pathB: dB.pathB!,
-          score: combinedScore(dA.pathA!, dB.pathB!, dA.nodeA, dB.nodeB, this.weights),
-          diffA: dA,
-          diffB: dB,
+          pathA: removedDiff.pathA!,
+          pathB: addedDiff.pathB!,
+          score: buildScore(
+            removedDiff.pathA!,
+            addedDiff.pathB!,
+            removedDiff.nodeA,
+            addedDiff.nodeB,
+            this.weights,
+            this.ontologyProviders,
+          ),
+          diffA: removedDiff,
+          diffB: addedDiff,
         });
       }
     }
@@ -493,16 +717,22 @@ export class SimilarityEngine {
         const margin = comparison.score.combined >= bestA ? comparison.score.combined - secondA : 0;
         const reciprocalMargin = comparison.score.combined >= bestB ? comparison.score.combined - secondB : 0;
 
+        const score: SimilarityScore = {
+          ...comparison.score,
+          margin: Math.max(0, margin),
+          reciprocalMargin: Math.max(0, reciprocalMargin),
+        };
+        score.decision = decisionFor(score);
+
         return {
           ...comparison,
-          score: {
-            ...comparison.score,
-            margin: Math.max(0, margin),
-            reciprocalMargin: Math.max(0, reciprocalMargin),
-          },
+          score,
         };
       })
-      .filter(comparison => comparison.score.combined >= threshold);
+      .filter(comparison =>
+        comparison.score.combined >= threshold &&
+        comparison.score.decision !== 'reject'
+      );
 
     annotated.sort(comparisonSort);
 
@@ -530,7 +760,9 @@ export class SimilarityEngine {
   }
 
   score(nameA: string, nameB: string): SimilarityScore {
-    return combinedScore(nameA, nameB, null, null, this.weights);
+    const score = buildScore(nameA, nameB, null, null, this.weights, this.ontologyProviders);
+    score.decision = decisionFor(score);
+    return score;
   }
 }
 

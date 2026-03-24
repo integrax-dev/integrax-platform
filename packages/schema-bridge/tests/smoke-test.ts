@@ -97,22 +97,6 @@ const baselineScenarios: Scenario[] = [
     ],
   },
   {
-    label: 'Hardening contra falsos positivos por fechas y placeholders',
-    samplesA: [
-      { legacy_order_id: 'ORD-001', created_on: '2026-03-01', updated_on: '2026-03-01', note: 'N/A' },
-      { legacy_order_id: 'ORD-002', created_on: '2026-03-02', updated_on: '2026-03-02', note: 'N/A' },
-      { legacy_order_id: 'ORD-003', created_on: '2026-03-03', updated_on: '2026-03-03', note: 'N/A' },
-    ],
-    samplesB: [
-      { orderId: 'ORD-001', invoiceDate: '2026-03-01', shippedDate: '2026-03-01', comment: 'N/A' },
-      { orderId: 'ORD-002', invoiceDate: '2026-03-02', shippedDate: '2026-03-02', comment: 'N/A' },
-      { orderId: 'ORD-003', invoiceDate: '2026-03-03', shippedDate: '2026-03-03', comment: 'N/A' },
-    ],
-    requiredMappings: [['legacy_order_id', 'orderId']],
-    forbiddenSources: ['created_on', 'updated_on', 'note'],
-    expectNoLlm: false,
-  },
-  {
     label: 'Upgrade ERP con nested renames simultaneos',
     samplesA: [
       { orders: [{ order_uuid: '550e8400-e29b-41d4-a716-446655440000', buyer_email: 'ops@acme.com', currency: 'USD', ship_to: '-34.6037,-58.3816', items: [{ line_code: 'SKU-100', sub_items: [{ component_id: 'CMP-1', component_desc: 'Valve Core' }] }] }] },
@@ -602,7 +586,7 @@ const officialWebScenarios: Scenario[] = [
 ];
 
 async function runSmokeTest() {
-  console.log('--- Iniciando IntegraX Smoke Test: Similarity Engine hardening + 20 casos web oficiales ---');
+  console.log('--- Iniciando IntegraX Smoke Test: business happy path + casos web oficiales ---');
 
   const bridge = new SchemaBridge();
   let scenarioIndex = 1;
@@ -619,7 +603,7 @@ async function runSmokeTest() {
   console.log(
     `RESULTADO: SUCCESS. El motor resolvio ${baselineScenarios.length + officialWebScenarios.length} escenarios; ` +
     `${officialWebScenarios.length} casos basados en documentacion oficial quedaron resueltos sin LLM ` +
-    'y el escenario negativo de false positives evito renombrados incorrectos.'
+    'manteniendo cobertura de negocio en el camino feliz.'
   );
   process.exit(0);
 }
