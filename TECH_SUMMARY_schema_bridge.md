@@ -1,71 +1,72 @@
 # TECH_SUMMARY - schema-bridge
 
-**Branch:** `ID-0003-ag-contract-schema-bridge`
+**Branch:** `ID-0005-ag-db-persistence`
 **Date:** 2026-03-24
-**Status:** `packages/schema-bridge/tests/smoke-test.ts` passing, `@integrax/schema-bridge` build passing, `@integrax/temporal-workflows` build passing
+**Status:** smoke test passing, `@integrax/schema-bridge` build passing, `@integrax/temporal-workflows` build passing
 
 ## What changed
 
-### Engine
+### Engine hardening
 
 `packages/schema-bridge/src/similarity-engine.ts`
 
-- Added value-based matching as a first-class signal using `SchemaNode.examples`.
-- Kept the engine deterministic: a strong value overlap now resolves SAP -> Coupa renames without relying on connector-specific dictionaries.
-- Added type-bucketing in `findRenameCandidates()` so removed fields only compare against added fields of compatible primary JSON type.
-- Updated the smoke test data to use 3 realistic SAP/Coupa samples with distinctive alphanumeric values (`NA-Corp`, `SUP-000100`, `EUR`, etc.), proving the match is driven by values rather than a hardcoded SAP synonym list.
+- Hardened value-based matching to reduce false positives from weak sample signals.
+- Value matching now ignores low-signal string values such as pure numerics, decimal-like numbers, dates/date-times, and placeholders like `N/A`, `null`, `unknown`, `true`, `false`.
+- Value similarity now requires diversity on both sides and at least two overlapping distinctive values before contributing to a rename candidate.
+- Rebalanced the final score so lexical similarity still works on its own, while high-quality value overlap remains the dominant signal for SAP-style cryptic field names.
 
-`packages/schema-bridge/src/types.ts`
+### Nested structure cleanup
 
-- Extended `SimilarityScore` with the `value` dimension so downstream consumers can inspect how much of the confidence came from sample overlap.
+`packages/schema-bridge/src/schema-inferrer.ts`
 
-### Orchestration brought from Antigravity
+- Increased preserved unique examples per field from 3 to 10 to strengthen the value signal.
+- Stopped emitting container-only object/array paths when they already have descendant leaf paths. This removes noisy diffs like `IDOC`, `E1BPADDR1`, `addresses`, `items`, etc., while keeping deep leaf paths such as `IDOC.E1BPADDR1[*].CITY`.
+- Result: deep SAP segments now map cleanly without extra LLM escalations caused by unmatched container nodes.
+
+### Updated smoke coverage
+
+`packages/schema-bridge/tests/smoke-test.ts`
+
+- Expanded the smoke test from a single flat SAP/Coupa case to 3 acceptance scenarios:
+  1. Flat SAP -> Coupa rename detection.
+  2. Deep SAP IDOC-style arrays/segments -> nested API paths.
+  3. Anti-false-positive scenario with repeated dates/placeholders that must not auto-map.
+
+### Orchestration state from Antigravity
 
 `workflows/temporal/src/activities/schema-diff-activities.ts`
 
-- Brought in the Temporal activity that infers fingerprints, checks Redis, runs `SchemaBridge.compare()`, and caches the normalized `DiffResult` for 30 days.
-
-`workflows/temporal/src/workflows/schema-diff-workflow.ts`
-
-- Brought in the workflow that calls `generateSchemaDiff()`, persists the result, and returns the standardized diff payload.
-
-### Compatibility fix
-
-`packages/schema-bridge/src/client-updater.ts`
-`workflows/temporal/src/activities/schema-diff-activities.ts`
-
-- Fixed the `ioredis` constructor import shape so both packages compile under the current `NodeNext` TypeScript setup.
+- Kept Antigravity's Redis cache and Postgres persistence work in place.
+- Fixed the `ioredis` import shape so the Temporal package compiles cleanly under the current TypeScript setup.
 
 ## Validation
 
-Command:
+Commands executed:
 
 ```bash
 npx tsx packages/schema-bridge/tests/smoke-test.ts
-```
-
-Observed result:
-
-```text
-[100.0%] BUKRS -> companyCode
-[100.0%] LIFNR -> supplierNumber
-[100.0%] NAME1 -> supplierName
-[100.0%] ORT01 -> city
-[100.0%] WAERS -> currencyCode
-
-0 LLM escalations
-100% coverage
-RESULTADO: SUCCESS
-```
-
-Additional verification:
-
-```bash
 pnpm --filter @integrax/schema-bridge build
 pnpm --filter @integrax/temporal-workflows build
 ```
 
-Both builds pass.
+Observed smoke result:
+
+```text
+Escenario 1: SAP plano vs Coupa -> OK, sin LLM
+Escenario 2: SAP profundo con segmentos/arrays -> OK, sin LLM
+Escenario 3: hardening contra falsos positivos -> OK, sin matches falsos por fechas/placeholders
+
+RESULTADO: SUCCESS
+```
+
+Representative nested mappings now detected deterministically:
+
+```text
+IDOC.E1BPADDR1[*].CITY -> addresses[*].city
+IDOC.E1BPADDR1[*].POST_CODE -> addresses[*].postalCode
+IDOC.E1BPMATERIAL[*].MATNR -> items[*].productCode
+IDOC.E1BPMATERIAL[*].MAKTX -> items[*].description
+```
 
 ## Main function signatures
 
@@ -102,6 +103,13 @@ interface SimilarityScore {
 ```
 
 ```ts
+// packages/schema-bridge/src/schema-inferrer.ts
+class SchemaInferrer {
+  infer(samples: Record<string, unknown>[]): InferredJsonSchema
+}
+```
+
+```ts
 // workflows/temporal/src/activities/schema-diff-activities.ts
 function generateSchemaDiff(
   input: SchemaDiffInput & { options?: { forceRecalculate?: boolean } }
@@ -110,13 +118,8 @@ function generateSchemaDiff(
 function persistDiffResult(result: DiffResult): Promise<void>
 ```
 
-```ts
-// workflows/temporal/src/workflows/schema-diff-workflow.ts
-function schemaDiffWorkflow(input: SchemaDiffWorkflowInput): Promise<DiffResult>
-```
-
 ## Notes for Antigravity
 
-- The engine currently resolves the SAP smoke test from sample values, not from a SAP-specific dictionary.
-- Redis caching now lives at the Temporal orchestration layer, keyed by inferred schema fingerprints.
-- `ClientUpdater` still publishes notifications in a fire-and-forget way and degrades gracefully if Redis is unavailable.
+- The engine now resolves both flat and deep SAP mappings from sample values, not from a connector-specific SAP dictionary.
+- Container nodes are intentionally suppressed from the inferred field list when deep descendants already exist, to avoid noisy `field_added` / `field_removed` diffs on nested structures.
+- The anti-false-positive hardening is conservative by design: repeated dates/placeholders no longer count as a valid identity signal.

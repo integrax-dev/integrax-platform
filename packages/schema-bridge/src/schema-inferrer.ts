@@ -8,6 +8,8 @@
 import { createHash } from 'node:crypto';
 import type { InferredJsonSchema, JsonPrimitiveType, SchemaField, SchemaNode } from './types.js';
 
+const MAX_EXAMPLES = 10;
+
 // ─── Canonicalización (igual que connector-watchdog/schema-fingerprinter) ─────
 
 function canonicalise(value: unknown): string {
@@ -69,7 +71,7 @@ function getJsonType(v: unknown): JsonPrimitiveType {
   return 'null';
 }
 
-function mergeNodes(existing: SchemaNode, incoming: SchemaNode, path: string): SchemaNode {
+function mergeNodes(existing: SchemaNode, incoming: SchemaNode): SchemaNode {
   const existingTypes = Array.isArray(existing.type) ? existing.type : [existing.type];
   const incomingTypes = Array.isArray(incoming.type) ? incoming.type : [incoming.type];
 
@@ -83,10 +85,10 @@ function mergeNodes(existing: SchemaNode, incoming: SchemaNode, path: string): S
     mergedEnum = Array.from(new Set([...existing.enum, ...incoming.enum]));
   }
 
-  // Preservar hasta 3 ejemplos únicos
+  // Preservar hasta MAX_EXAMPLES ejemplos unicos para mejorar diversidad del value matching
   const examples = [...existing.examples];
   for (const ex of incoming.examples) {
-    if (examples.length >= 3) break;
+    if (examples.length >= MAX_EXAMPLES) break;
     if (!examples.some(e => JSON.stringify(e) === JSON.stringify(ex))) {
       examples.push(ex);
     }
@@ -157,10 +159,25 @@ function traverseValue(
   const existing = pathMap.get(path);
   if (existing) {
     existing.appearances++;
-    existing.node = mergeNodes(existing.node, node, path);
+    existing.node = mergeNodes(existing.node, node);
   } else {
     pathMap.set(path, { appearances: 1, node });
   }
+}
+
+function hasDescendantPath(path: string, allPaths: string[]): boolean {
+  const objectPrefix = `${path}.`;
+  const arrayPrefix = `${path}[*]`;
+  return allPaths.some(other =>
+    other !== path && (other.startsWith(objectPrefix) || other.startsWith(arrayPrefix))
+  );
+}
+
+function shouldIncludeField(path: string, node: SchemaNode, allPaths: string[]): boolean {
+  const types = Array.isArray(node.type) ? node.type : [node.type];
+  const isContainer = types.includes('object') || types.includes('array');
+  if (!isContainer) return true;
+  return !hasDescendantPath(path, allPaths);
 }
 
 // ─── SchemaInferrer ───────────────────────────────────────────────────────────
@@ -183,11 +200,11 @@ export class SchemaInferrer {
     const sampleCount = samples.length;
     const requiredThreshold = 0.80;
 
+    const allPaths = [...pathMap.keys()];
     const fields: SchemaField[] = [];
     for (const [path, entry] of pathMap) {
-      // Saltar rutas internas de objetos (los hijos ya están en el map con su path completo)
-      // Solo incluir hojas y arrays
       const node = entry.node;
+      if (!shouldIncludeField(path, node, allPaths)) continue;
       const required = entry.appearances / sampleCount >= requiredThreshold;
 
       // Marcar nullable si el campo no está en todas las muestras

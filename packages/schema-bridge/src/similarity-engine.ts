@@ -15,6 +15,24 @@
 
 import type { FieldDiff, SchemaNode, SimilarityScore } from './types.js';
 
+const STOP_VALUE_TOKENS = new Set([
+  '',
+  'n/a',
+  'na',
+  'none',
+  'null',
+  'undefined',
+  'unknown',
+  'true',
+  'false',
+  'yes',
+  'no',
+]);
+
+const NUMERIC_LIKE_PATTERN = /^[+-]?\d+(?:[.,]\d+)?$/;
+const DATE_LIKE_PATTERN = /^(?:\d{4}-\d{2}-\d{2}(?:t.*)?|\d{2}\/\d{2}\/\d{4})$/i;
+const LOW_SIGNAL_FORMATS = new Set(['date', 'date-time']);
+
 // ─── Normalización de nombres ─────────────────────────────────────────────────
 
 /**
@@ -156,15 +174,31 @@ function semanticSimilarity(a: string, b: string): number {
 
 // ─── Value similarity ─────────────────────────────────────────────────────────
 
-/**
- * Returns true for values that are distinctive enough to be trusted as field identity signals.
- * Filters out purely numeric values ("1000", "42") — they appear frequently across unrelated
- * fields (IDs, amounts, codes) and produce false positives with small sample sets.
- * Accepts short alphabetic codes (e.g. "EUR", "USD", "AR") since their combination across
- * multiple samples is sufficiently distinctive.
- */
-function isDistinctiveValue(v: string): boolean {
-  return v.length >= 3 && !/^\d+$/.test(v);
+function normalizeValueForMatching(node: SchemaNode, value: unknown): string | null {
+  if (primaryType(node) !== 'string') return null;
+  if (node.format && LOW_SIGNAL_FORMATS.has(node.format)) return null;
+
+  const normalized = String(value ?? '').trim().toLowerCase();
+  if (normalized.length < 3) return null;
+  if (STOP_VALUE_TOKENS.has(normalized)) return null;
+  if (NUMERIC_LIKE_PATTERN.test(normalized)) return null;
+  if (DATE_LIKE_PATTERN.test(normalized)) return null;
+
+  return normalized;
+}
+
+function distinctiveValues(node: SchemaNode): Set<string> {
+  const values = node.examples
+    .map(value => normalizeValueForMatching(node, value))
+    .filter((value): value is string => value !== null);
+
+  return new Set(values);
+}
+
+function diversityFactor(size: number): number {
+  if (size <= 1) return 0;
+  if (size === 2) return 0.5;
+  return 1;
 }
 
 /**
@@ -173,20 +207,19 @@ function isDistinctiveValue(v: string): boolean {
  */
 function valueSimilarity(nodeA: SchemaNode | null, nodeB: SchemaNode | null): number {
   if (!nodeA || !nodeB) return 0;
-  const exA = new Set(
-    nodeA.examples
-      .map(v => String(v ?? '').toLowerCase().trim())
-      .filter(isDistinctiveValue),
-  );
-  const exB = new Set(
-    nodeB.examples
-      .map(v => String(v ?? '').toLowerCase().trim())
-      .filter(isDistinctiveValue),
-  );
-  if (exA.size === 0 || exB.size === 0) return 0;
-  const intersection = [...exA].filter(v => exB.has(v)).length;
+  const exA = distinctiveValues(nodeA);
+  const exB = distinctiveValues(nodeB);
+
+  if (exA.size < 2 || exB.size < 2) return 0;
+
+  const overlap = [...exA].filter(v => exB.has(v)).length;
+  if (overlap < 2) return 0;
+
   const union = new Set([...exA, ...exB]).size;
-  return intersection / union;
+  const jaccard = union === 0 ? 0 : overlap / union;
+  const diversity = Math.min(diversityFactor(exA.size), diversityFactor(exB.size));
+
+  return jaccard * diversity;
 }
 
 // ─── Score combinado ──────────────────────────────────────────────────────────
@@ -201,14 +234,12 @@ function combinedScore(
   const jac = jaccardSimilarity(normalizeName(a), normalizeName(b));
   const sem = semanticSimilarity(a, b);
   const val = valueSimilarity(nodeA, nodeB);
+  const lexical = 0.45 * lev + 0.35 * jac + 0.20 * sem;
 
-  // Authoritative shortcuts — no need for weighted average
-  //   semantic=1.0 → direct synonym match
-  //   value≥0.8   → ≥80% of distinctive sample values are identical across both fields
   const combined =
-    sem >= 1.0 || val >= 0.8
+    sem >= 1.0
       ? 1.0
-      : 0.35 * lev + 0.25 * jac + 0.25 * sem + 0.15 * val;
+      : Math.max(lexical, 0.75 * val + 0.25 * lexical);
 
   return { levenshtein: lev, jaccard: jac, semantic: sem, value: val, combined };
 }

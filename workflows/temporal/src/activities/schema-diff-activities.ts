@@ -9,7 +9,7 @@
 
 import { Context } from '@temporalio/activity';
 import type { BridgeReport, FieldMapping } from '@integrax/schema-bridge';
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { Pool } from 'pg';
 
 // ─── Contrato público (compatible con ID-0001 + enriquecido por ID-0002) ──────
