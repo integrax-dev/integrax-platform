@@ -28,9 +28,19 @@ function sha256(input: string): string {
 
 // ─── Detección de formato para strings ───────────────────────────────────────
 
+function isLatLon(value: string): boolean {
+  const match = value.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
+  if (!match) return false;
+  const lat = Number(match[1]);
+  const lon = Number(match[2]);
+  return Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
+}
+
 const FORMAT_DETECTORS: Array<{ format: string; test: (v: string) => boolean }> = [
   { format: 'ar-cuit', test: v => /^\d{2}-\d{8}-\d{1}$/.test(v) },
   { format: 'uuid', test: v => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) },
+  { format: 'iso-currency', test: v => /^[A-Z]{3}$/.test(v.trim()) },
+  { format: 'lat-lon', test: isLatLon },
   { format: 'date-time', test: v => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(v) },
   { format: 'date', test: v => /^\d{4}-\d{2}-\d{2}$/.test(v) },
   { format: 'email', test: v => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v) },

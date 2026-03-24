@@ -21,6 +21,8 @@ import type {
 import { TypeResolver } from './type-resolver.js';
 
 const resolver = new TypeResolver();
+const AUTO_ACCEPT_THRESHOLD = 0.95;
+const HUMAN_REVIEW_THRESHOLD = 0.70;
 
 // Patrones de campos monetarios para heurísticas
 const MONEY_FIELD = /monto|importe|precio|amount|valor|costo|tarifa|total/i;
@@ -78,8 +80,8 @@ function resolveDeterministic(diff: FieldDiff): ResolvedConflict | null {
     };
   }
 
-  // rename_candidate con alta confianza (≥0.85)
-  if (kind === 'rename_candidate' && diff.similarity && diff.similarity.combined >= 0.85) {
+  // rename_candidate con confianza de auto-aceptacion
+  if (kind === 'rename_candidate' && diff.similarity && diff.similarity.combined >= AUTO_ACCEPT_THRESHOLD) {
     const transform: TransformSpec = {
       kind: 'rename',
       fromPath: pathA,
@@ -183,22 +185,17 @@ function resolveDeterministic(diff: FieldDiff): ResolvedConflict | null {
 function resolveHeuristic(diff: FieldDiff): ResolvedConflict | null {
   const { kind, nodeA, nodeB, pathA, pathB } = diff;
 
-  // rename_candidate con confianza media (0.70–0.84)
+  // rename_candidate en ventana de revision humana/LLM
   if (kind === 'rename_candidate' && diff.similarity) {
     const { combined } = diff.similarity;
-    if (combined >= 0.70 && combined < 0.85) {
-      const transform: TransformSpec = {
-        kind: 'rename',
-        fromPath: pathA,
-        toPath: pathB,
-        description: `Posible renombrado: "${pathA}" → "${pathB}" (similitud: ${(combined * 100).toFixed(0)}%) — verificar manualmente`,
-      };
+    if (combined >= HUMAN_REVIEW_THRESHOLD && combined < AUTO_ACCEPT_THRESHOLD) {
       return {
         diff,
         resolution: 'heuristic',
-        mapping: makeMapping(pathA, pathB, transform, combined),
+        mapping: null,
         confidence: combined,
-        llmRequired: false,
+        llmRequired: true,
+        llmReason: `Score intermedio (${(combined * 100).toFixed(0)}%) entre "${pathA}" y "${pathB}". Requiere revision humana/LLM antes de auto-aceptar el renombrado.`,
       };
     }
   }

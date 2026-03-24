@@ -22,6 +22,18 @@ interface ValueProfile {
   counts: Map<string, number>;
 }
 
+const STRONG_BUSINESS_FORMATS = new Map<string, number>([
+  ['uuid', 1.0],
+  ['email', 1.0],
+  ['iso-currency', 0.95],
+  ['lat-lon', 0.95],
+  ['ar-cuit', 0.9],
+  ['uri', 0.75],
+  ['ar-money-string', 0.75],
+  ['date-time', 0.45],
+  ['date', 0.35],
+]);
+
 /**
  * Converts camelCase, PascalCase and kebab-case to snake_case for comparison.
  */
@@ -176,7 +188,9 @@ function valueReliability(node: SchemaNode): number {
   const type = primaryType(node);
   if (type === 'boolean') return 0.15;
   if (type === 'number') return 0.75;
-  if (node.format === 'date' || node.format === 'date-time') return 0.35;
+  if (node.format && STRONG_BUSINESS_FORMATS.has(node.format)) {
+    return STRONG_BUSINESS_FORMATS.get(node.format)!;
+  }
   return 1.0;
 }
 
@@ -223,26 +237,51 @@ function valueSimilarity(nodeA: SchemaNode | null, nodeB: SchemaNode | null): nu
     overlapRatio *
     (0.35 * averageOverlapInformation + 0.40 * entropySignal + 0.25 * cardinalitySignal) *
     reliability;
+  const perfectOverlapScore =
+    overlapRatio === 1
+      ? reliability * (0.30 * averageOverlapInformation + 0.40 * entropySignal + 0.30 * cardinalitySignal)
+      : 0;
+  const perfectOverlapBoost =
+    overlapRatio === 1 && entropySignal >= 0.85 && cardinalitySignal >= 0.9
+      ? 0.06 * reliability
+      : 0;
 
-  return Math.max(0, Math.min(1, probabilisticScore));
+  return Math.max(0, Math.min(1, Math.max(probabilisticScore, perfectOverlapScore) + perfectOverlapBoost));
+}
+
+function businessTypeSimilarity(nodeA: SchemaNode | null, nodeB: SchemaNode | null): number {
+  if (!nodeA || !nodeB || !nodeA.format || !nodeB.format) return 0;
+  if (nodeA.format !== nodeB.format) return 0;
+  return STRONG_BUSINESS_FORMATS.get(nodeA.format) ?? 0;
+}
+
+function arrayDepth(path: string): number {
+  const matches = path.match(/\[\*\]/g);
+  return matches ? matches.length : 0;
 }
 
 function combinedScore(
-  a: string,
-  b: string,
+  pathA: string,
+  pathB: string,
   nodeA: SchemaNode | null = null,
   nodeB: SchemaNode | null = null,
 ): SimilarityScore {
+  const a = fieldName(pathA);
+  const b = fieldName(pathB);
   const lev = levenshteinSimilarity(normalizeName(a), normalizeName(b));
   const jac = jaccardSimilarity(normalizeName(a), normalizeName(b));
   const sem = semanticSimilarity(a, b);
   const val = valueSimilarity(nodeA, nodeB);
+  const business = businessTypeSimilarity(nodeA, nodeB);
   const lexical = 0.45 * lev + 0.35 * jac + 0.20 * sem;
+  const depthPenalty = Math.max(0.7, 1 - 0.15 * Math.abs(arrayDepth(pathA) - arrayDepth(pathB)));
 
   const combined =
     sem >= 1.0
       ? 1.0
-      : Math.max(lexical, 0.90 * val + 0.10 * lexical);
+      : (business >= 0.9 && val >= 0.85) || val >= 0.90
+        ? 1.0
+        : Math.min(1, Math.max(lexical, (0.82 * val + 0.12 * business + 0.06 * lexical) * depthPenalty));
 
   return { levenshtein: lev, jaccard: jac, semantic: sem, value: val, combined };
 }
@@ -262,11 +301,17 @@ export class SimilarityEngine {
     threshold = 0.70,
   ): FieldDiff[] {
     const addedByType = new Map<string, FieldDiff[]>();
+    const addedByPrimaryType = new Map<string, FieldDiff[]>();
     for (const dB of added) {
-      const type = primaryType(dB.nodeB);
-      const bucket = addedByType.get(type);
-      if (bucket) bucket.push(dB);
-      else addedByType.set(type, [dB]);
+      const primary = primaryType(dB.nodeB);
+      const exactKey = bucketKey(primary, dB.pathB!);
+      const exactBucket = addedByType.get(exactKey);
+      if (exactBucket) exactBucket.push(dB);
+      else addedByType.set(exactKey, [dB]);
+
+      const broadBucket = addedByPrimaryType.get(primary);
+      if (broadBucket) broadBucket.push(dB);
+      else addedByPrimaryType.set(primary, [dB]);
     }
 
     const scores: Array<{
@@ -279,13 +324,13 @@ export class SimilarityEngine {
 
     for (const dA of removed) {
       const typeA = primaryType(dA.nodeA);
-      const nameA = fieldName(dA.pathA!);
-      const bucket = addedByType.get(typeA) ?? [];
-      const unknownBucket = typeA !== 'unknown' ? (addedByType.get('unknown') ?? []) : [];
+      const exactBucket = addedByType.get(bucketKey(typeA, dA.pathA!)) ?? [];
+      const unknownExactBucket = typeA !== 'unknown' ? (addedByType.get(bucketKey('unknown', dA.pathA!)) ?? []) : [];
+      const bucket = exactBucket.length > 0 ? exactBucket : (addedByPrimaryType.get(typeA) ?? []);
+      const unknownBucket = unknownExactBucket.length > 0 ? unknownExactBucket : (typeA !== 'unknown' ? (addedByPrimaryType.get('unknown') ?? []) : []);
 
       for (const dB of [...bucket, ...unknownBucket]) {
-        const nameB = fieldName(dB.pathB!);
-        const score = combinedScore(nameA, nameB, dA.nodeA, dB.nodeB);
+        const score = combinedScore(dA.pathA!, dB.pathB!, dA.nodeA, dB.nodeB);
         if (score.combined >= threshold) {
           scores.push({ pathA: dA.pathA!, pathB: dB.pathB!, score, diffA: dA, diffB: dB });
         }
@@ -331,6 +376,10 @@ function primaryType(node: SchemaNode | null): string {
   if (!node) return 'unknown';
   if (Array.isArray(node.type)) return node.type.find(t => t !== 'null') ?? 'null';
   return node.type;
+}
+
+function bucketKey(type: string, path: string): string {
+  return `${type}:${arrayDepth(path)}`;
 }
 
 export function createSimilarityEngine(): SimilarityEngine {
