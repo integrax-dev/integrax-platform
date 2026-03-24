@@ -1,19 +1,18 @@
 /**
  * Similarity Engine
  *
- * Detects renamed fields between two schemas using:
- * 1. Levenshtein distance (normalized)
- * 2. Jaccard over trigrams
- * 3. LatAm domain synonym table
- * 4. Value-based matching with probabilistic scoring over overlap, entropy and cardinality
- *
- * Type-bucketing reduces comparisons from O(n^2) to O(n x avg_bucket_size) by only comparing
- * fields of compatible types as rename candidates.
- *
- * Pure function - no I/O, no LLM.
+ * Detecta renombrados usando señal lexical, semántica y estadística.
+ * La señal de valores no ignora categorías ambiguas: las degrada matemáticamente
+ * usando entropía, cardinalidad e información intrínseca del token.
  */
 
-import type { FieldDiff, SchemaNode, SimilarityScore } from './types.js';
+import { defaultBusinessTypeWeights } from './business-type-registry.js';
+import type {
+  FieldDiff,
+  SchemaNode,
+  SimilarityEngineConfig,
+  SimilarityScore,
+} from './types.js';
 
 interface ValueProfile {
   total: number;
@@ -22,22 +21,35 @@ interface ValueProfile {
   counts: Map<string, number>;
 }
 
-const STRONG_BUSINESS_FORMATS = new Map<string, number>([
-  ['uuid', 1.0],
-  ['email', 1.0],
-  ['iso-currency', 0.95],
-  ['lat-lon', 0.95],
-  ['ar-cuit', 0.9],
-  ['uri', 0.75],
-  ['ar-money-string', 0.75],
-  ['date-time', 0.45],
-  ['date', 0.35],
+interface CandidateScore {
+  pathA: string;
+  pathB: string;
+  score: SimilarityScore;
+  diffA: FieldDiff;
+  diffB: FieldDiff;
+}
+
+const PLACEHOLDER_TOKENS = new Set([
+  '',
+  '<null>',
+  '<undefined>',
+  'n/a',
+  'na',
+  'none',
+  'null',
+  'undefined',
+  'unknown',
+  '-',
 ]);
 
 /**
  * Converts camelCase, PascalCase and kebab-case to snake_case for comparison.
  */
 export function normalizeName(s: string): string {
+  if (/^[A-Z0-9_]+$/.test(s)) {
+    return s.toLowerCase().replace(/__+/g, '_').replace(/^_|_$/g, '');
+  }
+
   return s
     .replace(/([A-Z])/g, '_$1')
     .replace(/-/g, '_')
@@ -90,7 +102,8 @@ function jaccardSimilarity(a: string, b: string): number {
 const SYNONYM_PAIRS: [string, string][] = [
   ['id', 'codigo'], ['id', 'identificador'], ['id', 'nro'], ['id', 'numero'],
   ['codigo', 'code'], ['codigo', 'identificador'],
-  ['nombre', 'name'], ['nombre', 'first_name'], ['apellido', 'surname'], ['apellido', 'last_name'],
+  ['nombre', 'name'], ['nombre', 'first_name'], ['nombre', 'fname'], ['apellido', 'surname'], ['apellido', 'last_name'], ['apellido', 'lname'],
+  ['given_name', 'first_name'], ['given_name', 'fname'], ['family_name', 'last_name'], ['family_name', 'lname'],
   ['cliente', 'customer'], ['cliente', 'comprador'], ['cliente', 'buyer'],
   ['proveedor', 'vendor'], ['proveedor', 'supplier'],
   ['monto', 'amount'], ['monto', 'importe'], ['monto', 'valor'], ['monto', 'total'],
@@ -104,14 +117,14 @@ const SYNONYM_PAIRS: [string, string][] = [
   ['factura', 'invoice'], ['comprobante', 'receipt'], ['comprobante', 'voucher'],
   ['pedido', 'order'], ['orden', 'order'],
   ['producto', 'product'], ['articulo', 'item'], ['articulo', 'product'],
-  ['stock', 'quantity'], ['stock', 'qty'], ['cantidad', 'quantity'], ['cantidad', 'qty'],
+  ['stock', 'quantity'], ['stock', 'qty'], ['cantidad', 'quantity'], ['cantidad', 'qty'], ['qty_value', 'quantity'],
   ['cuit', 'tax_id'], ['cuit', 'rut'], ['cuit', 'nit'],
   ['dni', 'documento'], ['dni', 'identification'], ['dni', 'id_number'],
   ['iva', 'vat'], ['iva', 'tax'], ['neto', 'net_amount'],
   ['cae', 'fiscal_code'], ['punto_venta', 'branch_id'],
   ['estado', 'status'], ['estado', 'state'], ['estado_pago', 'payment_status'],
   ['activo', 'active'], ['activo', 'enabled'],
-  ['url', 'link'], ['url', 'href'], ['imagen', 'image'], ['imagen', 'photo'],
+  ['url', 'link'], ['url', 'href'], ['url', 'website'], ['imagen', 'image'], ['imagen', 'photo'],
   ['descripcion', 'description'], ['descripcion', 'detail'],
   ['tipo', 'type'], ['tipo', 'kind'], ['tipo', 'category'],
   ['moneda', 'currency'], ['moneda', 'currency_code'],
@@ -169,6 +182,27 @@ function shannonEntropy(counts: Map<string, number>, total: number): number {
   return entropy / normalizer;
 }
 
+function tokenReliability(token: string): number {
+  const normalized = token.trim().toLowerCase();
+
+  if (PLACEHOLDER_TOKENS.has(normalized)) return 0.03;
+  if (normalized === 'true' || normalized === 'false') return 0.06;
+  if (/^\d{4}-\d{2}-\d{2}(t.*)?$/i.test(normalized)) return 0.22;
+  if (/^-?\d+$/.test(normalized)) {
+    const digits = normalized.replace(/[^0-9]/g, '').length;
+    if (digits <= 2) return 0.08;
+    if (digits <= 4) return 0.28;
+    if (digits <= 8) return 0.58;
+    return 0.82;
+  }
+  if (/^-?\d+(?:[.,]\d+)?$/.test(normalized)) {
+    return normalized.length >= 7 ? 0.55 : 0.16;
+  }
+  if (/^[a-z]{1,3}$/i.test(normalized)) return 0.12;
+
+  return 1.0;
+}
+
 function intrinsicTokenInformation(token: string): number {
   if (token.length === 0) return 0;
 
@@ -181,15 +215,21 @@ function intrinsicTokenInformation(token: string): number {
     Number(/[^a-z0-9]/i.test(token));
   const classWeight = classCount / 3;
 
-  return 0.6 * lengthWeight + 0.25 * shapeWeight + 0.15 * classWeight;
+  return (0.6 * lengthWeight + 0.25 * shapeWeight + 0.15 * classWeight) * tokenReliability(token);
 }
 
-function valueReliability(node: SchemaNode): number {
+function primaryType(node: SchemaNode | null): string {
+  if (!node) return 'unknown';
+  if (Array.isArray(node.type)) return node.type.find(t => t !== 'null') ?? 'null';
+  return node.type;
+}
+
+function valueReliability(node: SchemaNode, weights: Map<string, number>): number {
   const type = primaryType(node);
-  if (type === 'boolean') return 0.15;
+  if (type === 'boolean') return 0.12;
   if (type === 'number') return 0.75;
-  if (node.format && STRONG_BUSINESS_FORMATS.has(node.format)) {
-    return STRONG_BUSINESS_FORMATS.get(node.format)!;
+  if (node.format && weights.has(node.format)) {
+    return weights.get(node.format)!;
   }
   return 1.0;
 }
@@ -209,7 +249,7 @@ function buildValueProfile(node: SchemaNode): ValueProfile {
   return { total, unique, entropy, counts };
 }
 
-function valueSimilarity(nodeA: SchemaNode | null, nodeB: SchemaNode | null): number {
+function valueSimilarity(nodeA: SchemaNode | null, nodeB: SchemaNode | null, weights: Map<string, number>): number {
   if (!nodeA || !nodeB) return 0;
 
   const profileA = buildValueProfile(nodeA);
@@ -231,28 +271,37 @@ function valueSimilarity(nodeA: SchemaNode | null, nodeB: SchemaNode | null): nu
   const averageOverlapInformation = overlapCount === 0 ? 0 : weightedOverlapInformation / overlapCount;
   const entropySignal = Math.max(profileA.entropy, profileB.entropy);
   const cardinalitySignal = Math.sqrt(Math.min(1, Math.min(profileA.unique, profileB.unique) / 3));
-  const reliability = Math.sqrt(valueReliability(nodeA) * valueReliability(nodeB));
+  const diversitySignal =
+    Math.sqrt(Math.min(1, (profileA.unique / Math.max(1, profileA.total)) * (profileB.unique / Math.max(1, profileB.total))));
+  const reliability = Math.sqrt(valueReliability(nodeA, weights) * valueReliability(nodeB, weights));
 
-  const probabilisticScore =
+  const score =
     overlapRatio *
-    (0.35 * averageOverlapInformation + 0.40 * entropySignal + 0.25 * cardinalitySignal) *
+    (0.30 * averageOverlapInformation + 0.30 * entropySignal + 0.25 * cardinalitySignal + 0.15 * diversitySignal) *
     reliability;
-  const perfectOverlapScore =
-    overlapRatio === 1
-      ? reliability * (0.30 * averageOverlapInformation + 0.40 * entropySignal + 0.30 * cardinalitySignal)
-      : 0;
-  const perfectOverlapBoost =
-    overlapRatio === 1 && entropySignal >= 0.85 && cardinalitySignal >= 0.9
-      ? 0.06 * reliability
-      : 0;
 
-  return Math.max(0, Math.min(1, Math.max(probabilisticScore, perfectOverlapScore) + perfectOverlapBoost));
+  return Math.max(0, Math.min(1, score));
 }
 
-function businessTypeSimilarity(nodeA: SchemaNode | null, nodeB: SchemaNode | null): number {
+function businessTypeSimilarity(
+  nodeA: SchemaNode | null,
+  nodeB: SchemaNode | null,
+  weights: Map<string, number>,
+): number {
   if (!nodeA || !nodeB || !nodeA.format || !nodeB.format) return 0;
-  if (nodeA.format !== nodeB.format) return 0;
-  return STRONG_BUSINESS_FORMATS.get(nodeA.format) ?? 0;
+  if (nodeA.format === nodeB.format) return weights.get(nodeA.format) ?? 0;
+
+  const dateFamily = new Set(['date', 'date-time']);
+  if (dateFamily.has(nodeA.format) && dateFamily.has(nodeB.format)) {
+    return 0.35;
+  }
+
+  return 0;
+}
+
+function fieldName(path: string): string {
+  const parts = path.split('.');
+  return parts[parts.length - 1].replace(/\[\*\]$/, '');
 }
 
 function arrayDepth(path: string): number {
@@ -260,90 +309,208 @@ function arrayDepth(path: string): number {
   return matches ? matches.length : 0;
 }
 
+function pathTokens(path: string): string[] {
+  return path
+    .split('.')
+    .map(segment => normalizeName(segment.replace(/\[\*\]/g, '')))
+    .filter(Boolean);
+}
+
+function parentTokens(path: string): string[] {
+  const tokens = pathTokens(path);
+  return tokens.slice(0, -1);
+}
+
+function structuralSimilarity(pathA: string, pathB: string): number {
+  const depthScore = Math.max(0.4, 1 - 0.15 * Math.abs(arrayDepth(pathA) - arrayDepth(pathB)));
+  const parentsA = new Set(parentTokens(pathA).slice(-4));
+  const parentsB = new Set(parentTokens(pathB).slice(-4));
+
+  if (parentsA.size === 0 && parentsB.size === 0) return depthScore;
+
+  const sharedParents = [...parentsA].filter(token => parentsB.has(token)).length;
+  const unionParents = new Set([...parentsA, ...parentsB]).size || 1;
+  const parentScore = sharedParents / unionParents;
+
+  return 0.7 * depthScore + 0.3 * parentScore;
+}
+
 function combinedScore(
   pathA: string,
   pathB: string,
-  nodeA: SchemaNode | null = null,
-  nodeB: SchemaNode | null = null,
+  nodeA: SchemaNode | null,
+  nodeB: SchemaNode | null,
+  weights: Map<string, number>,
 ): SimilarityScore {
   const a = fieldName(pathA);
   const b = fieldName(pathB);
   const lev = levenshteinSimilarity(normalizeName(a), normalizeName(b));
   const jac = jaccardSimilarity(normalizeName(a), normalizeName(b));
   const sem = semanticSimilarity(a, b);
-  const val = valueSimilarity(nodeA, nodeB);
-  const business = businessTypeSimilarity(nodeA, nodeB);
+  const val = valueSimilarity(nodeA, nodeB, weights);
+  const business = businessTypeSimilarity(nodeA, nodeB, weights);
+  const structural = structuralSimilarity(pathA, pathB);
   const lexical = 0.45 * lev + 0.35 * jac + 0.20 * sem;
-  const depthPenalty = Math.max(0.7, 1 - 0.15 * Math.abs(arrayDepth(pathA) - arrayDepth(pathB)));
+  const structurallyWeightedLexical = lexical * (0.75 + 0.25 * structural);
+  const structurallyWeightedValue = val * (0.80 + 0.20 * structural);
+  const probabilistic =
+    business >= 0.9
+      ? 0.62 * structurallyWeightedValue + 0.30 * business + 0.08 * structurallyWeightedLexical
+      : 0.80 * structurallyWeightedValue + 0.10 * business + 0.10 * structurallyWeightedLexical;
+  const strongValueFloor =
+    structural >= 0.55 && (
+      val >= 0.85 ||
+      (business >= 0.9 && val >= 0.65)
+    )
+      ? 0.72 + 0.06 * business
+      : 0;
 
   const combined =
     sem >= 1.0
       ? 1.0
-      : (business >= 0.9 && val >= 0.85) || val >= 0.90
-        ? 1.0
-        : Math.min(1, Math.max(lexical, (0.82 * val + 0.12 * business + 0.06 * lexical) * depthPenalty));
+      : business >= 0.95 && val >= 0.88 && structural >= 0.75
+        ? Math.max(probabilistic, 0.96)
+        : Math.max(structurallyWeightedLexical, probabilistic, strongValueFloor);
 
-  return { levenshtein: lev, jaccard: jac, semantic: sem, value: val, combined };
+  return {
+    levenshtein: lev,
+    jaccard: jac,
+    semantic: sem,
+    value: val,
+    combined: Math.max(0, Math.min(1, combined)),
+  };
+}
+
+function comparisonSort(a: CandidateScore, b: CandidateScore): number {
+  if (b.score.combined !== a.score.combined) return b.score.combined - a.score.combined;
+  if ((b.score.margin ?? 0) !== (a.score.margin ?? 0)) return (b.score.margin ?? 0) - (a.score.margin ?? 0);
+  return (b.score.reciprocalMargin ?? 0) - (a.score.reciprocalMargin ?? 0);
+}
+
+function bucketKey(type: string, path: string): string {
+  return `${type}:${arrayDepth(path)}`;
+}
+
+function arrayContextKey(path: string): string {
+  const arrays = path
+    .split('.')
+    .filter(segment => segment.includes('[*]'))
+    .map(segment => normalizeName(segment.replace(/\[\*\]/g, '')))
+    .filter(Boolean)
+    .slice(-3);
+  return arrays.join('/');
+}
+
+function topTwoScores(values: number[]): [number, number] {
+  let best = 0;
+  let second = 0;
+
+  for (const value of values) {
+    if (value > best) {
+      second = best;
+      best = value;
+    } else if (value > second) {
+      second = value;
+    }
+  }
+
+  return [best, second];
 }
 
 export class SimilarityEngine {
-  /**
-   * Given field_removed and field_added diffs, returns rename candidates sorted by score desc.
-   *
-   * Type-bucketing: added fields are grouped by their primary JSON type before the loop.
-   * Each removed field only compares against fields of the same type (+ 'unknown' bucket for
-   * fields whose type could not be determined). Reduces comparisons from O(n^2) to
-   * O(n x avg_bucket_size).
-   */
+  private readonly weights: Map<string, number>;
+
+  constructor(config: SimilarityEngineConfig = {}) {
+    this.weights = new Map(Object.entries({
+      ...defaultBusinessTypeWeights,
+      ...(config.businessTypeWeights ?? {}),
+    }));
+  }
+
   findRenameCandidates(
     removed: FieldDiff[],
     added: FieldDiff[],
     threshold = 0.70,
   ): FieldDiff[] {
-    const addedByType = new Map<string, FieldDiff[]>();
+    const addedByExactBucket = new Map<string, FieldDiff[]>();
+    const addedByDepthBucket = new Map<string, FieldDiff[]>();
     const addedByPrimaryType = new Map<string, FieldDiff[]>();
+
     for (const dB of added) {
       const primary = primaryType(dB.nodeB);
-      const exactKey = bucketKey(primary, dB.pathB!);
-      const exactBucket = addedByType.get(exactKey);
-      if (exactBucket) exactBucket.push(dB);
-      else addedByType.set(exactKey, [dB]);
-
-      const broadBucket = addedByPrimaryType.get(primary);
-      if (broadBucket) broadBucket.push(dB);
-      else addedByPrimaryType.set(primary, [dB]);
+      const exactKey = `${bucketKey(primary, dB.pathB!)}:${arrayContextKey(dB.pathB!)}`;
+      const depthKey = bucketKey(primary, dB.pathB!);
+      addedByExactBucket.set(exactKey, [...(addedByExactBucket.get(exactKey) ?? []), dB]);
+      addedByDepthBucket.set(depthKey, [...(addedByDepthBucket.get(depthKey) ?? []), dB]);
+      addedByPrimaryType.set(primary, [...(addedByPrimaryType.get(primary) ?? []), dB]);
     }
 
-    const scores: Array<{
-      pathA: string;
-      pathB: string;
-      score: SimilarityScore;
-      diffA: FieldDiff;
-      diffB: FieldDiff;
-    }> = [];
+    const comparisons: CandidateScore[] = [];
 
     for (const dA of removed) {
       const typeA = primaryType(dA.nodeA);
-      const exactBucket = addedByType.get(bucketKey(typeA, dA.pathA!)) ?? [];
-      const unknownExactBucket = typeA !== 'unknown' ? (addedByType.get(bucketKey('unknown', dA.pathA!)) ?? []) : [];
-      const bucket = exactBucket.length > 0 ? exactBucket : (addedByPrimaryType.get(typeA) ?? []);
-      const unknownBucket = unknownExactBucket.length > 0 ? unknownExactBucket : (typeA !== 'unknown' ? (addedByPrimaryType.get('unknown') ?? []) : []);
+      const exactKey = `${bucketKey(typeA, dA.pathA!)}:${arrayContextKey(dA.pathA!)}`;
+      const candidates = new Map<string, FieldDiff>();
 
-      for (const dB of [...bucket, ...unknownBucket]) {
-        const score = combinedScore(dA.pathA!, dB.pathB!, dA.nodeA, dB.nodeB);
-        if (score.combined >= threshold) {
-          scores.push({ pathA: dA.pathA!, pathB: dB.pathB!, score, diffA: dA, diffB: dB });
+      for (const candidate of addedByExactBucket.get(exactKey) ?? []) {
+        candidates.set(candidate.pathB!, candidate);
+      }
+      for (const candidate of addedByDepthBucket.get(bucketKey(typeA, dA.pathA!)) ?? []) {
+        candidates.set(candidate.pathB!, candidate);
+      }
+      for (const candidate of addedByPrimaryType.get(typeA) ?? []) {
+        candidates.set(candidate.pathB!, candidate);
+      }
+      if (typeA !== 'unknown') {
+        for (const candidate of addedByPrimaryType.get('unknown') ?? []) {
+          candidates.set(candidate.pathB!, candidate);
         }
+      }
+
+      for (const dB of candidates.values()) {
+        comparisons.push({
+          pathA: dA.pathA!,
+          pathB: dB.pathB!,
+          score: combinedScore(dA.pathA!, dB.pathB!, dA.nodeA, dB.nodeB, this.weights),
+          diffA: dA,
+          diffB: dB,
+        });
       }
     }
 
-    scores.sort((a, b) => b.score.combined - a.score.combined);
+    const bySource = new Map<string, number[]>();
+    const byTarget = new Map<string, number[]>();
+
+    for (const comparison of comparisons) {
+      bySource.set(comparison.pathA, [...(bySource.get(comparison.pathA) ?? []), comparison.score.combined]);
+      byTarget.set(comparison.pathB, [...(byTarget.get(comparison.pathB) ?? []), comparison.score.combined]);
+    }
+
+    const annotated = comparisons
+      .map(comparison => {
+        const [bestA, secondA] = topTwoScores(bySource.get(comparison.pathA) ?? []);
+        const [bestB, secondB] = topTwoScores(byTarget.get(comparison.pathB) ?? []);
+        const margin = comparison.score.combined >= bestA ? comparison.score.combined - secondA : 0;
+        const reciprocalMargin = comparison.score.combined >= bestB ? comparison.score.combined - secondB : 0;
+
+        return {
+          ...comparison,
+          score: {
+            ...comparison.score,
+            margin: Math.max(0, margin),
+            reciprocalMargin: Math.max(0, reciprocalMargin),
+          },
+        };
+      })
+      .filter(comparison => comparison.score.combined >= threshold);
+
+    annotated.sort(comparisonSort);
 
     const usedA = new Set<string>();
     const usedB = new Set<string>();
     const candidates: FieldDiff[] = [];
 
-    for (const { pathA, pathB, score, diffA, diffB } of scores) {
+    for (const { pathA, pathB, score, diffA, diffB } of annotated) {
       if (usedA.has(pathA) || usedB.has(pathB)) continue;
       usedA.add(pathA);
       usedB.add(pathB);
@@ -363,25 +530,10 @@ export class SimilarityEngine {
   }
 
   score(nameA: string, nameB: string): SimilarityScore {
-    return combinedScore(nameA, nameB, null, null);
+    return combinedScore(nameA, nameB, null, null, this.weights);
   }
 }
 
-function fieldName(path: string): string {
-  const parts = path.split('.');
-  return parts[parts.length - 1].replace(/\[\*\]$/, '');
-}
-
-function primaryType(node: SchemaNode | null): string {
-  if (!node) return 'unknown';
-  if (Array.isArray(node.type)) return node.type.find(t => t !== 'null') ?? 'null';
-  return node.type;
-}
-
-function bucketKey(type: string, path: string): string {
-  return `${type}:${arrayDepth(path)}`;
-}
-
-export function createSimilarityEngine(): SimilarityEngine {
-  return new SimilarityEngine();
+export function createSimilarityEngine(config: SimilarityEngineConfig = {}): SimilarityEngine {
+  return new SimilarityEngine(config);
 }

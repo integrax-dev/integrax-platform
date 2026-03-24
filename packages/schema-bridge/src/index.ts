@@ -21,6 +21,11 @@
  */
 
 export { SchemaBridge, createSchemaBridge } from './bridge.js';
+export {
+  defaultBusinessTypeProviders,
+  defaultBusinessTypeWeights,
+  detectBusinessFormat,
+} from './business-type-registry.js';
 export { SchemaInferrer, createSchemaInferrer } from './schema-inferrer.js';
 export { SchemaDiffer, createSchemaDiffer } from './schema-differ.js';
 export { SimilarityEngine, createSimilarityEngine, normalizeName } from './similarity-engine.js';
@@ -64,6 +69,12 @@ export type {
   BridgeReport,
   CompareSchemasRequest,
   CompareOptions,
+  BusinessTypeDetectionContext,
+  BusinessTypeProvider,
+  BusinessTypeWeightMap,
+  ConflictResolverConfig,
+  SchemaInferrerConfig,
+  SimilarityEngineConfig,
   SchemaBridgeConfig,
 } from './types.js';
 

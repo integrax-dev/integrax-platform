@@ -37,10 +37,18 @@ export class SchemaBridge {
   private readonly logger: Required<SchemaBridgeConfig>['logger'];
 
   constructor(config: SchemaBridgeConfig = {}) {
-    this.inferrer = new SchemaInferrer();
+    this.inferrer = new SchemaInferrer({
+      businessTypeProviders: config.businessTypeProviders,
+    });
     this.differ = new SchemaDiffer();
-    this.similarity = new SimilarityEngine();
-    this.resolver = new ConflictResolver();
+    this.similarity = new SimilarityEngine({
+      businessTypeWeights: config.businessTypeWeights,
+    });
+    this.resolver = new ConflictResolver({
+      autoAcceptThreshold: config.autoAcceptThreshold,
+      humanReviewThreshold: config.humanReviewThreshold,
+      minConfidenceMargin: config.confidenceMarginThreshold,
+    });
     this.mapper = new MappingGenerator();
     this.reporter = new ChangeReporter();
     this.updater = new ClientUpdater({

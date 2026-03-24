@@ -1,60 +1,129 @@
 # TECH_SUMMARY - schema-bridge
 
-**Branch:** `ID-0006-ag-api-schema-endpoints`
-**Date:** 2026-03-24
+**Branch:** `ID-0006-ag-api-schema-endpoints`  
+**Date:** 2026-03-24  
 **Status:** smoke test passing, `@integrax/schema-bridge` build passing, `@integrax/temporal-workflows` build passing
 
 ## What changed
 
-### Deep arrays and probabilistic matching
+### 1. Business type registry and injectable semantics
 
-`packages/schema-bridge/src/similarity-engine.ts`
+New file: `packages/schema-bridge/src/business-type-registry.ts`
 
-- Kept the entropy/cardinality value matcher, but extended it to work better across heterogeneous systems and deep nested arrays.
-- Added array-depth-aware bucketing so leaf fields inside nested arrays are compared first against candidates at the same array depth, with a same-type fallback when needed.
-- Added business-type-aware confidence using `SchemaNode.format` and strong format classes such as `uuid`, `email`, `iso-currency`, `lat-lon`, `ar-cuit`, and `uri`.
-- Added stronger probabilistic auto-accept rules for exact high-entropy overlaps and for high-confidence matches with strong business types.
-- Result: cryptic fields, nested ERP array paths, and business identifiers now auto-match deterministically without relying on connector-specific hardcoding.
+- Moved business-type detection out of the inferrer core into a reusable registry.
+- Added default providers for:
+  - `uuid`
+  - `email`
+  - `iso-currency`
+  - `lat-lon`
+  - `phone-e164`
+  - `country-iso2`
+  - `country-iso3`
+  - `uri`
+  - `date`
+  - `date-time`
+  - `ar-cuit`
+- Added injectable weights so connector/domain teams can bias confidence without hardcoding more logic into the engine.
 
-### Smart type inference
+### 2. Smarter inferrer
 
 `packages/schema-bridge/src/schema-inferrer.ts`
 
-- Extended value-driven format detection with business-oriented formats:
-  - `iso-currency`
-  - `lat-lon`
-- Continued preserving repeated examples so entropy and cardinality are computed from real sample distributions, not deduplicated snapshots.
-- Continued suppressing container-only object/array paths when deep descendants already exist, avoiding noisy diffs on complex nested structures.
+- `SchemaInferrer` now accepts `businessTypeProviders`.
+- String format detection now delegates to the registry first, then falls back to money-string inference.
+- Repeated `examples` are still preserved so entropy/cardinality work over real distributions instead of deduplicated values.
+- Deep container nodes are still suppressed when descendant leaf paths already exist, which keeps nested diffs clean.
 
-### Confidence threshold / review workflow
+### 3. Similarity engine rebuilt around relative evidence
+
+`packages/schema-bridge/src/similarity-engine.ts`
+
+- Added acronym-safe normalization so fields like `FNAME`, `LNAME`, `WAERS`, `MATNR` are no longer mangled into character-by-character tokens.
+- Added probabilistic value scoring with:
+  - overlap ratio
+  - Shannon entropy
+  - cardinality
+  - diversity ratio
+  - intrinsic token information
+  - soft token reliability penalties instead of hard ignores
+- Numeric/date/placeholder values are no longer discarded. They are downweighted mathematically.
+- Added structural similarity over deep array paths and parent context so flatten/unflatten cases score better.
+- Added multi-stage bucketing:
+  - exact type + array depth + array context
+  - same type + same depth
+  - same primary type fallback
+- Added `margin` and `reciprocalMargin` to `SimilarityScore` so each candidate carries top1-vs-top2 separation on both source and target sides.
+- Expanded semantic support for acronyms and common enterprise aliases such as `website`, `fname/lname`, `qty_value`.
+
+### 4. Conflict resolution now uses margin, not only absolute threshold
 
 `packages/schema-bridge/src/conflict-resolver.ts`
 
-- Implemented a two-band decision policy for rename candidates:
-  - `> 0.95`: auto-accepted deterministically
-  - `0.70 - 0.95`: marked for human/LLM review in the diff result instead of being auto-resolved
-- This keeps the engine aggressive for strong signals and conservative for mid-confidence cases.
+- `ConflictResolver` now accepts:
+  - `autoAcceptThreshold`
+  - `humanReviewThreshold`
+  - `minConfidenceMargin`
+- High-confidence rename acceptance now uses:
+  - absolute score, and/or
+  - relative dominance over the runner-up candidate
+- This removed the previous over-reliance on a single hard `0.95` rule.
+- Strong value matches with real margin now auto-resolve without escalating to LLM.
 
-### Smoke test level 2
+### 5. Bridge wiring and exports
+
+`packages/schema-bridge/src/bridge.ts`  
+`packages/schema-bridge/src/index.ts`  
+`packages/schema-bridge/src/types.ts`
+
+- `SchemaBridgeConfig` now supports:
+  - `businessTypeProviders`
+  - `businessTypeWeights`
+  - `confidenceMarginThreshold`
+  - `autoAcceptThreshold`
+  - `humanReviewThreshold`
+- `SchemaBridge` now passes those settings into:
+  - `SchemaInferrer`
+  - `SimilarityEngine`
+  - `ConflictResolver`
+- Exported the registry and new config/types from the package entrypoint.
+
+## Smoke test expansion
 
 `packages/schema-bridge/tests/smoke-test.ts`
 
-- Expanded the smoke test to 4 acceptance scenarios:
-  1. Flat SAP -> Coupa rename detection.
-  2. Deep SAP IDOC-style arrays/segments -> nested API paths.
-  3. Anti-false-positive scenario with repeated dates/placeholders that must not auto-map.
-  4. ERP version upgrade scenario with simultaneous nested renames, UUID/email/currency/lat-lon business types, and multi-level arrays.
+- Replaced the old 4-case smoke test with a broader acceptance suite.
+- Current smoke result:
+  - 28 scenarios total
+  - 24 scenarios based on official vendor documentation
+  - deep arrays, nested objects, acronyms, currencies, URIs, UUIDs, phones, emails, and hostile false-positive controls
+- All official scenarios completed without LLM escalation.
 
-### API / orchestration state on this branch
+### Official-source-inspired scenarios now covered
 
-`services/control-plane/src/routes/schemas.ts`
-`services/control-plane/src/store/db.ts`
-
-- Antigravity’s `ID-0006` work is now present on the same branch:
-  - `/api/schemas/diff`
-  - `/api/schemas/diff/status/:workflowId`
-  - `/api/schemas/diff/reports/:id`
-- Control plane can now trigger the Temporal workflow, poll it, and read persisted reports from Postgres.
+- Stripe
+- Shopify
+- HubSpot
+- Salesforce
+- Microsoft Dataverse
+- QuickBooks
+- Xero
+- Zoho CRM
+- Freshdesk
+- Mailchimp
+- BigCommerce
+- Square
+- Twilio SendGrid
+- Adobe Marketo
+- Notion
+- GitLab
+- Slack
+- Asana
+- Intercom
+- Microsoft Graph
+- FreshBooks
+- Jira Cloud
+- Okta
+- Google Merchant
 
 ## Validation
 
@@ -69,24 +138,7 @@ pnpm --filter @integrax/temporal-workflows build
 Observed smoke result:
 
 ```text
-Escenario 1: SAP plano vs Coupa -> OK, sin LLM
-Escenario 2: SAP profundo con segmentos/arrays -> OK, sin LLM
-Escenario 3: hardening contra falsos positivos -> OK, sin matches falsos por fechas/placeholders
-Escenario 4: cambio de version ERP con nested renames simultaneos -> OK, sin LLM
-
-RESULTADO: SUCCESS
-```
-
-Representative mappings now detected deterministically:
-
-```text
-BUKRS -> companyCode
-WAERS -> currencyCode
-IDOC.E1BPADDR1[*].CITY -> addresses[*].city
-orders[*].order_uuid -> salesOrders[*].orderId
-orders[*].buyer_email -> salesOrders[*].primaryContact.emailAddress
-orders[*].ship_to -> salesOrders[*].destination.latLon
-orders[*].items[*].sub_items[*].component_id -> salesOrders[*].lines[*].components[*].id
+RESULTADO: SUCCESS. El motor resolvio 28 escenarios; 24 casos basados en documentacion oficial quedaron resueltos sin LLM y el escenario negativo de false positives evito renombrados incorrectos.
 ```
 
 ## Main function signatures
@@ -103,8 +155,19 @@ function createSchemaBridge(config?: SchemaBridgeConfig): SchemaBridge
 ```
 
 ```ts
+// packages/schema-bridge/src/schema-inferrer.ts
+class SchemaInferrer {
+  constructor(config?: SchemaInferrerConfig)
+  infer(samples: Record<string, unknown>[]): InferredJsonSchema
+}
+
+function createSchemaInferrer(config?: SchemaInferrerConfig): SchemaInferrer
+```
+
+```ts
 // packages/schema-bridge/src/similarity-engine.ts
 class SimilarityEngine {
+  constructor(config?: SimilarityEngineConfig)
   findRenameCandidates(
     removed: FieldDiff[],
     added: FieldDiff[],
@@ -114,31 +177,48 @@ class SimilarityEngine {
   score(nameA: string, nameB: string): SimilarityScore
 }
 
+function createSimilarityEngine(config?: SimilarityEngineConfig): SimilarityEngine
+
 interface SimilarityScore {
   levenshtein: number
   jaccard: number
   semantic: number
   value: number
   combined: number
-}
-```
-
-```ts
-// packages/schema-bridge/src/schema-inferrer.ts
-class SchemaInferrer {
-  infer(samples: Record<string, unknown>[]): InferredJsonSchema
+  margin?: number
+  reciprocalMargin?: number
 }
 ```
 
 ```ts
 // packages/schema-bridge/src/conflict-resolver.ts
 class ConflictResolver {
+  constructor(config?: ConflictResolverConfig)
   resolveAll(diffs: FieldDiff[], options?: Partial<CompareOptions>): ResolvedConflict[]
 }
+
+function createConflictResolver(config?: ConflictResolverConfig): ConflictResolver
+```
+
+```ts
+// packages/schema-bridge/src/business-type-registry.ts
+function detectBusinessFormat(
+  value: string,
+  fieldPath: string,
+  providers: BusinessTypeProvider[]
+): string | undefined
+
+const defaultBusinessTypeProviders: BusinessTypeProvider[]
+const defaultBusinessTypeWeights: BusinessTypeWeightMap
 ```
 
 ## Notes for Antigravity
 
-- The matcher is now closer to a universal multi-connector engine: it reasons over value distributions, business-type formats, and nested-array depth instead of connector-specific rules.
-- Mid-confidence rename candidates are no longer silently auto-accepted; they surface as review/LLM items in the diff result.
-- The branch now combines your API endpoints with the upgraded engine, so the next natural step is end-to-end validation from control-plane request -> Temporal workflow -> persisted report fetch.
+- The engine is materially less brittle than the previous threshold-only version.
+- It now supports ontology-style injection points without forcing every new business type into a monolithic regex block.
+- The decision policy is no longer “high absolute score only”; it uses relative dominance, which was the main architectural criticism.
+- The current remaining weakness is not the happy path anymore, but broader adversarial evaluation:
+  - sparse/null-heavy windows
+  - zero-overlap temporal slices
+  - multiple competing high-entropy IDs in the same entity
+  - end-to-end validation through the new API endpoints and persisted reports

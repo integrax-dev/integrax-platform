@@ -6,7 +6,17 @@
  */
 
 import { createHash } from 'node:crypto';
-import type { InferredJsonSchema, JsonPrimitiveType, SchemaField, SchemaNode } from './types.js';
+import {
+  defaultBusinessTypeProviders,
+  detectBusinessFormat,
+} from './business-type-registry.js';
+import type {
+  InferredJsonSchema,
+  JsonPrimitiveType,
+  SchemaField,
+  SchemaInferrerConfig,
+  SchemaNode,
+} from './types.js';
 
 const MAX_EXAMPLES = 10;
 
@@ -28,32 +38,16 @@ function sha256(input: string): string {
 
 // ─── Detección de formato para strings ───────────────────────────────────────
 
-function isLatLon(value: string): boolean {
-  const match = value.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
-  if (!match) return false;
-  const lat = Number(match[1]);
-  const lon = Number(match[2]);
-  return Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
-}
-
-const FORMAT_DETECTORS: Array<{ format: string; test: (v: string) => boolean }> = [
-  { format: 'ar-cuit', test: v => /^\d{2}-\d{8}-\d{1}$/.test(v) },
-  { format: 'uuid', test: v => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) },
-  { format: 'iso-currency', test: v => /^[A-Z]{3}$/.test(v.trim()) },
-  { format: 'lat-lon', test: isLatLon },
-  { format: 'date-time', test: v => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(v) },
-  { format: 'date', test: v => /^\d{4}-\d{2}-\d{2}$/.test(v) },
-  { format: 'email', test: v => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v) },
-  { format: 'uri', test: v => /^https?:\/\//.test(v) },
-];
-
 const MONEY_FIELD_PATTERN = /monto|importe|precio|amount|valor|costo|tarifa|total/i;
 
-function detectStringFormat(value: string, fieldPath: string): string | undefined {
-  for (const { format, test } of FORMAT_DETECTORS) {
-    if (test(value)) return format;
-  }
-  // Detectar montos como string (ej: "1500.50", "1.500,00")
+function detectStringFormat(value: string, fieldPath: string, config: SchemaInferrerConfig): string | undefined {
+  const format = detectBusinessFormat(
+    value,
+    fieldPath,
+    config.businessTypeProviders ?? defaultBusinessTypeProviders,
+  );
+  if (format) return format;
+
   if (MONEY_FIELD_PATTERN.test(fieldPath)) {
     const normalized = value.replace(/\./g, '').replace(',', '.');
     if (!isNaN(parseFloat(normalized)) && /^\d/.test(value)) {
@@ -118,6 +112,7 @@ function traverseValue(
   path: string,
   pathMap: Map<string, PathEntry>,
   sampleIndex: number,
+  config: SchemaInferrerConfig,
 ): void {
   const type = getJsonType(value);
 
@@ -137,7 +132,7 @@ function traverseValue(
     };
   } else if (type === 'string') {
     const strVal = value as string;
-    const format = detectStringFormat(strVal, path);
+    const format = detectStringFormat(strVal, path, config);
     node = {
       type: 'string',
       format,
@@ -149,7 +144,7 @@ function traverseValue(
     const children: Record<string, SchemaNode> = {};
     for (const [key, childVal] of Object.entries(obj)) {
       const childPath = path ? `${path}.${key}` : key;
-      traverseValue(childVal, childPath, pathMap, sampleIndex);
+      traverseValue(childVal, childPath, pathMap, sampleIndex, config);
     }
     node = { type: 'object', nullable: false, examples: [], children };
   } else {
@@ -159,7 +154,7 @@ function traverseValue(
     const slice = arr.slice(0, 10);
     for (let i = 0; i < slice.length; i++) {
       const itemPath = `${path}[*]`;
-      traverseValue(slice[i], itemPath, pathMap, sampleIndex);
+      traverseValue(slice[i], itemPath, pathMap, sampleIndex, config);
     }
     node = { type: 'array', nullable: false, examples: [], itemSchema };
   }
@@ -191,6 +186,12 @@ function shouldIncludeField(path: string, node: SchemaNode, allPaths: string[]):
 // ─── SchemaInferrer ───────────────────────────────────────────────────────────
 
 export class SchemaInferrer {
+  private readonly config: SchemaInferrerConfig;
+
+  constructor(config: SchemaInferrerConfig = {}) {
+    this.config = config;
+  }
+
   /**
    * Infiere un InferredJsonSchema a partir de un array de muestras JSON.
    * Complejidad: O(n * m) donde n = muestras, m = campos por muestra.
@@ -199,7 +200,7 @@ export class SchemaInferrer {
     const pathMap = new Map<string, PathEntry>();
 
     for (let i = 0; i < samples.length; i++) {
-      traverseValue(samples[i], '', pathMap, i);
+      traverseValue(samples[i], '', pathMap, i, this.config);
     }
 
     // Eliminar la ruta raíz vacía
@@ -234,6 +235,6 @@ export class SchemaInferrer {
   }
 }
 
-export function createSchemaInferrer(): SchemaInferrer {
-  return new SchemaInferrer();
+export function createSchemaInferrer(config: SchemaInferrerConfig = {}): SchemaInferrer {
+  return new SchemaInferrer(config);
 }

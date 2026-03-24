@@ -43,6 +43,19 @@ export interface InferredJsonSchema {
   sampleCount: number;
 }
 
+export interface BusinessTypeDetectionContext {
+  fieldPath: string;
+  value: string;
+}
+
+export interface BusinessTypeProvider {
+  id: string;
+  format: string;
+  detect(context: BusinessTypeDetectionContext): boolean;
+}
+
+export type BusinessTypeWeightMap = Record<string, number>;
+
 // ─── Diff ────────────────────────────────────────────────────────────────────
 
 export type DiffKind =
@@ -58,15 +71,13 @@ export interface SimilarityScore {
   levenshtein: number;
   jaccard: number;
   semantic: number;
-  /** Jaccard over distinctive (non-numeric, length≥4) sample values */
+  /** Statistical overlap over observed sample values. */
   value: number;
-  /**
-   * Final score. Authoritative shortcuts:
-   *   semantic=1.0 (synonym) → 1.0
-   *   value≥0.8 (distinctive value overlap) → 1.0
-   * Otherwise: 0.35*lev + 0.25*jac + 0.25*sem + 0.15*val
-   */
   combined: number;
+  /** Difference between this candidate and the runner-up for the same source field. */
+  margin?: number;
+  /** Difference between this candidate and the runner-up for the same target field. */
+  reciprocalMargin?: number;
 }
 
 export interface FieldDiff {
@@ -247,6 +258,20 @@ export interface CompareOptions {
   maxLlmEscalations: number;
 }
 
+export interface SchemaInferrerConfig {
+  businessTypeProviders?: BusinessTypeProvider[];
+}
+
+export interface SimilarityEngineConfig {
+  businessTypeWeights?: BusinessTypeWeightMap;
+}
+
+export interface ConflictResolverConfig {
+  autoAcceptThreshold?: number;
+  humanReviewThreshold?: number;
+  minConfidenceMargin?: number;
+}
+
 // ─── Zod schemas para validación de request ──────────────────────────────────
 
 export const CompareOptionsSchema = z.object({
@@ -279,4 +304,14 @@ export interface SchemaBridgeConfig {
   anthropicApiKey?: string;
   /** Logger de @integrax/logger */
   logger?: { info: (...a: unknown[]) => void; warn: (...a: unknown[]) => void; error: (...a: unknown[]) => void };
+  /** Business types inyectables para semántica específica de dominio. */
+  businessTypeProviders?: BusinessTypeProvider[];
+  /** Pesos inyectables para tipos de negocio. */
+  businessTypeWeights?: BusinessTypeWeightMap;
+  /** Umbral mínimo de margen entre el mejor candidato y el segundo. */
+  confidenceMarginThreshold?: number;
+  /** Umbral absoluto de auto-aceptación para renombrados. */
+  autoAcceptThreshold?: number;
+  /** Umbral para escalar a revisión humana/LLM. */
+  humanReviewThreshold?: number;
 }
