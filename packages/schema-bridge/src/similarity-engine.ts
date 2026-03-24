@@ -108,6 +108,18 @@ const SYNONYM_PAIRS: [string, string][] = [
   ['iva', 'vat'], ['iva', 'tax'], ['neto', 'net_amount'],
   ['cae', 'fiscal_code'], ['punto_venta', 'branch_id'],
 
+  // SAP ERP field codes (ABAP)
+  ['BUKRS', 'companyCode'], ['BUKRS', 'company_code'],
+  ['LIFNR', 'supplierNumber'], ['LIFNR', 'supplier_number'], ['LIFNR', 'vendorNumber'], ['LIFNR', 'vendor_number'],
+  ['NAME1', 'supplierName'], ['NAME1', 'supplier_name'], ['NAME1', 'companyName'], ['NAME1', 'company_name'],
+  ['ORT01', 'city'], ['ORT01', 'ciudad'],
+  ['WAERS', 'currencyCode'], ['WAERS', 'currency_code'], ['WAERS', 'currency'],
+  ['MATNR', 'materialCode'], ['MATNR', 'material_code'], ['MATNR', 'productCode'], ['MATNR', 'product_code'],
+  ['MENGE', 'quantity'], ['MENGE', 'cantidad'],
+  ['WERKS', 'plant'], ['WERKS', 'plantCode'],
+  ['KUNNR', 'customerNumber'], ['KUNNR', 'customer_number'],
+  ['VKORG', 'salesOrg'], ['VKORG', 'sales_organization'],
+
   // Estado
   ['estado', 'status'], ['estado', 'state'], ['estado_pago', 'payment_status'],
   ['activo', 'active'], ['activo', 'enabled'],
@@ -156,11 +168,13 @@ function combinedScore(a: string, b: string): SimilarityScore {
   const lev = levenshteinSimilarity(normalizeName(a), normalizeName(b));
   const jac = jaccardSimilarity(normalizeName(a), normalizeName(b));
   const sem = semanticSimilarity(a, b);
+  // A direct synonym lookup (semantic=1.0) is authoritative — override weighted average
+  const combined = sem >= 1.0 ? 1.0 : 0.40 * lev + 0.30 * jac + 0.30 * sem;
   return {
     levenshtein: lev,
     jaccard: jac,
     semantic: sem,
-    combined: 0.40 * lev + 0.30 * jac + 0.30 * sem,
+    combined,
   };
 }
 
