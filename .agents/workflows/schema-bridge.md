@@ -8,10 +8,13 @@ Estás encargado del desarrollo del `SimilarityEngine` y el `SchemaDiffer`. Tu o
 
 ## REGLA DE ORO
 
-**Tu prioridad es que el archivo `packages/schema-bridge/tests/smoke-test.ts` pase.**
-El `smoke-test.ts` valida un caso real y recurrente: mapear SAP (`BUKRS`, `LIFNR`, `NAME1`) contra Coupa/TiendaNube (`companyCode`, `supplierNumber`, `supplierName`).
+**Tu prioridad es expandir las capacidades de mapeo del motor usando "Value-Based Matching" y soportar estructuras anidadas pesadas.**
+El `smoke-test.ts` sirvió para validar la línea de base. Ahora Antigravity se encarga de orquestar el SchemaBridge en Temporal y cachear los requerimientos en Redis.
 
-NO implementes infraestructura persistente (Postgres, RabbitMQ, Kafka, ni orquestadores) hasta que el comando `npx ts-node packages/schema-bridge/tests/smoke-test.ts` imprima `✅ RESULTADO: SUCCESS`.
+TUS OBJETIVOS ACTUALES (Semana 2):
+1. **Value-Based Matching**: Implementar la lógica propulsada por los values de los `examples`.
+2. **Type-Bucketing**: Agrupar campos por tipo antes de entrar al `O(n^2)` para escalabilidad masiva.
+3. **Diccionarios Regionales (Opcional)**: Expande a sistemas locales si es necesario, aunque el Value-Based Matching será el core.
 
 ## Handoff ("Entrega")
 
