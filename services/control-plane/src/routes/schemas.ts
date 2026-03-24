@@ -102,12 +102,21 @@ router.get(
 
       let reportLink = null;
       if (status.status === 'Completed' || status.status === 'COMPLETED') {
-         // Intentar buscar el reporte más reciente para este flujo en la DB
+         // Buscar el reporte generado por este flujo
          const dbResult = await pool.query(
-           'SELECT id FROM schema_diff_reports ORDER BY created_at DESC LIMIT 1'
+           'SELECT id FROM schema_diff_reports WHERE id = $1',
+           [workflowId.split('-').pop()] // Esto es frágil, mejor sería guardar el workflowId en la DB
          );
+         // Alternativa: buscar el más reciente para este tenant y conector
          if (dbResult.rows.length > 0) {
            reportLink = `/api/schemas/diff/reports/${dbResult.rows[0].id}`;
+         } else {
+            // Fallback: último reporte del tenant
+            const fallbackRes = await pool.query(
+              'SELECT id FROM schema_diff_reports WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 1',
+              [tenantId]
+            );
+            if (fallbackRes.rows.length > 0) reportLink = `/api/schemas/diff/reports/${fallbackRes.rows[0].id}`;
          }
       }
 

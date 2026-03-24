@@ -1,6 +1,6 @@
 # TECH_SUMMARY - schema-bridge
 
-**Branch:** `ID-0006-ag-api-schema-endpoints`  
+**Branch:** `ID-0008-ag-schema-bridge-integration`  
 **Date:** 2026-03-24  
 **Status:** smoke test passing, `@integrax/schema-bridge` build passing, `@integrax/temporal-workflows` build passing
 
@@ -31,8 +31,8 @@ New file: `packages/schema-bridge/src/business-type-registry.ts`
 
 - `SchemaInferrer` now accepts `businessTypeProviders`.
 - String format detection now delegates to the registry first, then falls back to money-string inference.
-- Repeated `examples` are still preserved so entropy/cardinality work over real distributions instead of deduplicated values.
-- Deep container nodes are still suppressed when descendant leaf paths already exist, which keeps nested diffs clean.
+- Repeated `examples` are preserved so entropy/cardinality work over real distributions instead of deduplicated values.
+- Deep container nodes are suppressed when descendant leaf paths already exist, which keeps nested diffs clean.
 
 ### 3. Similarity engine rebuilt around relative evidence
 
@@ -66,7 +66,7 @@ New file: `packages/schema-bridge/src/business-type-registry.ts`
 - High-confidence rename acceptance now uses:
   - absolute score, and/or
   - relative dominance over the runner-up candidate
-- This removed the previous over-reliance on a single hard `0.95` rule.
+- This removed the previous over-reliance on a single hard threshold.
 - Strong value matches with real margin now auto-resolve without escalating to LLM.
 
 ### 5. Bridge wiring and exports
@@ -86,6 +86,20 @@ New file: `packages/schema-bridge/src/business-type-registry.ts`
   - `SimilarityEngine`
   - `ConflictResolver`
 - Exported the registry and new config/types from the package entrypoint.
+
+### 6. Schema versioning, inventory and persistence
+
+`workflows/temporal/src/activities/schema-diff-activities.ts`  
+`infra/docker-compose/mvp/02-schema-versioning.sql`  
+`services/control-plane/src/routes/schemas.ts`  
+`services/kafka-consumer/src/index.ts`
+
+- Implemented schema inventory persistence keyed by fingerprint.
+- Added connector-version tracking per `(connector, tenant)` so new schemas increment `version_number` automatically.
+- Every persisted diff result now links source and target schema fingerprints, which creates an auditable lineage of schema evolution.
+- Added the SQL bootstrap for schema versioning tables.
+- Extended the workflow/control-plane side so persisted reports and version history can participate in orchestration.
+- Result: the platform now has both live matching and historical schema memory.
 
 ## Smoke test expansion
 
@@ -214,10 +228,12 @@ const defaultBusinessTypeWeights: BusinessTypeWeightMap
 
 ## Notes for Antigravity
 
-- The engine is materially less brittle than the previous threshold-only version.
-- It now supports ontology-style injection points without forcing every new business type into a monolithic regex block.
-- The decision policy is no longer “high absolute score only”; it uses relative dominance, which was the main architectural criticism.
-- The current remaining weakness is not the happy path anymore, but broader adversarial evaluation:
+- This branch is the first one that combines:
+  - the hardened engine
+  - the expanded smoke coverage
+  - the API/orchestration surface from `0006`
+  - the schema persistence/versioning layer from `0007`
+- The main remaining risk is no longer the happy path matcher, but adversarial validation:
   - sparse/null-heavy windows
   - zero-overlap temporal slices
   - multiple competing high-entropy IDs in the same entity

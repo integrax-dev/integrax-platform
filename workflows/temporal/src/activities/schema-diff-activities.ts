@@ -35,6 +35,12 @@ export interface DiffResult {
   /** Resumen ejecutivo */
   summary: BridgeReport['requirementsReport']['summary'];
   reportId: string;
+  // --- Versioning data ---
+  tenantId?: string;
+  sourceFingerprint: string;
+  targetFingerprint: string;
+  fullSchemaA: any;
+  fullSchemaB: any;
 }
 
 export interface BlueprintAction {
@@ -146,6 +152,11 @@ function bridgeToDiffResult(report: BridgeReport, input: SchemaDiffInput): DiffR
     llmEscalations,
     summary: report.requirementsReport.summary,
     reportId: report.id,
+    tenantId: input.tenantId,
+    sourceFingerprint: report.inferredSchemaA.fingerprint,
+    targetFingerprint: report.inferredSchemaB.fingerprint,
+    fullSchemaA: report.inferredSchemaA,
+    fullSchemaB: report.inferredSchemaB,
   };
 }
 
@@ -235,35 +246,94 @@ export async function generateSchemaDiff(input: SchemaDiffInput & { options?: { 
  */
 export async function persistDiffResult(result: DiffResult): Promise<void> {
   const ctx = Context.current();
-  ctx.log.info(`Guardando reporte ${result.reportId} en Postgres`, {
-    mismatchesCount: result.mismatches.addedFields.length + result.mismatches.removedFields.length,
-    renameCandidates: result.mismatches.renameCandidates.length
+  const tenantId = result.tenantId || 'system';
+
+  ctx.log.info(`Guardando reporte ${result.reportId} y gestionando versiones en Postgres`, {
+    source: result.sourceSchemaId,
+    target: result.targetSchemaId,
+    tenantId
   });
 
-  const query = `
-    INSERT INTO schema_diff_reports (
-      id, source_schema_id, target_schema_id, has_differences, payload, created_at
-    ) VALUES (
-      $1, $2, $3, $4, $5, NOW()
-    ) ON CONFLICT (id) DO UPDATE SET
-      payload = $5,
-      updated_at = NOW();
-  `;
-
-  const values = [
-    result.reportId,
-    result.sourceSchemaId,
-    result.targetSchemaId,
-    result.hasDifferences,
-    JSON.stringify(result)
-  ];
-
+  const client = await pgPool.connect();
   try {
-    ctx.heartbeat({ stage: 'persisting_db' });
-    await pgPool.query(query, values);
-    ctx.log.info(`✅ Reporte ${result.reportId} guardado exitosamente en DB`);
+    await client.query('BEGIN');
+
+    // 1. Upsert Inventario de Schemas (inmutabilidad por fingerprint)
+    await client.query(`
+      INSERT INTO schema_inventory (fingerprint, schema_definition)
+      VALUES ($1, $2) ON CONFLICT (fingerprint) DO NOTHING
+    `, [result.sourceFingerprint, JSON.stringify(result.fullSchemaA)]);
+
+    await client.query(`
+      INSERT INTO schema_inventory (fingerprint, schema_definition)
+      VALUES ($1, $2) ON CONFLICT (fingerprint) DO NOTHING
+    `, [result.targetFingerprint, JSON.stringify(result.fullSchemaB)]);
+
+    // 2. Gestionar Versiones del Conector Fuente
+    await updateConnectorVersion(client, result.sourceSchemaId, tenantId, result.sourceFingerprint);
+
+    // 3. Gestionar Versiones del Conector Destino
+    await updateConnectorVersion(client, result.targetSchemaId, tenantId, result.targetFingerprint);
+
+    // 4. Persistir el reporte de comparación (Audit Trail)
+    const query = `
+      INSERT INTO schema_diff_reports (
+        id, tenant_id, source_connector_id, target_connector_id, 
+        source_fingerprint, target_fingerprint, has_differences, diff_payload, created_at
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, NOW()
+      ) ON CONFLICT (id) DO UPDATE SET
+        diff_payload = $8;
+    `;
+
+    const values = [
+      result.reportId,
+      tenantId,
+      result.sourceSchemaId,
+      result.targetSchemaId,
+      result.sourceFingerprint,
+      result.targetFingerprint,
+      result.hasDifferences,
+      JSON.stringify(result)
+    ];
+
+    await client.query(query, values);
+    
+    await client.query('COMMIT');
+    ctx.log.info(`✅ Reporte ${result.reportId} y versiones procesadas exitosamente.`);
   } catch (error) {
+    await client.query('ROLLBACK');
     ctx.log.error(`❌ Error al persistir el reporte ${result.reportId} en Postgres`, { error });
-    throw error; // Temporal will automatically retry this activity
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Lógica interna para decidir si se crea una nueva versión de un conector.
+ * Si el fingerprint cambió respecto a la última versión, incrementa version_number.
+ */
+async function updateConnectorVersion(client: any, connectorId: string, tenantId: string, fingerprint: string): Promise<void> {
+  const lastVersionRes = await client.query(`
+    SELECT fingerprint, version_number 
+    FROM connector_schema_versions 
+    WHERE connector_id = $1 AND tenant_id = $2 
+    ORDER BY version_number DESC LIMIT 1
+  `, [connectorId, tenantId]);
+
+  if (lastVersionRes.rows.length === 0) {
+    // Primera versión
+    await client.query(`
+      INSERT INTO connector_schema_versions (connector_id, tenant_id, fingerprint, version_number, metadata)
+      VALUES ($1, $2, $3, 1, $4)
+    `, [connectorId, tenantId, fingerprint, JSON.stringify({ source: 'auto-discovery', first_seen: new Date() })]);
+  } else if (lastVersionRes.rows[0].fingerprint !== fingerprint) {
+    // Cambio detectado -> Nueva versión
+    const newVersion = lastVersionRes.rows[0].version_number + 1;
+    await client.query(`
+      INSERT INTO connector_schema_versions (connector_id, tenant_id, fingerprint, version_number, metadata)
+      VALUES ($1, $2, $3, $4, $5)
+    `, [connectorId, tenantId, fingerprint, newVersion, JSON.stringify({ source: 'auto-discovery', detected_at: new Date(), previous_fingerprint: lastVersionRes.rows[0].fingerprint })]);
   }
 }
