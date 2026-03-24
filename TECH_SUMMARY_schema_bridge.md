@@ -45,16 +45,17 @@
   3. Anti-false-positive scenario with repeated dates/placeholders that must not auto-map.
   4. ERP version upgrade scenario with simultaneous nested renames, UUID/email/currency/lat-lon business types, and multi-level arrays.
 
-### API / orchestration state on this branch
+### Schema Versioning & History Tracking (New)
 
-`services/control-plane/src/routes/schemas.ts`
-`services/control-plane/src/store/db.ts`
+`workflows/temporal/src/activities/schema-diff-activities.ts`
+`infra/docker-compose/mvp/02-schema-versioning.sql`
 
-- Antigravity’s `ID-0006` work is now present on the same branch:
-  - `/api/schemas/diff`
-  - `/api/schemas/diff/status/:workflowId`
-  - `/api/schemas/diff/reports/:id`
-- Control plane can now trigger the Temporal workflow, poll it, and read persisted reports from Postgres.
+- Implemented a robust Audit Trail for schema evolution:
+  - **Schema Inventory**: Stores unique schema definitions mapped by fingerprint (SHA-256).
+  - **Connector Versions**: Tracks the sequence of schemas for each (connector, tenant). Automatically detects changes and increments `version_number`.
+  - **Audit Reports**: Every comparison is now linked to specific source/target fingerprints, creating an immutable history of lineage.
+- Refactored `persistDiffResult` to use a transactional approach that manages the inventory and increments versions atomically upon detection of a new footprint.
+- Result: We now have a "Time Machine" for schemas, enabling automatic diffing of `SAP_V1` vs `SAP_V2` as soon as a change is detected in Kafka.
 
 ## Validation
 
