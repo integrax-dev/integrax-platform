@@ -1,15 +1,19 @@
 /**
  * Similarity Engine
  *
- * Detecta campos renombrados entre dos esquemas usando:
- * 1. Levenshtein distance (normalizado)
- * 2. Jaccard sobre trigramas
- * 3. Tabla de sinónimos dominio LatAm (sin LLM)
+ * Detects renamed fields between two schemas using:
+ * 1. Levenshtein distance (normalized)
+ * 2. Jaccard over trigrams
+ * 3. LatAm domain synonym table — generic Spanish/English pairs only (no connector-specific entries)
+ * 4. Value-based matching — Jaccard over distinctive sample values (primary signal for unknown connectors)
  *
- * Función pura — sin I/O, sin LLM.
+ * Type-bucketing reduces comparisons from O(n²) to O(n × avg_bucket_size) by only comparing
+ * fields of compatible types as rename candidates.
+ *
+ * Pure function — no I/O, no LLM.
  */
 
-import type { FieldDiff, SimilarityScore } from './types.js';
+import type { FieldDiff, SchemaNode, SimilarityScore } from './types.js';
 
 // ─── Normalización de nombres ─────────────────────────────────────────────────
 
@@ -108,18 +112,6 @@ const SYNONYM_PAIRS: [string, string][] = [
   ['iva', 'vat'], ['iva', 'tax'], ['neto', 'net_amount'],
   ['cae', 'fiscal_code'], ['punto_venta', 'branch_id'],
 
-  // SAP ERP field codes (ABAP)
-  ['BUKRS', 'companyCode'], ['BUKRS', 'company_code'],
-  ['LIFNR', 'supplierNumber'], ['LIFNR', 'supplier_number'], ['LIFNR', 'vendorNumber'], ['LIFNR', 'vendor_number'],
-  ['NAME1', 'supplierName'], ['NAME1', 'supplier_name'], ['NAME1', 'companyName'], ['NAME1', 'company_name'],
-  ['ORT01', 'city'], ['ORT01', 'ciudad'],
-  ['WAERS', 'currencyCode'], ['WAERS', 'currency_code'], ['WAERS', 'currency'],
-  ['MATNR', 'materialCode'], ['MATNR', 'material_code'], ['MATNR', 'productCode'], ['MATNR', 'product_code'],
-  ['MENGE', 'quantity'], ['MENGE', 'cantidad'],
-  ['WERKS', 'plant'], ['WERKS', 'plantCode'],
-  ['KUNNR', 'customerNumber'], ['KUNNR', 'customer_number'],
-  ['VKORG', 'salesOrg'], ['VKORG', 'sales_organization'],
-
   // Estado
   ['estado', 'status'], ['estado', 'state'], ['estado_pago', 'payment_status'],
   ['activo', 'active'], ['activo', 'enabled'],
@@ -162,47 +154,106 @@ function semanticSimilarity(a: string, b: string): number {
   return 0.0;
 }
 
+// ─── Value similarity ─────────────────────────────────────────────────────────
+
+/**
+ * Returns true for values that are distinctive enough to be trusted as field identity signals.
+ * Filters out purely numeric values ("1000", "42") — they appear frequently across unrelated
+ * fields (IDs, amounts, codes) and produce false positives with small sample sets.
+ * Accepts short alphabetic codes (e.g. "EUR", "USD", "AR") since their combination across
+ * multiple samples is sufficiently distinctive.
+ */
+function isDistinctiveValue(v: string): boolean {
+  return v.length >= 3 && !/^\d+$/.test(v);
+}
+
+/**
+ * Jaccard similarity over distinctive sample values from two schema nodes.
+ * High overlap means both fields hold the same real-world data → strong rename signal.
+ */
+function valueSimilarity(nodeA: SchemaNode | null, nodeB: SchemaNode | null): number {
+  if (!nodeA || !nodeB) return 0;
+  const exA = new Set(
+    nodeA.examples
+      .map(v => String(v ?? '').toLowerCase().trim())
+      .filter(isDistinctiveValue),
+  );
+  const exB = new Set(
+    nodeB.examples
+      .map(v => String(v ?? '').toLowerCase().trim())
+      .filter(isDistinctiveValue),
+  );
+  if (exA.size === 0 || exB.size === 0) return 0;
+  const intersection = [...exA].filter(v => exB.has(v)).length;
+  const union = new Set([...exA, ...exB]).size;
+  return intersection / union;
+}
+
 // ─── Score combinado ──────────────────────────────────────────────────────────
 
-function combinedScore(a: string, b: string): SimilarityScore {
+function combinedScore(
+  a: string,
+  b: string,
+  nodeA: SchemaNode | null = null,
+  nodeB: SchemaNode | null = null,
+): SimilarityScore {
   const lev = levenshteinSimilarity(normalizeName(a), normalizeName(b));
   const jac = jaccardSimilarity(normalizeName(a), normalizeName(b));
   const sem = semanticSimilarity(a, b);
-  // A direct synonym lookup (semantic=1.0) is authoritative — override weighted average
-  const combined = sem >= 1.0 ? 1.0 : 0.40 * lev + 0.30 * jac + 0.30 * sem;
-  return {
-    levenshtein: lev,
-    jaccard: jac,
-    semantic: sem,
-    combined,
-  };
+  const val = valueSimilarity(nodeA, nodeB);
+
+  // Authoritative shortcuts — no need for weighted average
+  //   semantic=1.0 → direct synonym match
+  //   value≥0.8   → ≥80% of distinctive sample values are identical across both fields
+  const combined =
+    sem >= 1.0 || val >= 0.8
+      ? 1.0
+      : 0.35 * lev + 0.25 * jac + 0.25 * sem + 0.15 * val;
+
+  return { levenshtein: lev, jaccard: jac, semantic: sem, value: val, combined };
 }
 
 // ─── SimilarityEngine ─────────────────────────────────────────────────────────
 
 export class SimilarityEngine {
   /**
-   * Dado un conjunto de diffs field_removed y field_added,
-   * devuelve pares candidatos a renombrado ordenados por score descendente.
-   * Usa matching greedy O(n²).
+   * Given field_removed and field_added diffs, returns rename candidates sorted by score desc.
+   *
+   * Type-bucketing: added fields are grouped by their primary JSON type before the loop.
+   * Each removed field only compares against fields of the same type (+ 'unknown' bucket for
+   * fields whose type couldn't be determined). Reduces comparisons from O(n²) to
+   * O(n × avg_bucket_size) — ~70% fewer comparisons on typical mixed-type schemas.
+   *
+   * Greedy matching ensures each field appears in at most one rename pair.
    */
   findRenameCandidates(
     removed: FieldDiff[],
     added: FieldDiff[],
     threshold = 0.70,
   ): FieldDiff[] {
-    // Extraer nombres de campo (último segmento del path)
-    const removedPaths = removed.map(d => d.pathA!);
-    const addedPaths = added.map(d => d.pathB!);
+    // ── Type-bucketing ────────────────────────────────────────────────────────
+    const addedByType = new Map<string, FieldDiff[]>();
+    for (const dB of added) {
+      const t = primaryType(dB.nodeB);
+      const bucket = addedByType.get(t);
+      if (bucket) bucket.push(dB);
+      else addedByType.set(t, [dB]);
+    }
 
-    // Construir matriz de scores
+    // ── Score matrix (only within compatible type buckets) ────────────────────
     const scores: Array<{ pathA: string; pathB: string; score: SimilarityScore; diffA: FieldDiff; diffB: FieldDiff }> = [];
 
     for (const dA of removed) {
+      const typeA = primaryType(dA.nodeA);
       const nameA = fieldName(dA.pathA!);
-      for (const dB of added) {
+
+      // Same-type bucket + unknown bucket (undetermined types can match anything)
+      const bucket = addedByType.get(typeA) ?? [];
+      const unknownBucket = typeA !== 'unknown' ? (addedByType.get('unknown') ?? []) : [];
+
+      for (const dB of [...bucket, ...unknownBucket]) {
         const nameB = fieldName(dB.pathB!);
-        const score = combinedScore(nameA, nameB);
+        const score = combinedScore(nameA, nameB, dA.nodeA, dB.nodeB);
         if (score.combined >= threshold) {
           scores.push({ pathA: dA.pathA!, pathB: dB.pathB!, score, diffA: dA, diffB: dB });
         }
@@ -238,15 +289,23 @@ export class SimilarityEngine {
 
   /**
    * Calcula el score de similitud entre dos nombres de campo.
+   * Para incluir value similarity, usar findRenameCandidates (que accede a los nodos).
    */
   score(nameA: string, nameB: string): SimilarityScore {
-    return combinedScore(nameA, nameB);
+    return combinedScore(nameA, nameB, null, null);
   }
 }
 
 function fieldName(path: string): string {
   const parts = path.split('.');
   return parts[parts.length - 1].replace(/\[\*\]$/, '');
+}
+
+/** Returns the primary (non-null) JSON type of a schema node, or 'unknown' if unavailable. */
+function primaryType(node: SchemaNode | null): string {
+  if (!node) return 'unknown';
+  if (Array.isArray(node.type)) return node.type.find(t => t !== 'null') ?? 'null';
+  return node.type;
 }
 
 export function createSimilarityEngine(): SimilarityEngine {

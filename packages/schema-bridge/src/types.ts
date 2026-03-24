@@ -58,7 +58,14 @@ export interface SimilarityScore {
   levenshtein: number;
   jaccard: number;
   semantic: number;
-  /** weighted average: 0.40 * lev + 0.30 * jac + 0.30 * sem */
+  /** Jaccard over distinctive (non-numeric, length≥4) sample values */
+  value: number;
+  /**
+   * Final score. Authoritative shortcuts:
+   *   semantic=1.0 (synonym) → 1.0
+   *   value≥0.8 (distinctive value overlap) → 1.0
+   * Otherwise: 0.35*lev + 0.25*jac + 0.25*sem + 0.15*val
+   */
   combined: number;
 }
 

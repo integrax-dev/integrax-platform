@@ -10,6 +10,7 @@
  */
 
 import type { BridgeReport, ChangeSeverity, ClientUpdateNotification } from './types.js';
+import type { Redis as RedisClient } from 'ioredis';
 
 type Logger = {
   info: (...a: unknown[]) => void;
@@ -36,7 +37,7 @@ export class ClientUpdater {
   private readonly channel: string;
   private readonly logger: Logger;
   private readonly subscribers = new Map<string, Set<Subscriber>>();
-  private redis: unknown = null; // ioredis.Redis — cargado dinámicamente
+  private redis: RedisClient | null = null; // ioredis.Redis — cargado dinámicamente
 
   constructor(options: {
     redisUrl?: string;
@@ -57,7 +58,7 @@ export class ClientUpdater {
 
   private initRedis(redisUrl: string): void {
     // Importación dinámica para no requerir ioredis si Redis no se usa
-    import('ioredis').then(({ default: Redis }) => {
+    import('ioredis').then(({ Redis }) => {
       this.redis = new Redis(redisUrl, { lazyConnect: true, maxRetriesPerRequest: 1 });
       this.logger.info({ channel: this.channel }, 'Redis pub/sub listo para notificaciones');
     }).catch(err => {
@@ -104,8 +105,7 @@ export class ClientUpdater {
             ...notification,
           },
         });
-        await (this.redis as { publish: (ch: string, msg: string) => Promise<number> })
-          .publish(this.channel, payload);
+        await this.redis.publish(this.channel, payload);
         this.logger.info({ reportId: notification.reportId, severity: notification.severity }, 'Notificación publicada en Redis');
       } catch (err) {
         this.logger.warn({ err }, 'Error publicando en Redis (no fatal)');

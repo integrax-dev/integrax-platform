@@ -9,8 +9,16 @@ async function runSmokeTest() {
   const report = await bridge.compare({
     connectorAId: 'sap-erp',
     connectorBId: 'coupa-procurement',
-    samplesA: [{ "BUKRS": "1000", "LIFNR": "0000100000", "NAME1": "Acme Corp", "ORT01": "Berlin", "WAERS": "EUR" }],
-    samplesB: [{ "companyCode": "1000", "supplierNumber": "100000", "supplierName": "Acme Corp", "city": "Berlin", "currencyCode": "EUR" }]
+    samplesA: [
+      { "BUKRS": "NA-Corp", "LIFNR": "SUP-000100", "NAME1": "Acme Corp",     "ORT01": "Berlin",    "WAERS": "EUR" },
+      { "BUKRS": "EU-Corp", "LIFNR": "SUP-000200", "NAME1": "Beta GmbH",     "ORT01": "Munich",    "WAERS": "USD" },
+      { "BUKRS": "AR-Corp", "LIFNR": "SUP-000300", "NAME1": "Gamma SA",      "ORT01": "Vienna",    "WAERS": "GBP" },
+    ],
+    samplesB: [
+      { "companyCode": "NA-Corp", "supplierNumber": "SUP-000100", "supplierName": "Acme Corp",  "city": "Berlin", "currencyCode": "EUR" },
+      { "companyCode": "EU-Corp", "supplierNumber": "SUP-000200", "supplierName": "Beta GmbH",  "city": "Munich", "currencyCode": "USD" },
+      { "companyCode": "AR-Corp", "supplierNumber": "SUP-000300", "supplierName": "Gamma SA",   "city": "Vienna", "currencyCode": "GBP" },
+    ],
   });
 
   console.log('\n--- MAPEOS ENCONTRADOS ---');

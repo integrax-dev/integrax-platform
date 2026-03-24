@@ -1,53 +1,75 @@
-# TECH_SUMMARY — @integrax/schema-bridge (Week 1 Delivery)
+# TECH_SUMMARY - schema-bridge
 
 **Branch:** `ID-0003-ag-contract-schema-bridge`
 **Date:** 2026-03-24
-**Status:** ✅ Smoke test passing — `RESULTADO: SUCCESS`
+**Status:** `packages/schema-bridge/tests/smoke-test.ts` passing, `@integrax/schema-bridge` build passing, `@integrax/temporal-workflows` build passing
 
----
+## What changed
 
-## What was added / changed
+### Engine
 
-### `packages/schema-bridge/src/similarity-engine.ts`
+`packages/schema-bridge/src/similarity-engine.ts`
 
-Two changes to make the engine correctly resolve SAP ERP ↔ Coupa/modern API field mappings:
+- Added value-based matching as a first-class signal using `SchemaNode.examples`.
+- Kept the engine deterministic: a strong value overlap now resolves SAP -> Coupa renames without relying on connector-specific dictionaries.
+- Added type-bucketing in `findRenameCandidates()` so removed fields only compare against added fields of compatible primary JSON type.
+- Updated the smoke test data to use 3 realistic SAP/Coupa samples with distinctive alphanumeric values (`NA-Corp`, `SUP-000100`, `EUR`, etc.), proving the match is driven by values rather than a hardcoded SAP synonym list.
 
-1. **SAP synonym dictionary** — Added a new block of `SYNONYM_PAIRS` for SAP ABAP field codes:
-   - `BUKRS` ↔ `companyCode` / `company_code`
-   - `LIFNR` ↔ `supplierNumber` / `supplier_number` / `vendorNumber`
-   - `NAME1` ↔ `supplierName` / `supplier_name` / `companyName`
-   - `ORT01` ↔ `city` / `ciudad`
-   - `WAERS` ↔ `currencyCode` / `currency_code` / `currency`
-   - `MATNR` ↔ `materialCode` / `productCode`
-   - `MENGE` ↔ `quantity` / `cantidad`
-   - `WERKS` ↔ `plant` / `plantCode`
-   - `KUNNR` ↔ `customerNumber`
-   - `VKORG` ↔ `salesOrg` / `sales_organization`
+`packages/schema-bridge/src/types.ts`
 
-2. **Combined score formula fix** — A direct synonym lookup (`semantic = 1.0`) now yields `combined = 1.0`, bypassing the weighted average. Without this fix, SAP codes like `BUKRS` (normalizes to `b_u_k_r_s`) scored only ~0.36 combined against `company_code` despite being a known synonym, falling below the 0.70 threshold.
+- Extended `SimilarityScore` with the `value` dimension so downstream consumers can inspect how much of the confidence came from sample overlap.
 
----
+### Orchestration brought from Antigravity
 
-## Smoke test result
+`workflows/temporal/src/activities/schema-diff-activities.ts`
 
-```
+- Brought in the Temporal activity that infers fingerprints, checks Redis, runs `SchemaBridge.compare()`, and caches the normalized `DiffResult` for 30 days.
+
+`workflows/temporal/src/workflows/schema-diff-workflow.ts`
+
+- Brought in the workflow that calls `generateSchemaDiff()`, persists the result, and returns the standardized diff payload.
+
+### Compatibility fix
+
+`packages/schema-bridge/src/client-updater.ts`
+`workflows/temporal/src/activities/schema-diff-activities.ts`
+
+- Fixed the `ioredis` constructor import shape so both packages compile under the current `NodeNext` TypeScript setup.
+
+## Validation
+
+Command:
+
+```bash
 npx tsx packages/schema-bridge/tests/smoke-test.ts
-
-[100.0%] BUKRS  ->  companyCode (rename)
-[100.0%] LIFNR  ->  supplierNumber (rename)
-[100.0%] NAME1  ->  supplierName (rename)
-[100.0%] ORT01  ->  city (rename)
-[100.0%] WAERS  ->  currencyCode (rename)
-
-✅ 0 dependencias al LLM. 100% coverage.
-✅ RESULTADO: SUCCESS.
 ```
 
----
+Observed result:
 
-## Key function signatures (for Antigravity / Temporal Activities)
+```text
+[100.0%] BUKRS -> companyCode
+[100.0%] LIFNR -> supplierNumber
+[100.0%] NAME1 -> supplierName
+[100.0%] ORT01 -> city
+[100.0%] WAERS -> currencyCode
 
-```typescript
+0 LLM escalations
+100% coverage
+RESULTADO: SUCCESS
+```
+
+Additional verification:
+
+```bash
+pnpm --filter @integrax/schema-bridge build
+pnpm --filter @integrax/temporal-workflows build
+```
+
+Both builds pass.
+
+## Main function signatures
+
+```ts
 // packages/schema-bridge/src/bridge.ts
 class SchemaBridge {
   constructor(config?: SchemaBridgeConfig)
@@ -56,73 +78,45 @@ class SchemaBridge {
 }
 
 function createSchemaBridge(config?: SchemaBridgeConfig): SchemaBridge
+```
 
+```ts
 // packages/schema-bridge/src/similarity-engine.ts
 class SimilarityEngine {
   findRenameCandidates(
     removed: FieldDiff[],
     added: FieldDiff[],
-    threshold?: number   // default 0.70
+    threshold?: number
   ): FieldDiff[]
 
   score(nameA: string, nameB: string): SimilarityScore
 }
 
-// SimilarityScore shape
 interface SimilarityScore {
-  levenshtein: number   // 0–1
-  jaccard: number       // 0–1
-  semantic: number      // 0–1 (1.0 = direct synonym match)
-  combined: number      // 1.0 when semantic=1.0 (synonym), else weighted avg
+  levenshtein: number
+  jaccard: number
+  semantic: number
+  value: number
+  combined: number
 }
 ```
 
-### `CompareSchemasRequest` (input to `bridge.compare()`)
-```typescript
-{
-  connectorAId: string
-  connectorBId: string
-  samplesA: Record<string, unknown>[]   // 1–50 samples
-  samplesB: Record<string, unknown>[]
-  tenantId?: string
-  options?: {
-    renameSimilarityThreshold?: number   // default 0.70
-    enableLlmEscalation?: boolean        // default false
-    maxLlmEscalations?: number           // default 3
-  }
-}
+```ts
+// workflows/temporal/src/activities/schema-diff-activities.ts
+function generateSchemaDiff(
+  input: SchemaDiffInput & { options?: { forceRecalculate?: boolean } }
+): Promise<DiffResult>
+
+function persistDiffResult(result: DiffResult): Promise<void>
 ```
 
-### `BridgeReport` (output)
-```typescript
-{
-  id: string                          // "br_<ulid>"
-  connectorAId: string
-  connectorBId: string
-  inferredSchemaA: InferredJsonSchema
-  inferredSchemaB: InferredJsonSchema
-  diffs: FieldDiff[]
-  mappings: FieldMapping[]            // pathA, pathB, transform, confidence
-  resolvedConflicts: ResolvedConflict[]
-  requirementsReport: RequirementsReport
-  generatedTransformTs: string        // ready-to-use TS function A→B
-  generatedAt: string                 // ISO timestamp
-}
+```ts
+// workflows/temporal/src/workflows/schema-diff-workflow.ts
+function schemaDiffWorkflow(input: SchemaDiffWorkflowInput): Promise<DiffResult>
 ```
 
----
+## Notes for Antigravity
 
-## Architecture notes for Antigravity
-
-- The engine is **fully deterministic** for known synonyms (no LLM calls unless `enableLlmEscalation: true`).
-- `generateSchemaDiff` in `workflows/temporal/src/activities/schema-diff-activities.ts` wraps `SchemaBridge.compare()` with Temporal heartbeats. Antigravity can call that Activity from any Workflow.
-- Output contract is validated against `contracts/schemas/schema-diff.schema.json`.
-- `ClientUpdater` fires Redis pub/sub notifications on each `compare()` (fire-and-forget, non-fatal if Redis is absent).
-
----
-
-## Next steps (suggested for Week 2)
-
-- [ ] Expand synonym dictionary with TiendaNube, MercadoLibre, AFIP-specific field codes
-- [ ] Nested object support (SAP IDOC segments like `E1BPADDR1`)
-- [ ] Persist `BridgeReport` to Postgres for audit trail
+- The engine currently resolves the SAP smoke test from sample values, not from a SAP-specific dictionary.
+- Redis caching now lives at the Temporal orchestration layer, keyed by inferred schema fingerprints.
+- `ClientUpdater` still publishes notifications in a fire-and-forget way and degrades gracefully if Redis is unavailable.

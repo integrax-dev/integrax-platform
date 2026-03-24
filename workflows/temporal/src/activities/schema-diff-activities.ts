@@ -9,6 +9,7 @@
 
 import { Context } from '@temporalio/activity';
 import type { BridgeReport, FieldMapping } from '@integrax/schema-bridge';
+import { Redis } from 'ioredis';
 
 // ─── Contrato público (compatible con ID-0001 + enriquecido por ID-0002) ──────
 
@@ -149,23 +150,50 @@ function bridgeToDiffResult(report: BridgeReport, input: SchemaDiffInput): DiffR
 
 // ─── Temporal Activity ────────────────────────────────────────────────────────
 
+// Instancia global de redis - reutilizable entre invocaciones
+const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+
 /**
  * Activity de Temporal que ejecuta el motor de comparación de schemas.
- * Registra heartbeats en Temporal para operaciones largas (>50 muestras).
+ * Implementa caché en Redis usando el fingerprint inferido de las muestras.
  */
-export async function generateSchemaDiff(input: SchemaDiffInput): Promise<DiffResult> {
+export async function generateSchemaDiff(input: SchemaDiffInput & { options?: { forceRecalculate?: boolean } }): Promise<DiffResult> {
   const ctx = Context.current();
 
   // Heartbeat inicial
   ctx.heartbeat({ stage: 'inferring_schemas' });
 
-  const { createSchemaBridge } = await import('@integrax/schema-bridge');
+  // 1. Inferir schemas para obtener los fingerprints usados como Cache Key
+  const { createSchemaBridge, SchemaInferrer } = await import('@integrax/schema-bridge');
+  const inferrer = new SchemaInferrer();
+  
+  const schemaA = inferrer.infer(input.samplesA);
+  const schemaB = inferrer.infer(input.samplesB);
+  
+  const cacheKey = `integrax:schemadiff:v1:${schemaA.fingerprint}:${schemaB.fingerprint}`;
+
+  // 2. Verificar caché en Redis (Omitir si forceRecalculate = true)
+  if (!input.options?.forceRecalculate) {
+    ctx.heartbeat({ stage: 'checking_cache' });
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        ctx.log.info(`✅ Cache HIT para fingerprints ${schemaA.fingerprint} y ${schemaB.fingerprint}`);
+        return JSON.parse(cached) as DiffResult;
+      }
+    } catch (error) {
+      ctx.log.warn(`⚠️ Error leyendo de Redis el key ${cacheKey}`, { error });
+    }
+  }
+
+  // 3. Si no hay hit, generar reporte ejecutando el pipeline completo
+  ctx.log.info(`❌ Cache MISS. Ejecutando SchemaBridge engine para ${schemaA.fingerprint} y ${schemaB.fingerprint}`);
+  ctx.heartbeat({ stage: 'comparing_in_engine' });
+
   const bridge = createSchemaBridge({
     redisUrl: process.env.REDIS_URL,
     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
   });
-
-  ctx.heartbeat({ stage: 'comparing' });
 
   const report = await bridge.compare({
     connectorAId: input.sourceSchemaId,
@@ -180,7 +208,32 @@ export async function generateSchemaDiff(input: SchemaDiffInput): Promise<DiffRe
     },
   });
 
-  ctx.heartbeat({ stage: 'done', reportId: report.id });
+  const diffResult = bridgeToDiffResult(report, input);
 
-  return bridgeToDiffResult(report, input);
+  // 4. Guardar en Caché por 30 días
+  try {
+    ctx.heartbeat({ stage: 'saving_cache' });
+    // Guardamos 30 días (30 * 24 * 60 * 60)
+    await redis.setex(cacheKey, 2592000, JSON.stringify(diffResult));
+  } catch (error) {
+    ctx.log.warn(`⚠️ Error guardando en Redis el key ${cacheKey}`, { error });
+  }
+
+  ctx.heartbeat({ stage: 'done', reportId: report.id });
+  return diffResult;
+}
+
+/**
+ * Persiste el reporte de diferencias en la base de datos (Postgres).
+ * Sirve como un Audit Trail inmutable de los cambios de versión.
+ */
+export async function persistDiffResult(result: DiffResult): Promise<void> {
+  const ctx = Context.current();
+  ctx.log.info(`Guardando reporte ${result.reportId} en Postgres (Mock)`, {
+    mismatchesCount: result.mismatches.addedFields.length + result.mismatches.removedFields.length,
+    renameCandidates: result.mismatches.renameCandidates.length
+  });
+
+  // TODO: Implementar la inserción real con TypeORM o Prisma
+  await new Promise(resolve => setTimeout(resolve, 500));
 }
