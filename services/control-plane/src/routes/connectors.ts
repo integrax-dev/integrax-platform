@@ -797,6 +797,110 @@ router.delete(
 );
 
 /**
+ * POST /connectors/compare - Comparar schemas de dos sistemas A y B
+ *
+ * Detecta diferencias estructurales y de tipos entre dos conjuntos de muestras JSON.
+ * La mayoría de la lógica es determinística (sin consumo de tokens LLM).
+ */
+router.post(
+  '/compare',
+  requireAuth,
+  requireTenant,
+  requireRole('tenant_admin', 'operator', 'platform_admin'),
+  audit('connector.compare'),
+  async (req, res) => {
+    const { connectorAId, connectorBId, samplesA, samplesB, options } = req.body as {
+      connectorAId: string;
+      connectorBId: string;
+      samplesA: Record<string, unknown>[];
+      samplesB: Record<string, unknown>[];
+      options?: {
+        renameSimilarityThreshold?: number;
+        enableLlmEscalation?: boolean;
+        maxLlmEscalations?: number;
+      };
+    };
+
+    if (!connectorAId || !connectorBId) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_INPUT', message: 'connectorAId y connectorBId son requeridos' },
+      });
+    }
+
+    if (!Array.isArray(samplesA) || samplesA.length === 0 ||
+        !Array.isArray(samplesB) || samplesB.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_INPUT', message: 'samplesA y samplesB deben ser arrays no vacíos (máx 50 elementos)' },
+      });
+    }
+
+    if (samplesA.length > 50 || samplesB.length > 50) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_INPUT', message: 'Máximo 50 muestras por sistema' },
+      });
+    }
+
+    try {
+      // Importación dinámica para evitar cargar el engine si no se usa
+      const { createSchemaBridge } = await import('@integrax/schema-bridge');
+      const bridge = createSchemaBridge({
+        redisUrl: process.env.REDIS_URL,
+        anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+      });
+
+      const report = await bridge.compare({
+        connectorAId,
+        connectorBId,
+        samplesA,
+        samplesB,
+        tenantId: req.tenantId,
+        options: {
+          renameSimilarityThreshold: options?.renameSimilarityThreshold ?? 0.70,
+          enableLlmEscalation: options?.enableLlmEscalation ?? false,
+          maxLlmEscalations: options?.maxLlmEscalations ?? 3,
+        },
+      });
+
+      res.json({
+        success: true,
+        data: {
+          reportId: report.id,
+          connectorAId: report.connectorAId,
+          connectorBId: report.connectorBId,
+          summary: report.requirementsReport.summary,
+          mappings: report.mappings,
+          requirementsReport: report.requirementsReport,
+          generatedTransformTs: report.generatedTransformTs,
+          inferredSchemaA: {
+            fingerprint: report.inferredSchemaA.fingerprint,
+            fieldCount: report.inferredSchemaA.fields.length,
+            fields: report.inferredSchemaA.fields,
+          },
+          inferredSchemaB: {
+            fingerprint: report.inferredSchemaB.fingerprint,
+            fieldCount: report.inferredSchemaB.fields.length,
+            fields: report.inferredSchemaB.fields,
+          },
+          generatedAt: report.generatedAt,
+        },
+      });
+    } catch (error) {
+      console.error('[connectors/compare] Error:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'COMPARISON_ERROR',
+          message: error instanceof Error ? error.message : 'Error al comparar schemas',
+        },
+      });
+    }
+  }
+);
+
+/**
  * POST /connectors/learn - Learn a new connector from API docs (LLM-powered)
  */
 router.post(

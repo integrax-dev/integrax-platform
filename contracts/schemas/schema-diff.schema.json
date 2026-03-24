@@ -1,0 +1,104 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://integrax.example.com/schema-bridge-report.schema.json",
+  "title": "Schema Bridge Report",
+  "description": "Output format for the Schema Bridge Similarity Engine",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for this report"
+    },
+    "tenantId": {
+      "type": "string"
+    },
+    "connectorAId": {
+      "type": "string",
+      "description": "Identifier of the source connector (e.g., SAP)"
+    },
+    "connectorBId": {
+      "type": "string",
+      "description": "Identifier of the target connector (e.g., Coupa)"
+    },
+    "inferredSchemaA": {
+      "type": "object",
+      "description": "Schema inferred from samples of Connector A"
+    },
+    "inferredSchemaB": {
+      "type": "object",
+      "description": "Schema inferred from samples of Connector B"
+    },
+    "diffs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": { "type": "string", "enum": ["field_added", "field_removed", "type_changed", "format_changed", "nullability_changed", "rename_candidate", "constraint_changed"] },
+          "pathA": { "type": ["string", "null"] },
+          "pathB": { "type": ["string", "null"] },
+          "breakingScore": { "type": "number", "minimum": 0, "maximum": 1 }
+        },
+        "required": ["kind", "breakingScore"]
+      }
+    },
+    "mappings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "pathA": { "type": ["string", "null"] },
+          "pathB": { "type": ["string", "null"] },
+          "confidence": { "type": "number" },
+          "transform": {
+            "type": "object",
+            "properties": {
+              "kind": { "type": "string" },
+              "coercionFn": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          }
+        },
+        "required": ["id", "confidence", "transform"]
+      }
+    },
+    "resolvedConflicts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "resolution": { "type": "string", "enum": ["deterministic", "heuristic", "ambiguous"] },
+          "confidence": { "type": "number" },
+          "llmRequired": { "type": "boolean" },
+          "llmReason": { "type": "string" }
+        },
+        "required": ["resolution", "confidence", "llmRequired"]
+      }
+    },
+    "requirementsReport": {
+      "type": "object",
+      "description": "Summary of functional requirements for integration"
+    },
+    "generatedTransformTs": {
+      "type": "string",
+      "description": "TypeScript code snippet capable of mapping A to B"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "id",
+    "connectorAId",
+    "connectorBId",
+    "inferredSchemaA",
+    "inferredSchemaB",
+    "diffs",
+    "mappings",
+    "resolvedConflicts",
+    "requirementsReport",
+    "generatedTransformTs",
+    "generatedAt"
+  ]
+}
