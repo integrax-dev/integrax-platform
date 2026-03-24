@@ -85,13 +85,11 @@ function mergeNodes(existing: SchemaNode, incoming: SchemaNode): SchemaNode {
     mergedEnum = Array.from(new Set([...existing.enum, ...incoming.enum]));
   }
 
-  // Preservar hasta MAX_EXAMPLES ejemplos unicos para mejorar diversidad del value matching
+  // Preservar hasta MAX_EXAMPLES ejemplos, incluyendo repetidos, para medir entropia/cardinalidad
   const examples = [...existing.examples];
   for (const ex of incoming.examples) {
     if (examples.length >= MAX_EXAMPLES) break;
-    if (!examples.some(e => JSON.stringify(e) === JSON.stringify(ex))) {
-      examples.push(ex);
-    }
+    examples.push(ex);
   }
 
   return {

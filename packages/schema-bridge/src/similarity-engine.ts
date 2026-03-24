@@ -4,39 +4,26 @@
  * Detects renamed fields between two schemas using:
  * 1. Levenshtein distance (normalized)
  * 2. Jaccard over trigrams
- * 3. LatAm domain synonym table — generic Spanish/English pairs only (no connector-specific entries)
- * 4. Value-based matching — Jaccard over distinctive sample values (primary signal for unknown connectors)
+ * 3. LatAm domain synonym table
+ * 4. Value-based matching with probabilistic scoring over overlap, entropy and cardinality
  *
- * Type-bucketing reduces comparisons from O(n²) to O(n × avg_bucket_size) by only comparing
+ * Type-bucketing reduces comparisons from O(n^2) to O(n x avg_bucket_size) by only comparing
  * fields of compatible types as rename candidates.
  *
- * Pure function — no I/O, no LLM.
+ * Pure function - no I/O, no LLM.
  */
 
 import type { FieldDiff, SchemaNode, SimilarityScore } from './types.js';
 
-const STOP_VALUE_TOKENS = new Set([
-  '',
-  'n/a',
-  'na',
-  'none',
-  'null',
-  'undefined',
-  'unknown',
-  'true',
-  'false',
-  'yes',
-  'no',
-]);
-
-const NUMERIC_LIKE_PATTERN = /^[+-]?\d+(?:[.,]\d+)?$/;
-const DATE_LIKE_PATTERN = /^(?:\d{4}-\d{2}-\d{2}(?:t.*)?|\d{2}\/\d{2}\/\d{4})$/i;
-const LOW_SIGNAL_FORMATS = new Set(['date', 'date-time']);
-
-// ─── Normalización de nombres ─────────────────────────────────────────────────
+interface ValueProfile {
+  total: number;
+  unique: number;
+  entropy: number;
+  counts: Map<string, number>;
+}
 
 /**
- * Convierte camelCase, PascalCase y kebab-case a snake_case para comparar.
+ * Converts camelCase, PascalCase and kebab-case to snake_case for comparison.
  */
 export function normalizeName(s: string): string {
   return s
@@ -46,8 +33,6 @@ export function normalizeName(s: string): string {
     .replace(/__+/g, '_')
     .replace(/^_|_$/g, '');
 }
-
-// ─── Levenshtein ──────────────────────────────────────────────────────────────
 
 function levenshtein(a: string, b: string): number {
   const m = a.length;
@@ -72,8 +57,6 @@ function levenshteinSimilarity(a: string, b: string): number {
   return 1 - levenshtein(a, b) / maxLen;
 }
 
-// ─── Jaccard sobre trigramas ──────────────────────────────────────────────────
-
 function trigrams(s: string): Set<string> {
   const result = new Set<string>();
   const padded = `  ${s}  `;
@@ -92,56 +75,36 @@ function jaccardSimilarity(a: string, b: string): number {
   return union === 0 ? 0 : intersection / union;
 }
 
-// ─── Tabla de sinónimos LatAm / Argentina ─────────────────────────────────────
-
 const SYNONYM_PAIRS: [string, string][] = [
-  // Identificadores
   ['id', 'codigo'], ['id', 'identificador'], ['id', 'nro'], ['id', 'numero'],
   ['codigo', 'code'], ['codigo', 'identificador'],
-
-  // Personas
   ['nombre', 'name'], ['nombre', 'first_name'], ['apellido', 'surname'], ['apellido', 'last_name'],
   ['cliente', 'customer'], ['cliente', 'comprador'], ['cliente', 'buyer'],
   ['proveedor', 'vendor'], ['proveedor', 'supplier'],
-
-  // Dinero
   ['monto', 'amount'], ['monto', 'importe'], ['monto', 'valor'], ['monto', 'total'],
   ['precio', 'price'], ['precio', 'costo'], ['precio', 'tarifa'], ['precio', 'rate'],
   ['importe', 'amount'], ['importe', 'valor'], ['importe', 'total'],
-
-  // Fechas
   ['fecha', 'date'], ['fecha', 'timestamp'], ['fecha', 'created_at'],
   ['fecha_creacion', 'created_at'], ['fecha_actualizacion', 'updated_at'],
-
-  // Contacto
   ['email', 'correo'], ['email', 'mail'], ['email', 'e_mail'],
   ['telefono', 'phone'], ['telefono', 'celular'], ['telefono', 'mobile'],
   ['direccion', 'address'], ['calle', 'street'],
-
-  // Comercio
   ['factura', 'invoice'], ['comprobante', 'receipt'], ['comprobante', 'voucher'],
   ['pedido', 'order'], ['orden', 'order'],
   ['producto', 'product'], ['articulo', 'item'], ['articulo', 'product'],
   ['stock', 'quantity'], ['stock', 'qty'], ['cantidad', 'quantity'], ['cantidad', 'qty'],
-
-  // Fiscal Argentina
   ['cuit', 'tax_id'], ['cuit', 'rut'], ['cuit', 'nit'],
   ['dni', 'documento'], ['dni', 'identification'], ['dni', 'id_number'],
   ['iva', 'vat'], ['iva', 'tax'], ['neto', 'net_amount'],
   ['cae', 'fiscal_code'], ['punto_venta', 'branch_id'],
-
-  // Estado
   ['estado', 'status'], ['estado', 'state'], ['estado_pago', 'payment_status'],
   ['activo', 'active'], ['activo', 'enabled'],
-
-  // Técnicos
   ['url', 'link'], ['url', 'href'], ['imagen', 'image'], ['imagen', 'photo'],
   ['descripcion', 'description'], ['descripcion', 'detail'],
   ['tipo', 'type'], ['tipo', 'kind'], ['tipo', 'category'],
   ['moneda', 'currency'], ['moneda', 'currency_code'],
 ];
 
-// Construir mapa bidireccional normalizado
 const SYNONYM_MAP = new Map<string, Set<string>>();
 for (const [a, b] of SYNONYM_PAIRS) {
   const na = normalizeName(a);
@@ -157,72 +120,112 @@ function semanticSimilarity(a: string, b: string): number {
   const nb = normalizeName(b);
   if (na === nb) return 1.0;
 
-  // Lookup directo en tabla de sinónimos
   if (SYNONYM_MAP.get(na)?.has(nb) || SYNONYM_MAP.get(nb)?.has(na)) return 1.0;
-
-  // Substring
   if (na.includes(nb) || nb.includes(na)) return 0.5;
 
-  // Sufijo compartido (ej: "payment_id" vs "id_pago" → ambos contienen "id")
   const tokensA = na.split('_').filter(Boolean);
   const tokensB = nb.split('_').filter(Boolean);
   const shared = tokensA.filter(t => tokensB.includes(t)).length;
-  if (shared > 0) return shared / Math.max(tokensA.length, tokensB.length) * 0.6;
+  if (shared > 0) {
+    return shared / Math.max(tokensA.length, tokensB.length) * 0.6;
+  }
 
   return 0.0;
 }
 
-// ─── Value similarity ─────────────────────────────────────────────────────────
-
-function normalizeValueForMatching(node: SchemaNode, value: unknown): string | null {
-  if (primaryType(node) !== 'string') return null;
-  if (node.format && LOW_SIGNAL_FORMATS.has(node.format)) return null;
-
-  const normalized = String(value ?? '').trim().toLowerCase();
-  if (normalized.length < 3) return null;
-  if (STOP_VALUE_TOKENS.has(normalized)) return null;
-  if (NUMERIC_LIKE_PATTERN.test(normalized)) return null;
-  if (DATE_LIKE_PATTERN.test(normalized)) return null;
-
-  return normalized;
+function normalizeValueForMatching(value: unknown): string {
+  if (value === null) return '<null>';
+  if (value === undefined) return '<undefined>';
+  if (typeof value === 'string') return value.trim().toLowerCase();
+  if (typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean') {
+    return String(value).toLowerCase();
+  }
+  return JSON.stringify(value);
 }
 
-function distinctiveValues(node: SchemaNode): Set<string> {
-  const values = node.examples
-    .map(value => normalizeValueForMatching(node, value))
-    .filter((value): value is string => value !== null);
+function shannonEntropy(counts: Map<string, number>, total: number): number {
+  if (total === 0 || counts.size === 0) return 0;
 
-  return new Set(values);
+  let entropy = 0;
+  for (const count of counts.values()) {
+    const probability = count / total;
+    entropy -= probability * Math.log2(probability);
+  }
+
+  const normalizer = Math.log2(counts.size || 1);
+  if (normalizer === 0) return 0;
+  return entropy / normalizer;
 }
 
-function diversityFactor(size: number): number {
-  if (size <= 1) return 0;
-  if (size === 2) return 0.5;
-  return 1;
+function intrinsicTokenInformation(token: string): number {
+  if (token.length === 0) return 0;
+
+  const lengthWeight = Math.sqrt(Math.min(1, token.length / 12)) * Math.min(1, token.length / 3);
+  const uniqueCharRatio = new Set(token).size / token.length;
+  const shapeWeight = lengthWeight * uniqueCharRatio;
+  const classCount =
+    Number(/[a-z]/i.test(token)) +
+    Number(/\d/.test(token)) +
+    Number(/[^a-z0-9]/i.test(token));
+  const classWeight = classCount / 3;
+
+  return 0.6 * lengthWeight + 0.25 * shapeWeight + 0.15 * classWeight;
 }
 
-/**
- * Jaccard similarity over distinctive sample values from two schema nodes.
- * High overlap means both fields hold the same real-world data → strong rename signal.
- */
+function valueReliability(node: SchemaNode): number {
+  const type = primaryType(node);
+  if (type === 'boolean') return 0.15;
+  if (type === 'number') return 0.75;
+  if (node.format === 'date' || node.format === 'date-time') return 0.35;
+  return 1.0;
+}
+
+function buildValueProfile(node: SchemaNode): ValueProfile {
+  const counts = new Map<string, number>();
+
+  for (const example of node.examples) {
+    const normalized = normalizeValueForMatching(example);
+    counts.set(normalized, (counts.get(normalized) ?? 0) + 1);
+  }
+
+  const total = node.examples.length;
+  const unique = counts.size;
+  const entropy = shannonEntropy(counts, total);
+
+  return { total, unique, entropy, counts };
+}
+
 function valueSimilarity(nodeA: SchemaNode | null, nodeB: SchemaNode | null): number {
   if (!nodeA || !nodeB) return 0;
-  const exA = distinctiveValues(nodeA);
-  const exB = distinctiveValues(nodeB);
 
-  if (exA.size < 2 || exB.size < 2) return 0;
+  const profileA = buildValueProfile(nodeA);
+  const profileB = buildValueProfile(nodeB);
+  if (profileA.total === 0 || profileB.total === 0) return 0;
 
-  const overlap = [...exA].filter(v => exB.has(v)).length;
-  if (overlap < 2) return 0;
+  const overlappingTokens = [...profileA.counts.keys()].filter(token => profileB.counts.has(token));
+  if (overlappingTokens.length === 0) return 0;
 
-  const union = new Set([...exA, ...exB]).size;
-  const jaccard = union === 0 ? 0 : overlap / union;
-  const diversity = Math.min(diversityFactor(exA.size), diversityFactor(exB.size));
+  let overlapCount = 0;
+  let weightedOverlapInformation = 0;
+  for (const token of overlappingTokens) {
+    const overlap = Math.min(profileA.counts.get(token) ?? 0, profileB.counts.get(token) ?? 0);
+    overlapCount += overlap;
+    weightedOverlapInformation += intrinsicTokenInformation(token) * overlap;
+  }
 
-  return jaccard * diversity;
+  const overlapRatio = overlapCount / Math.max(profileA.total, profileB.total);
+  const averageOverlapInformation = overlapCount === 0 ? 0 : weightedOverlapInformation / overlapCount;
+  const entropySignal = Math.max(profileA.entropy, profileB.entropy);
+  const cardinalitySignal = Math.sqrt(Math.min(1, Math.min(profileA.unique, profileB.unique) / 3));
+  const reliability = Math.sqrt(valueReliability(nodeA) * valueReliability(nodeB));
+
+  const probabilisticScore =
+    overlapRatio *
+    (0.35 * averageOverlapInformation + 0.40 * entropySignal + 0.25 * cardinalitySignal) *
+    reliability;
+
+  return Math.max(0, Math.min(1, probabilisticScore));
 }
-
-// ─── Score combinado ──────────────────────────────────────────────────────────
 
 function combinedScore(
   a: string,
@@ -239,12 +242,10 @@ function combinedScore(
   const combined =
     sem >= 1.0
       ? 1.0
-      : Math.max(lexical, 0.75 * val + 0.25 * lexical);
+      : Math.max(lexical, 0.90 * val + 0.10 * lexical);
 
   return { levenshtein: lev, jaccard: jac, semantic: sem, value: val, combined };
 }
-
-// ─── SimilarityEngine ─────────────────────────────────────────────────────────
 
 export class SimilarityEngine {
   /**
@@ -252,33 +253,33 @@ export class SimilarityEngine {
    *
    * Type-bucketing: added fields are grouped by their primary JSON type before the loop.
    * Each removed field only compares against fields of the same type (+ 'unknown' bucket for
-   * fields whose type couldn't be determined). Reduces comparisons from O(n²) to
-   * O(n × avg_bucket_size) — ~70% fewer comparisons on typical mixed-type schemas.
-   *
-   * Greedy matching ensures each field appears in at most one rename pair.
+   * fields whose type could not be determined). Reduces comparisons from O(n^2) to
+   * O(n x avg_bucket_size).
    */
   findRenameCandidates(
     removed: FieldDiff[],
     added: FieldDiff[],
     threshold = 0.70,
   ): FieldDiff[] {
-    // ── Type-bucketing ────────────────────────────────────────────────────────
     const addedByType = new Map<string, FieldDiff[]>();
     for (const dB of added) {
-      const t = primaryType(dB.nodeB);
-      const bucket = addedByType.get(t);
+      const type = primaryType(dB.nodeB);
+      const bucket = addedByType.get(type);
       if (bucket) bucket.push(dB);
-      else addedByType.set(t, [dB]);
+      else addedByType.set(type, [dB]);
     }
 
-    // ── Score matrix (only within compatible type buckets) ────────────────────
-    const scores: Array<{ pathA: string; pathB: string; score: SimilarityScore; diffA: FieldDiff; diffB: FieldDiff }> = [];
+    const scores: Array<{
+      pathA: string;
+      pathB: string;
+      score: SimilarityScore;
+      diffA: FieldDiff;
+      diffB: FieldDiff;
+    }> = [];
 
     for (const dA of removed) {
       const typeA = primaryType(dA.nodeA);
       const nameA = fieldName(dA.pathA!);
-
-      // Same-type bucket + unknown bucket (undetermined types can match anything)
       const bucket = addedByType.get(typeA) ?? [];
       const unknownBucket = typeA !== 'unknown' ? (addedByType.get('unknown') ?? []) : [];
 
@@ -291,10 +292,8 @@ export class SimilarityEngine {
       }
     }
 
-    // Ordenar por score descendente
     scores.sort((a, b) => b.score.combined - a.score.combined);
 
-    // Greedy matching
     const usedA = new Set<string>();
     const usedB = new Set<string>();
     const candidates: FieldDiff[] = [];
@@ -318,10 +317,6 @@ export class SimilarityEngine {
     return candidates;
   }
 
-  /**
-   * Calcula el score de similitud entre dos nombres de campo.
-   * Para incluir value similarity, usar findRenameCandidates (que accede a los nodos).
-   */
   score(nameA: string, nameB: string): SimilarityScore {
     return combinedScore(nameA, nameB, null, null);
   }
@@ -332,7 +327,6 @@ function fieldName(path: string): string {
   return parts[parts.length - 1].replace(/\[\*\]$/, '');
 }
 
-/** Returns the primary (non-null) JSON type of a schema node, or 'unknown' if unavailable. */
 function primaryType(node: SchemaNode | null): string {
   if (!node) return 'unknown';
   if (Array.isArray(node.type)) return node.type.find(t => t !== 'null') ?? 'null';
