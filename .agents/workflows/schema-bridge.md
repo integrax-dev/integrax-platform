@@ -11,10 +11,11 @@ Estás encargado del desarrollo del `SimilarityEngine` y el `SchemaDiffer`. Tu o
 **Tu prioridad es expandir las capacidades de mapeo del motor usando "Value-Based Matching" y soportar estructuras anidadas pesadas.**
 El `smoke-test.ts` sirvió para validar la línea de base. Ahora Antigravity se encarga de orquestar el SchemaBridge en Temporal y cachear los requerimientos en Redis.
 
-TUS OBJETIVOS ACTUALES (Semana Cruzada - Refactor Value-Matching):
-1. **Matching por Entropía vs Hardcoding**: Elimina los filtros estrictos (`NUMERIC_LIKE_PATTERN` ignorando números puros, eliminación de fechas, y requisito de `size >= 2`). En lugar de IGNORAR esos valores, usa matemáticas de entropía/cardinalidad. Un número puro de muchos dígitos (un foreign key) debería matchear si coincide, mientras que un "1" contra un "1" tiene baja entropía y debería tener un score mínimo. Si ambos arrays solo tienen "ARS" constante (`size === 1`), debe haber score (aunque menor al que tendrían si coincidieran 10 IDs diferentes).
-2. **Eliminar Sesgos Regionales**: Minimizar `STOP_VALUE_TOKENS` hardcodeados en inglés; rely más en algoritmos matemáticos probabilísticos para que escale a cualquier ERP / idioma.
-3. **Optimización Continua**: Mantén el coverage del 100% en el `smoke-test` (¡no lo rompas!), confirmando que tu nueva estrategia probabilística sopesa mejor todas las fuentes sin hardcodear filtros.
+TUS OBJETIVOS ACTUALES (Semana Cruzada - Deep Arrays & Type Intelligence):
+1. **Arrays de Objetos Profundos**: El motor debe mejorar cómo agrupa y compara paths que contienen arrays anidados (ej. `items[*].sub_items[*].code`). Debes asegurar que la señal de entropía se calcule considerando todos los niveles de profundidad.
+2. **Inferencia de Tipos "Smart"**: No te limites a types JSON básicos. Refina la lógica para detectar tipos de negocio comunes por valor (ej. `currency_code` de 3 letras, `email`, `uuid`, `lat_lon`) y usa esto como un multiplicador de confianza en el matching.
+3. **Escalación Controlada**: Implementa un "Confident Threshold": si el score combinado es > 0.95, se acepta automáticamente; si está entre 0.70 y 0.95, se marca para "Revisión Humana/LLM" en el DiffResult.
+4. **Smoke Test - Nivel 2**: Crea un nuevo test case en `smoke-test.ts` que simule un cambio de versión de un ERP con campos anidados que cambian de nombre simultáneamente.
 
 ## Handoff ("Entrega")
 
