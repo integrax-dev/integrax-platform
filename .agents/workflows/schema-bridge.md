@@ -11,10 +11,10 @@ Estás encargado del desarrollo del `SimilarityEngine` y el `SchemaDiffer`. Tu o
 **Tu prioridad es expandir las capacidades de mapeo del motor usando "Value-Based Matching" y soportar estructuras anidadas pesadas.**
 El `smoke-test.ts` sirvió para validar la línea de base. Ahora Antigravity se encarga de orquestar el SchemaBridge en Temporal y cachear los requerimientos en Redis.
 
-TUS OBJETIVOS ACTUALES (Semana 3):
-1. **Hardening de Falsos Positivos**: El "Value-Based Matching" es poderoso, pero si `quantity` siempre es `1` y `status_id` siempre es `1`, generarán un match incorrecto. Debes endurecer la heurística valorando la entropía y diversidad de los datos.
-2. **Estructuras Anidadas**: El motor ahora debe procesar objetos profundos, por ejemplo, IDs de arrays anidados (`E1BPADDR1[*].CITY` en SAP IDOCs).
-3. **Optimización Continua**: Mantén tu coverage del 100% y cero llamadas al LLM para conectores base.
+TUS OBJETIVOS ACTUALES (Semana Cruzada - Refactor Value-Matching):
+1. **Matching por Entropía vs Hardcoding**: Elimina los filtros estrictos (`NUMERIC_LIKE_PATTERN` ignorando números puros, eliminación de fechas, y requisito de `size >= 2`). En lugar de IGNORAR esos valores, usa matemáticas de entropía/cardinalidad. Un número puro de muchos dígitos (un foreign key) debería matchear si coincide, mientras que un "1" contra un "1" tiene baja entropía y debería tener un score mínimo. Si ambos arrays solo tienen "ARS" constante (`size === 1`), debe haber score (aunque menor al que tendrían si coincidieran 10 IDs diferentes).
+2. **Eliminar Sesgos Regionales**: Minimizar `STOP_VALUE_TOKENS` hardcodeados en inglés; rely más en algoritmos matemáticos probabilísticos para que escale a cualquier ERP / idioma.
+3. **Optimización Continua**: Mantén el coverage del 100% en el `smoke-test` (¡no lo rompas!), confirmando que tu nueva estrategia probabilística sopesa mejor todas las fuentes sin hardcodear filtros.
 
 ## Handoff ("Entrega")
 
