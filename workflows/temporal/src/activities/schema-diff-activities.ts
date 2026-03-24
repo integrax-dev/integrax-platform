@@ -9,7 +9,8 @@
 
 import { Context } from '@temporalio/activity';
 import type { BridgeReport, FieldMapping } from '@integrax/schema-bridge';
-import { Redis } from 'ioredis';
+import Redis from 'ioredis';
+import { Pool } from 'pg';
 
 // ─── Contrato público (compatible con ID-0001 + enriquecido por ID-0002) ──────
 
@@ -153,6 +154,11 @@ function bridgeToDiffResult(report: BridgeReport, input: SchemaDiffInput): DiffR
 // Instancia global de redis - reutilizable entre invocaciones
 const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
 
+// Pool global de Postgres
+const pgPool = new Pool({
+  connectionString: process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/integrax',
+});
+
 /**
  * Activity de Temporal que ejecuta el motor de comparación de schemas.
  * Implementa caché en Redis usando el fingerprint inferido de las muestras.
@@ -229,11 +235,35 @@ export async function generateSchemaDiff(input: SchemaDiffInput & { options?: { 
  */
 export async function persistDiffResult(result: DiffResult): Promise<void> {
   const ctx = Context.current();
-  ctx.log.info(`Guardando reporte ${result.reportId} en Postgres (Mock)`, {
+  ctx.log.info(`Guardando reporte ${result.reportId} en Postgres`, {
     mismatchesCount: result.mismatches.addedFields.length + result.mismatches.removedFields.length,
     renameCandidates: result.mismatches.renameCandidates.length
   });
 
-  // TODO: Implementar la inserción real con TypeORM o Prisma
-  await new Promise(resolve => setTimeout(resolve, 500));
+  const query = `
+    INSERT INTO schema_diff_reports (
+      id, source_schema_id, target_schema_id, has_differences, payload, created_at
+    ) VALUES (
+      $1, $2, $3, $4, $5, NOW()
+    ) ON CONFLICT (id) DO UPDATE SET
+      payload = $5,
+      updated_at = NOW();
+  `;
+
+  const values = [
+    result.reportId,
+    result.sourceSchemaId,
+    result.targetSchemaId,
+    result.hasDifferences,
+    JSON.stringify(result)
+  ];
+
+  try {
+    ctx.heartbeat({ stage: 'persisting_db' });
+    await pgPool.query(query, values);
+    ctx.log.info(`✅ Reporte ${result.reportId} guardado exitosamente en DB`);
+  } catch (error) {
+    ctx.log.error(`❌ Error al persistir el reporte ${result.reportId} en Postgres`, { error });
+    throw error; // Temporal will automatically retry this activity
+  }
 }

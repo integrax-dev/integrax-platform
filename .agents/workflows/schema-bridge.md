@@ -11,10 +11,10 @@ Estás encargado del desarrollo del `SimilarityEngine` y el `SchemaDiffer`. Tu o
 **Tu prioridad es expandir las capacidades de mapeo del motor usando "Value-Based Matching" y soportar estructuras anidadas pesadas.**
 El `smoke-test.ts` sirvió para validar la línea de base. Ahora Antigravity se encarga de orquestar el SchemaBridge en Temporal y cachear los requerimientos en Redis.
 
-TUS OBJETIVOS ACTUALES (Semana 2):
-1. **Value-Based Matching**: Implementar la lógica propulsada por los values de los `examples`.
-2. **Type-Bucketing**: Agrupar campos por tipo antes de entrar al `O(n^2)` para escalabilidad masiva.
-3. **Diccionarios Regionales (Opcional)**: Expande a sistemas locales si es necesario, aunque el Value-Based Matching será el core.
+TUS OBJETIVOS ACTUALES (Semana 3):
+1. **Hardening de Falsos Positivos**: El "Value-Based Matching" es poderoso, pero si `quantity` siempre es `1` y `status_id` siempre es `1`, generarán un match incorrecto. Debes endurecer la heurística valorando la entropía y diversidad de los datos.
+2. **Estructuras Anidadas**: El motor ahora debe procesar objetos profundos, por ejemplo, IDs de arrays anidados (`E1BPADDR1[*].CITY` en SAP IDOCs).
+3. **Optimización Continua**: Mantén tu coverage del 100% y cero llamadas al LLM para conectores base.
 
 ## Handoff ("Entrega")
 
