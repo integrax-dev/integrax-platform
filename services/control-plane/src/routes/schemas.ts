@@ -1,15 +1,10 @@
-/**
- * Schema Bridge Routes
- *
- * API para encolar detecciones asincrónicas de esquemas.
- */
-
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { TemporalClientService } from '@integrax/temporal-workflows';
 import { requireAuth, requireTenant } from '../middleware/auth.js';
 import { audit } from '../middleware/audit.js';
 import { validate } from '../middleware/validate.js';
 import { z } from 'zod';
+import { pool } from '../store/db.js';
 
 const router: Router = Router();
 
@@ -45,7 +40,7 @@ router.post(
   requireTenant,
   validate(startSchemaDiffOpts),
   audit('schemas.diff.start'),
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     try {
       const tenantId = req.tenantId!;
       const client = await getTemporalClient();
@@ -90,7 +85,7 @@ router.get(
   '/status/:workflowId',
   requireAuth,
   requireTenant,
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     try {
       const { workflowId } = req.params;
       const tenantId = req.tenantId!;
@@ -105,11 +100,23 @@ router.get(
       const client = await getTemporalClient();
       const status = await client.getWorkflowStatus(workflowId);
 
+      let reportLink = null;
+      if (status.status === 'Completed' || status.status === 'COMPLETED') {
+         // Intentar buscar el reporte más reciente para este flujo en la DB
+         const dbResult = await pool.query(
+           'SELECT id FROM schema_diff_reports ORDER BY created_at DESC LIMIT 1'
+         );
+         if (dbResult.rows.length > 0) {
+           reportLink = `/api/schemas/diff/reports/${dbResult.rows[0].id}`;
+         }
+      }
+
       res.json({
         success: true,
         data: {
           workflowId,
-          ...status
+          ...status,
+          reportLink
         }
       });
     } catch (error) {
@@ -118,6 +125,45 @@ router.get(
         error: {
           code: 'WORKFLOW_STATUS_FAILED',
           message: error instanceof Error ? error.message : 'Error retrieving workflow'
+        }
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/schemas/diff/reports/:id
+ * Recupera el resultado final persistido en Postgres
+ */
+router.get(
+  '/reports/:id',
+  requireAuth,
+  requireTenant,
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const result = await pool.query(
+        'SELECT * FROM schema_diff_reports WHERE id = $1',
+        [id]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: { code: 'NOT_FOUND', message: 'Report not found' }
+        });
+      }
+
+      res.json({
+        success: true,
+        data: result.rows[0]
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'FETCH_REPORT_FAILED',
+          message: error instanceof Error ? error.message : 'Error retrieving report'
         }
       });
     }
