@@ -5,6 +5,7 @@
 import { Request, Response, NextFunction } from 'express';
 import * as jose from 'jose';
 import * as bcrypt from 'bcrypt';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { UserRole } from '../types.js';
 import { getTenant } from '../store/tenants.js';
 
@@ -243,14 +244,15 @@ export function verifyWebhookSignature(
   signature: string,
   secret: string
 ): boolean {
-  const crypto = require('crypto');
-  const expectedSignature = crypto
-    .createHmac('sha256', secret)
+  const expectedSignature = createHmac('sha256', secret)
     .update(payload)
     .digest('hex');
 
-  return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expectedSignature)
-  );
+  const sigBuf = Buffer.from(signature);
+  const expBuf = Buffer.from(expectedSignature);
+
+  // timingSafeEqual lanza si los buffers tienen distinto tamaño — devolver false directamente.
+  if (sigBuf.length !== expBuf.length) return false;
+
+  return timingSafeEqual(sigBuf, expBuf);
 }

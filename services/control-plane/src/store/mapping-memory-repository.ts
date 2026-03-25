@@ -103,13 +103,6 @@ export async function loadMappingMemory(
 }
 
 /**
- * Persiste un único feedback (accept/reject) de forma atómica.
- *
- * En conflicto (el par ya existe), actualiza contadores y recomputa la media
- * ponderada acumulada directamente en SQL, evitando race conditions.
- * Invalida la cache del par afectado.
- */
-/**
  * Elimina entradas de memoria obsoletas o de baja calidad.
  *
  * Criterios de eliminación (OR):
@@ -149,6 +142,13 @@ export async function pruneMemory(
   return parseInt(result.rows[0]?.count ?? '0', 10);
 }
 
+/**
+ * Persiste un único feedback (accept/reject) de forma atómica.
+ *
+ * En conflicto (el par ya existe), actualiza contadores y recomputa la media
+ * ponderada acumulada directamente en SQL, evitando race conditions.
+ * Invalida la cache del par afectado.
+ */
 export async function upsertEntry(
   tenantId: string,
   connectorAId: string,
