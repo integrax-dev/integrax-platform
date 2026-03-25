@@ -214,6 +214,18 @@ export interface FieldMapping {
   bidirectional: boolean;
   /** Expresión inversa para B→A */
   inverseCoercionFn?: string;
+  /**
+   * Razón de la decisión de mapping — útil para observabilidad y auditoría.
+   * Valores posibles:
+   *   'deterministic:field_added'     — campo nuevo en B, sin contraparte en A
+   *   'deterministic:rename'          — renombrado con alta confianza (auto-aceptado)
+   *   'deterministic:type_widening'   — cambio de tipo compatible (widening/coercible)
+   *   'deterministic:nullability'     — cambio de obligatoriedad
+   *   'heuristic:money_coerce'        — campo monetario con coerción de tipo
+   *   'heuristic:constraint_changed'  — cambio de enum/restricciones
+   *   'heuristic:rename_review'       — renombrado con confianza media (requiere revisión)
+   */
+  decisionReason?: string;
 }
 
 export interface ResolvedConflict {

@@ -17,36 +17,30 @@
 
 import type { MappingMemoryEntry } from '@integrax/schema-bridge';
 import { pool } from './db.js';
+import { MemoryCacheAdapter } from './cache-adapter.js';
+import type { ICacheAdapter } from './cache-adapter.js';
 
 // ─── Cache ────────────────────────────────────────────────────────────────────
 
 const CACHE_TTL_MS = 60_000;
-const CACHE_MAX_ENTRIES = 500; // evitar memory leak en instancias de larga vida
 
-interface CacheEntry {
-  entries: MappingMemoryEntry[];
-  cachedAt: number;
+/**
+ * Adapter de cache activo. Para multi-réplica, reemplazar por RedisCacheAdapter.
+ * Se exporta para permitir su swap en tests o en el bootstrap del servidor.
+ */
+export let cacheAdapter: ICacheAdapter<MappingMemoryEntry[]> = new MemoryCacheAdapter({ maxEntries: 500 });
+
+/** Permite inyectar un adapter diferente (ej: Redis en producción multi-réplica). */
+export function setCacheAdapter(adapter: ICacheAdapter<MappingMemoryEntry[]>): void {
+  cacheAdapter = adapter;
 }
-
-// Map mantiene orden de inserción — usamos eso para LRU simple:
-// al hacer get, delete + re-set mueve la clave al final (más reciente).
-const cache = new Map<string, CacheEntry>();
 
 function cacheKey(tenantId: string, connectorAId: string, connectorBId: string): string {
   return `${tenantId}:${connectorAId}:${connectorBId}`;
 }
 
-function cacheSet(key: string, entry: CacheEntry): void {
-  cache.delete(key); // mueve al final si ya existe
-  cache.set(key, entry);
-  // Evict el más antiguo (primer elemento) si superamos el límite
-  if (cache.size > CACHE_MAX_ENTRIES) {
-    cache.delete(cache.keys().next().value!);
-  }
-}
-
-function invalidate(tenantId: string, connectorAId: string, connectorBId: string): void {
-  cache.delete(cacheKey(tenantId, connectorAId, connectorBId));
+async function invalidate(tenantId: string, connectorAId: string, connectorBId: string): Promise<void> {
+  await cacheAdapter.delete(cacheKey(tenantId, connectorAId, connectorBId));
 }
 
 // ─── DB row → MappingMemoryEntry ──────────────────────────────────────────────
@@ -87,10 +81,8 @@ export async function loadMappingMemory(
   connectorBId: string,
 ): Promise<MappingMemoryEntry[]> {
   const key = cacheKey(tenantId, connectorAId, connectorBId);
-  const cached = cache.get(key);
-  if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
-    return cached.entries;
-  }
+  const cached = await cacheAdapter.get(key);
+  if (cached) return cached;
 
   const result = await pool.query<MemoryRow>(
     `SELECT source_connector_id, target_connector_id,
@@ -106,7 +98,7 @@ export async function loadMappingMemory(
   );
 
   const entries = result.rows.map(rowToEntry);
-  cacheSet(key, { entries, cachedAt: Date.now() });
+  await cacheAdapter.set(key, entries, CACHE_TTL_MS);
   return entries;
 }
 
@@ -117,6 +109,46 @@ export async function loadMappingMemory(
  * ponderada acumulada directamente en SQL, evitando race conditions.
  * Invalida la cache del par afectado.
  */
+/**
+ * Elimina entradas de memoria obsoletas o de baja calidad.
+ *
+ * Criterios de eliminación (OR):
+ *   1. No actualizada en más de `maxAgeDays` días (default: 180)
+ *   2. Ratio de rechazo ≥ `maxRejectionRatio` con al menos 3 muestras (default: 0.90)
+ *
+ * Devuelve el número de filas eliminadas.
+ * Invalida la cache completa del tenant afectado.
+ */
+export async function pruneMemory(
+  tenantId: string,
+  opts: { maxAgeDays?: number; maxRejectionRatio?: number } = {},
+): Promise<number> {
+  const maxAgeDays = opts.maxAgeDays ?? 180;
+  const maxRejectionRatio = opts.maxRejectionRatio ?? 0.90;
+
+  const result = await pool.query<{ count: string }>(
+    `WITH deleted AS (
+       DELETE FROM schema_mapping_memory
+       WHERE tenant_id = $1
+         AND (
+           updated_at < NOW() - ($2 || ' days')::INTERVAL
+           OR (
+             accepted_count + rejected_count >= 3
+             AND rejected_count::float / NULLIF(accepted_count + rejected_count, 0) >= $3
+           )
+         )
+       RETURNING source_connector_id, target_connector_id
+     )
+     SELECT COUNT(*)::text AS count FROM deleted`,
+    [tenantId, maxAgeDays, maxRejectionRatio],
+  );
+
+  // Invalidar toda la cache del tenant (todas las claves que empiezan con tenantId:)
+  await cacheAdapter.deleteByPrefix(`${tenantId}:`);
+
+  return parseInt(result.rows[0]?.count ?? '0', 10);
+}
+
 export async function upsertEntry(
   tenantId: string,
   connectorAId: string,
@@ -160,5 +192,6 @@ export async function upsertEntry(
     ],
   );
 
-  invalidate(tenantId, connectorAId, connectorBId);
+  await invalidate(tenantId, connectorAId, connectorBId);
 }
+

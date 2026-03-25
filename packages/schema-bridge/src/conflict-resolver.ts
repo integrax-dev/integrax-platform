@@ -44,6 +44,7 @@ function makeMapping(
   pathB: string | null,
   transform: TransformSpec,
   confidence: number,
+  decisionReason?: string,
 ): FieldMapping {
   return {
     id: `map_${ulid()}`,
@@ -52,6 +53,7 @@ function makeMapping(
     transform,
     confidence,
     bidirectional: transform.kind === 'identity' || transform.kind === 'rename',
+    decisionReason,
   };
 }
 
@@ -80,7 +82,7 @@ function resolveDeterministic(
     return {
       diff,
       resolution: 'deterministic',
-      mapping: makeMapping(null, pathB, transform, 1.0),
+      mapping: makeMapping(null, pathB, transform, 1.0, 'deterministic:field_added'),
       confidence: 1.0,
       llmRequired: false,
     };
@@ -99,7 +101,7 @@ function resolveDeterministic(
     return {
       diff,
       resolution: 'deterministic',
-      mapping: makeMapping(pathA, pathB, transform, diff.similarity.combined),
+      mapping: makeMapping(pathA, pathB, transform, diff.similarity.combined, 'deterministic:rename'),
       confidence: diff.similarity.combined,
       llmRequired: false,
     };
@@ -121,7 +123,7 @@ function resolveDeterministic(
       return {
         diff,
         resolution: 'deterministic',
-        mapping: makeMapping(pathA, pathB, transform, 0.95),
+        mapping: makeMapping(pathA, pathB, transform, 0.95, 'deterministic:type_widening'),
         confidence: 0.95,
         llmRequired: false,
       };
@@ -138,7 +140,7 @@ function resolveDeterministic(
       return {
         diff,
         resolution: 'deterministic',
-        mapping: makeMapping(pathA, pathB, transform, 0.85),
+        mapping: makeMapping(pathA, pathB, transform, 0.85, 'deterministic:type_widening'),
         confidence: 0.85,
         llmRequired: false,
       };
@@ -163,7 +165,7 @@ function resolveDeterministic(
       return {
         diff,
         resolution: 'deterministic',
-        mapping: makeMapping(pathA, pathB, transform, 0.90),
+        mapping: makeMapping(pathA, pathB, transform, 0.90, 'deterministic:format_coerce'),
         confidence: 0.90,
         llmRequired: false,
       };
@@ -180,7 +182,7 @@ function resolveDeterministic(
     return {
       diff,
       resolution: 'deterministic',
-      mapping: makeMapping(pathA, pathB, transform, 0.90),
+      mapping: makeMapping(pathA, pathB, transform, 0.90, 'deterministic:nullability'),
       confidence: 0.90,
       llmRequired: false,
     };
@@ -241,7 +243,7 @@ function resolveHeuristic(
       return {
         diff,
         resolution: 'heuristic',
-        mapping: makeMapping(pathA, pathB, transform, 0.80),
+        mapping: makeMapping(pathA, pathB, transform, 0.80, 'heuristic:money_coerce'),
         confidence: 0.80,
         llmRequired: false,
       };
@@ -258,7 +260,7 @@ function resolveHeuristic(
     return {
       diff,
       resolution: 'heuristic',
-      mapping: makeMapping(pathA, pathB, transform, 0.70),
+      mapping: makeMapping(pathA, pathB, transform, 0.70, 'heuristic:constraint_changed'),
       confidence: 0.70,
       llmRequired: false,
     };

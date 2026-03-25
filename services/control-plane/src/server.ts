@@ -14,6 +14,32 @@ import { requireAuth, requireRole } from './middleware/auth.js';
 import { createLogger, requestLogger } from '@integrax/logger';
 import { createHealthManager } from '@integrax/health';
 import { metricsMiddleware } from '@integrax/metrics';
+import { pool } from './store/db.js';
+
+// ─── DEUDA TÉCNICA: Cache distribuido para mapping memory ─────────────────────
+//
+// POR QUÉ ESTÁ DESACTIVADO:
+//   El control-plane corre como una sola instancia. MemoryCacheAdapter (Map
+//   in-process, LRU 500 entradas, TTL 60 s) es suficiente y no tiene overhead.
+//
+// CUÁNDO ACTIVAR:
+//   Cuando el control-plane escale a 2+ réplicas detrás de un load balancer.
+//   En ese momento cada réplica tiene su propio Map → feedback de un operador
+//   en la réplica A no se refleja en la réplica B hasta que venza el TTL (60 s).
+//   Con Redis compartido, la invalidación es inmediata en todas las réplicas.
+//
+// CÓMO ACTIVAR (una sola línea de config en el env):
+//   Descomentar el bloque de abajo. No requiere ningún otro cambio de código.
+//   Asegurar que REDIS_URL esté seteado en el entorno de producción.
+//
+// import { Redis } from 'ioredis';
+// import { RedisCacheAdapter } from './store/redis-cache-adapter.js';
+// import { setCacheAdapter } from './store/mapping-memory-repository.js';
+//
+// if (process.env.REDIS_URL) {
+//   setCacheAdapter(new RedisCacheAdapter(new Redis(process.env.REDIS_URL)));
+// }
+// ─────────────────────────────────────────────────────────────────────────────
 
 const app: express.Application = express();
 
@@ -42,9 +68,7 @@ app.use(metricsMiddleware({ excludePaths: ['/health', '/ready', '/metrics'] }));
 
 // Health & Readiness
 const health = createHealthManager('0.1.0');
-// TODO: register dependency checks when connections are available
-// health.register('redis', async () => { await redis.ping(); });
-// health.register('postgres', async () => { await pool.query('SELECT 1'); });
+health.register('postgres', async () => { await pool.query('SELECT 1'); });
 app.use(health.router());
 
 // API info

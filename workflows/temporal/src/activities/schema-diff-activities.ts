@@ -9,7 +9,8 @@
  */
 
 import { Context } from '@temporalio/activity';
-import type { BridgeReport } from '@integrax/schema-bridge';
+import type { BridgeReport, InferredJsonSchema } from '@integrax/schema-bridge';
+import { createSchemaBridge, SchemaInferrer } from '@integrax/schema-bridge';
 import { Redis } from 'ioredis';
 import { Pool } from 'pg';
 import { createHash } from 'node:crypto';
@@ -43,8 +44,8 @@ export interface DiffResult {
   tenantId?: string;
   sourceFingerprint: string;
   targetFingerprint: string;
-  fullSchemaA: any;
-  fullSchemaB: any;
+  fullSchemaA: InferredJsonSchema;
+  fullSchemaB: InferredJsonSchema;
   sampleInventory?: {
     sourceInputCount: number;
     targetInputCount: number;
@@ -278,7 +279,6 @@ export async function generateSchemaDiff(input: SchemaDiffInput): Promise<DiffRe
       throw new Error('No hay suficientes muestras efectivas para comparar schemas. Cargá samples inline o llená el sample reservoir.');
     }
 
-    const { createSchemaBridge, SchemaInferrer } = await import('@integrax/schema-bridge');
     const inferrer = new SchemaInferrer({ maxExamples: sampleLimit });
     const schemaA = inferrer.infer(sourceSampleSet.effective);
     const schemaB = inferrer.infer(targetSampleSet.effective);
@@ -346,7 +346,7 @@ export async function generateSchemaDiff(input: SchemaDiffInput): Promise<DiffRe
 
     try {
       ctx.heartbeat({ stage: 'saving_cache' });
-      await getRedisClient().setex(cacheKey, 2592000, JSON.stringify(diffResult));
+      await getRedisClient().setex(cacheKey, 172800, JSON.stringify(diffResult)); // 48 h — lower than 30d to avoid stale data accumulation
     } catch (error) {
       ctx.log.warn(`Error writing Redis cache key ${cacheKey}`, { error });
     }

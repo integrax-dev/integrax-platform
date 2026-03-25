@@ -48,9 +48,13 @@ function isVetoed(
 function confidenceScore(entry: MappingMemoryEntry): number {
   const total = entry.acceptedCount + entry.rejectedCount;
   const acceptanceRatio = total === 0 ? 0 : entry.acceptedCount / total;
-  const experienceBoost = Math.min(1, Math.log10(total + 1) / Math.log10(10));
+  // log10(10) === 1, so dividing by it is a no-op — kept implicit for clarity.
+  // Saturates at 10 samples: log10(11) ≈ 1.04, clamped to 1 by Math.min.
+  const experienceBoost = Math.min(1, Math.log10(total + 1));
   return Math.max(
     0.55,
+    // Weights sum to 0.99 (not 1.0) intentionally — score can never reach 1.0,
+    // preserving a margin that signals "human-validated but still probabilistic".
     Math.min(0.99, entry.averageConfidence * 0.60 + acceptanceRatio * 0.25 + experienceBoost * 0.14),
   );
 }

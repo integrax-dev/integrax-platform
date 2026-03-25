@@ -7,17 +7,24 @@ import { z } from 'zod';
 import { pool } from '../store/db.js';
 import { loadMappingMemory, upsertEntry } from '../store/mapping-memory-repository.js';
 import { rateLimit } from '../middleware/rate-limit.js';
+import { createLogger } from '@integrax/logger';
 
 const router: Router = Router();
+const logger = createLogger({ service: 'control-plane:schemas', version: '0.1.0' });
 
-let temporalClient: TemporalClientService | null = null;
+// Promise-based lock: concurrent requests share the same init Promise instead
+// of creating multiple clients (which would leak connections).
+let _temporalClientPromise: Promise<TemporalClientService> | null = null;
 
-async function getTemporalClient(): Promise<TemporalClientService> {
-  if (!temporalClient) {
-    temporalClient = new TemporalClientService();
-    await temporalClient.connect();
+function getTemporalClient(): Promise<TemporalClientService> {
+  if (!_temporalClientPromise) {
+    _temporalClientPromise = (async () => {
+      const c = new TemporalClientService();
+      await c.connect();
+      return c;
+    })();
   }
-  return temporalClient;
+  return _temporalClientPromise;
 }
 
 const startSchemaDiffOpts = z.object({
@@ -73,7 +80,7 @@ router.post(
         },
       });
     } catch (error) {
-      console.error('Error starting schema diff workflow:', error);
+      logger.error({ err: error, tenantId: req.tenantId }, 'Error starting schema diff workflow');
       res.status(500).json({
         success: false,
         error: {

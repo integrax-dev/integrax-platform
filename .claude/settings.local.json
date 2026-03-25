@@ -52,7 +52,11 @@
       "Bash(npx tsx -e \":*)",
       "Bash(pnpm --filter @integrax/schema-bridge test -- --reporter=verbose)",
       "Bash(pnpm --filter @integrax/schema-bridge test -- --reporter=verbose --run tests/diag2.test.ts)",
-      "Bash(pnpm --filter @integrax/control-plane test)"
+      "Bash(pnpm --filter @integrax/control-plane test)",
+      "Bash(grep -r \"pool\\\\|worker\\\\|SIGABRT\\\\|134\" c:Userslsperintegrax-platform --include=*.ts --include=*.json)",
+      "Bash(grep -r \"pool\\\\|default.*pool\" c:Userslsperintegrax-platformnode_modulesvitest --include=*.md)",
+      "WebSearch",
+      "Bash(xargs grep:*)"
     ]
   }
 }

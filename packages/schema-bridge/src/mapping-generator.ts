@@ -106,7 +106,7 @@ export class MappingGenerator {
             valueExpr = JSON.stringify(transform.constant ?? null);
             break;
           default:
-            valueExpr = `${accessA} ?? null /* TODO: transform kind '${transform.kind}' requiere implementación manual */`;
+            throw new Error(`Unhandled transform kind: '${(transform as { kind: string }).kind}'`);
         }
 
         atoBLines.push(`  // ${transform.description}`);

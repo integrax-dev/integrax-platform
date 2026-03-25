@@ -186,9 +186,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The monorepo uses pnpm workspaces. apps/admin-panel and root scripts
+      # require pnpm — they have no package-lock.json.
+      # services/connector-watchdog and contracts/ts are standalone (have their
+      # own package-lock.json) so they continue to use npm ci.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install monorepo dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Type-check watchdog
         working-directory: services/connector-watchdog
@@ -203,17 +215,13 @@ jobs:
           npx tsc --noEmit
 
       - name: Lint admin-panel (strict)
-        working-directory: apps/admin-panel
-        run: |
-          npm ci
-          npm run lint:strict
+        run: pnpm --filter @integrax/admin-panel run lint:strict
 
       - name: Type-check admin-panel
-        working-directory: apps/admin-panel
-        run: npm run typecheck
+        run: pnpm --filter @integrax/admin-panel run typecheck
 
       - name: Validate service registry
-        run: npm run validate:services
+        run: pnpm run validate:services
 
       - name: Root quality gate
-        run: npm run quality:gate
+        run: pnpm run quality:gate

@@ -6,7 +6,7 @@ import { Request, Response, NextFunction } from 'express';
 import * as jose from 'jose';
 import * as bcrypt from 'bcrypt';
 import { UserRole } from '../types.js';
-import { tenants } from '../store/tenants.js';
+import { getTenant } from '../store/tenants.js';
 
 // Extend Express Request type
 declare global {
@@ -105,7 +105,7 @@ export async function requireAuth(
         });
       }
 
-      const tenant = tenants.get(tenantId);
+      const tenant = await getTenant(tenantId);
       if (!tenant) {
         return res.status(401).json({
           success: false,

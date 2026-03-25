@@ -75,7 +75,10 @@ export type EventType =
   | 'event.failed'
   | 'tenant.quota.warning'
   | 'tenant.rate.limited'
-  | 'system.alert';
+  | 'system.alert'
+  | 'schema.diff.started'
+  | 'schema.diff.completed'
+  | 'schema.diff.failed';
 
 // ============================================
 // WebSocket Server
@@ -117,8 +120,8 @@ export class RealtimeServer {
     this.redis = new Redis(this.config.redisUrl);
     this.redisSub = new Redis(this.config.redisUrl);
 
-    // Subscribe to Redis pub/sub for cross-instance messaging
-    await this.redisSub.psubscribe('integrax:realtime:*');
+    // Subscribe to Redis pub/sub for cross-instance messaging and schema-bridge events
+    await this.redisSub.psubscribe('integrax:realtime:*', 'integrax:schema:*');
     this.redisSub.on('pmessage', (_pattern, channel, message) => {
       this.handleRedisMessage(channel, message);
     });
@@ -132,7 +135,7 @@ export class RealtimeServer {
     app.use(this.healthManager.router());
 
     // Initialize WebSocket server
-    this.wss = new WebSocketServer({ server: this.httpServer });
+    this.wss = new WebSocketServer({ server: this.httpServer, maxPayload: 64 * 1024 }); // 64 KB — prevents large frame DoS
 
     this.wss.on('connection', (ws, req) => {
       this.handleConnection(ws, req);
@@ -238,7 +241,11 @@ export class RealtimeServer {
   }
 
   private authenticateConnection(req: IncomingMessage): { tenantId: string; userId?: string } | null {
-    // Get token from query string or header
+    // Token accepted from query string (?token=...) or Authorization header.
+    // Token-in-URL is the standard WebSocket auth pattern because browsers can't
+    // set custom headers on the WS handshake. Tradeoff: tokens appear in nginx/proxy
+    // access logs and browser history. Mitigation: filter access logs in production
+    // (e.g., nginx log_format that strips the token param) and use short-lived JWTs.
     const url = new URL(req.url || '', `http://${req.headers.host}`);
     const token = url.searchParams.get('token') || req.headers.authorization?.replace('Bearer ', '');
 
@@ -350,7 +357,7 @@ export class RealtimeServer {
   private isValidChannel(tenantId: string, channel: string): boolean {
     // Channels are prefixed with tenant ID for isolation
     // Allow: workflows, events, connectors, system
-    const validPrefixes = ['workflows', 'events', 'connectors', 'system', 'alerts'];
+    const validPrefixes = ['workflows', 'events', 'connectors', 'system', 'alerts', 'schema'];
     return validPrefixes.some((prefix) => channel === prefix || channel.startsWith(`${prefix}.`));
   }
 
@@ -377,17 +384,29 @@ export class RealtimeServer {
   }
 
   private handleRedisMessage(redisChannel: string, message: string): void {
-    // Extract tenant ID from channel
-    const match = redisChannel.match(/^integrax:realtime:(.+)$/);
-    if (!match) return;
+    // integrax:realtime:{tenantId} — generic realtime broadcast
+    const realtimeMatch = redisChannel.match(/^integrax:realtime:(.+)$/);
+    if (realtimeMatch) {
+      const tenantId = realtimeMatch[1];
+      try {
+        const { channel, data, excludeConnectionId } = JSON.parse(message);
+        this.deliverToTenant(tenantId, channel, data, excludeConnectionId);
+      } catch (error) {
+        this.logger.error({ err: error }, 'Failed to parse Redis realtime message');
+      }
+      return;
+    }
 
-    const tenantId = match[1];
-
-    try {
-      const { channel, data, excludeConnectionId } = JSON.parse(message);
-      this.deliverToTenant(tenantId, channel, data, excludeConnectionId);
-    } catch (error) {
-      this.logger.error({ err: error }, 'Failed to parse Redis message');
+    // integrax:schema:{tenantId} — schema-bridge diff events
+    const schemaMatch = redisChannel.match(/^integrax:schema:(.+)$/);
+    if (schemaMatch) {
+      const tenantId = schemaMatch[1];
+      try {
+        const payload = JSON.parse(message);
+        this.deliverToTenant(tenantId, 'schema', payload);
+      } catch (error) {
+        this.logger.error({ err: error }, 'Failed to parse Redis schema message');
+      }
     }
   }
 
@@ -467,6 +486,18 @@ export class RealtimeServer {
         eventType,
         ...data,
       },
+    });
+  }
+
+  async publishSchemaDiffEvent(
+    tenantId: string,
+    eventType: 'schema.diff.started' | 'schema.diff.completed' | 'schema.diff.failed',
+    data: Record<string, unknown>
+  ): Promise<void> {
+    await this.broadcast({
+      tenantId,
+      channel: 'schema',
+      data: { eventType, ...data },
     });
   }
 

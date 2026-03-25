@@ -14,6 +14,13 @@ import {
 import { requireAuth, requireRole, requireTenant } from '../middleware/auth.js';
 import { audit } from '../middleware/audit.js';
 import { validate } from '../middleware/validate.js';
+import {
+  getTenantConnector,
+  findTenantConnector,
+  listTenantConnectors,
+  saveTenantConnector,
+  deleteTenantConnector,
+} from '../store/tenant-connectors.js';
 
 // Connector test functions - dynamic imports to avoid circular dependencies
 interface TestConnectionResult {
@@ -535,9 +542,6 @@ const CONNECTOR_CATALOG: ConnectorDefinition[] = [
   },
 ];
 
-// Tenant connectors store
-const tenantConnectors = new Map<string, TenantConnector>();
-
 // ============ Encryption Helpers ============
 
 function encrypt(text: string): string {
@@ -607,9 +611,7 @@ router.get(
   async (req, res) => {
     const tenantId = req.tenantId!;
 
-    const connectors = Array.from(tenantConnectors.values()).filter(
-      (c) => c.tenantId === tenantId
-    );
+    const connectors = await listTenantConnectors(tenantId);
 
     // Add connector definitions
     const enriched = connectors.map((tc) => {
@@ -670,31 +672,28 @@ router.post(
       encryptedCredentials[key] = encrypt(value as string);
     }
 
-    // Check if already configured
-    const existingKey = `${tenantId}:${connectorId}`;
-    const existing = Array.from(tenantConnectors.entries()).find(
-      ([_, c]) => c.tenantId === tenantId && c.connectorId === connectorId
-    );
+    // Upsert — ON CONFLICT (tenant_id, connector_id) handles concurrent requests.
+    // Pass existing createdAt so the update doesn't change it; new rows get NOW().
+    const existing = await findTenantConnector(tenantId, connectorId);
 
-    const id = existing ? existing[0] : `tc_${ulid()}`;
     const tenantConnector: TenantConnector = {
-      id,
+      id: `tc_${ulid()}`, // only used on first INSERT; ignored on conflict (Postgres keeps original)
       tenantId,
       connectorId,
       status: 'configured',
       credentials: encryptedCredentials,
       lastTestedAt: null,
       lastTestResult: null,
-      createdAt: existing ? existing[1].createdAt : new Date(),
+      createdAt: existing ? existing.createdAt : new Date(),
       updatedAt: new Date(),
     };
 
-    tenantConnectors.set(id, tenantConnector);
+    const storedId = await saveTenantConnector(tenantConnector);
 
     res.status(existing ? 200 : 201).json({
       success: true,
       data: {
-        id: tenantConnector.id,
+        id: storedId, // use the id Postgres actually stored
         connectorId,
         status: tenantConnector.status,
         definition,
@@ -713,7 +712,7 @@ router.post(
   requireRole('tenant_admin', 'operator', 'platform_admin'),
   audit('connector.test'),
   async (req, res) => {
-    const tenantConnector = tenantConnectors.get(req.params.id);
+    const tenantConnector = await getTenantConnector(req.params.id);
 
     if (!tenantConnector || tenantConnector.tenantId !== req.tenantId) {
       return res.status(404).json({
@@ -750,7 +749,7 @@ router.post(
     tenantConnector.lastTestResult = testResult.success ? 'success' : 'failed';
     tenantConnector.status = testResult.success ? 'configured' : 'error';
     tenantConnector.updatedAt = new Date();
-    tenantConnectors.set(tenantConnector.id, tenantConnector);
+    await saveTenantConnector(tenantConnector);
 
     res.json({
       success: true,
@@ -778,7 +777,7 @@ router.delete(
   requireRole('tenant_admin', 'platform_admin'),
   audit('connector.delete'),
   async (req, res) => {
-    const tenantConnector = tenantConnectors.get(req.params.id);
+    const tenantConnector = await getTenantConnector(req.params.id);
 
     if (!tenantConnector || tenantConnector.tenantId !== req.tenantId) {
       return res.status(404).json({
@@ -787,7 +786,7 @@ router.delete(
       });
     }
 
-    tenantConnectors.delete(req.params.id);
+    await deleteTenantConnector(req.params.id);
 
     res.json({
       success: true,
@@ -932,4 +931,4 @@ router.post(
   }
 );
 
-export { router as connectorsRouter, CONNECTOR_CATALOG, tenantConnectors };
+export { router as connectorsRouter, CONNECTOR_CATALOG };

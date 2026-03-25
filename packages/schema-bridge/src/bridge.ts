@@ -27,6 +27,7 @@ import { MappingGenerator } from './mapping-generator.js';
 import { ChangeReporter } from './change-reporter.js';
 import { ClientUpdater } from './client-updater.js';
 import { createMappingMemoryOntologyProvider, updateMemoryEntry } from './mapping-memory-provider.js';
+import { runLlmEscalations } from './llm-escalation.js';
 import type { OntologyProvider } from './types.js';
 
 export class SchemaBridge {
@@ -43,6 +44,7 @@ export class SchemaBridge {
   private readonly similarityConfig: Pick<SchemaBridgeConfig, 'businessTypeWeights' | 'decisionPolicy'>;
   private readonly memoryVetoRatio: number | undefined;
   private readonly memoryMinSamples: number | undefined;
+  private readonly anthropicApiKey: string | undefined;
 
   constructor(config: SchemaBridgeConfig = {}) {
     this.memoryEntries = [...(config.mappingMemory ?? [])];
@@ -53,6 +55,7 @@ export class SchemaBridge {
     };
     this.memoryVetoRatio = config.rejectionVetoRatio;
     this.memoryMinSamples = config.rejectionMinSamples;
+    this.anthropicApiKey = config.anthropicApiKey;
 
     this.inferrer = new SchemaInferrer({
       businessTypeProviders: config.businessTypeProviders,
@@ -156,10 +159,32 @@ export class SchemaBridge {
     }, 'Diff completado');
 
     // ── 4. Resolver conflictos ─────────────────────────────────────────────────
-    const resolvedConflicts = this.resolver.resolveAll(mergedDiffs, options);
+    let resolvedConflicts = this.resolver.resolveAll(mergedDiffs, options);
+
+    // ── 4b. LLM escalation para pares ambiguos (opcional, off by default) ──────
+    if (options.enableLlmEscalation && this.anthropicApiKey) {
+      resolvedConflicts = await runLlmEscalations(
+        resolvedConflicts,
+        this.anthropicApiKey,
+        options.maxLlmEscalations,
+        this.logger,
+      );
+    }
 
     // ── 5. Generar mappings y código TypeScript ────────────────────────────────
     const mappings = this.mapper.generate(resolvedConflicts);
+
+    for (const m of mappings) {
+      if (m.pathA || m.pathB) {
+        this.logger.info({
+          pathA: m.pathA,
+          pathB: m.pathB,
+          confidence: m.confidence,
+          decisionReason: m.decisionReason,
+        }, 'Field mapping decision');
+      }
+    }
+
     const generatedTransformTs = this.mapper.generateTypeScript(
       mappings, request.connectorAId, request.connectorBId,
     );

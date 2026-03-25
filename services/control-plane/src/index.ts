@@ -15,8 +15,8 @@ export { app } from './server.js';
 
 // Routes
 export { tenantsRouter } from './routes/tenants.js';
-export { tenants } from './store/tenants.js';
-export { connectorsRouter, CONNECTOR_CATALOG, tenantConnectors } from './routes/connectors.js';
+export { getTenant, saveTenant, listTenants } from './store/tenants.js';
+export { connectorsRouter, CONNECTOR_CATALOG } from './routes/connectors.js';
 export { workflowsRouter, workflows, workflowVersions, workflowRuns } from './routes/workflows.js';
 
 // Middleware

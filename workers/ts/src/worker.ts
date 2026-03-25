@@ -5,8 +5,27 @@ import { createLogger } from './logger.js';
 import { processOrderPaid } from './handlers/order-paid.js';
 import { processInvoiceIssued } from './handlers/invoice-issued.js';
 import type { AuditLogger } from './audit.js';
+import { SchemaMismatchError } from '@integrax/connector-sdk';
+import { TemporalClientService } from '@integrax/temporal-workflows';
 
 const logger = createLogger('worker');
+
+// Lazy Temporal client — only initialized when TEMPORAL_ADDRESS is set.
+// Promise-based lock: concurrent jobs share the same init Promise instead of
+// creating multiple clients (which would leak connections).
+let _temporalClientPromise: Promise<TemporalClientService | null> | null = null;
+
+function getTemporalClient(): Promise<TemporalClientService | null> {
+  if (!process.env.TEMPORAL_ADDRESS) return Promise.resolve(null);
+  if (!_temporalClientPromise) {
+    _temporalClientPromise = (async () => {
+      const c = new TemporalClientService();
+      await c.connect();
+      return c;
+    })();
+  }
+  return _temporalClientPromise;
+}
 
 export interface TaskPayload {
   eventType: string;
@@ -121,6 +140,36 @@ export async function createWorker(auditLogger: AuditLogger): Promise<Worker> {
           error: errorMessage,
           durationMs,
         }, 'Task failed');
+
+        // If a connector detected a schema mismatch, trigger an async schema diff
+        // workflow in Temporal so the platform can auto-detect and learn the delta.
+        if (error instanceof SchemaMismatchError) {
+          const mismatch: SchemaMismatchError = error;
+          const temporal = await getTemporalClient().catch(() => null);
+          if (temporal) {
+            // Deterministic ID: Temporal rejects duplicates with WorkflowExecutionAlreadyStarted,
+            // so a BullMQ retry of the same SchemaMismatchError won't spawn a second workflow.
+            const workflowId = `schemaDiff-${tenantId}-${mismatch.expectedSchemaId}`;
+            await temporal.startSchemaDiff(
+              tenantId,
+              {
+                sourceSchemaId: `actual-${mismatch.expectedSchemaId}`,
+                targetSchemaId: mismatch.expectedSchemaId,
+                samplesA: mismatch.sourcePayload && typeof mismatch.sourcePayload === 'object' && !Array.isArray(mismatch.sourcePayload)
+                  ? [mismatch.sourcePayload as Record<string, unknown>]
+                  : [],
+                tenantId,
+                options: { useSampleReservoir: true },
+              },
+              workflowId,
+            ).catch(diffErr => {
+              logger.warn({ diffErr: String(diffErr), workflowId }, 'Failed to start schema diff workflow');
+            });
+            logger.info({ workflowId, expectedSchemaId: mismatch.expectedSchemaId }, 'Schema diff triggered from SchemaMismatchError');
+          } else {
+            logger.warn({ expectedSchemaId: mismatch.expectedSchemaId }, 'TEMPORAL_ADDRESS not set — schema diff not triggered');
+          }
+        }
 
         await auditLogger.log({
           tenantId,
