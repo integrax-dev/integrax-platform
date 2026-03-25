@@ -13,7 +13,7 @@ import type { IntegrationEngine, IdMapper } from './types.js';
  *   INTEGRATION_ENGINE_API_KEY  API key
  *
  * @param idMapper  Mapper opcional de IDs internos → IDs del engine.
- *                  Por defecto es passthrough (tenantId = projectId, flowId = flowVersionId).
+ *                  Por defecto es passthrough (tenantId = tenantRef, flowId = flowId del engine).
  */
 export function createEngine(idMapper?: IdMapper): IntegrationEngine {
   const url = process.env.INTEGRATION_ENGINE_URL;

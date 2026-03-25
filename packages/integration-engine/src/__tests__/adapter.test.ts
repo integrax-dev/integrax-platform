@@ -48,7 +48,7 @@ describe('IdMapper', () => {
   it('aplica el mapper de flowId al trigger', async () => {
     const mapped = new ActivepiecesAdapter('http://engine:8080', 'key', {
       flowId: (_tenant, id) => `external-${id}`,
-      projectId: (tenant) => `proj-${tenant}`,
+      tenantRef: (tenant) => `proj-${tenant}`,
     });
 
     mockOk({ id: 'run-1', status: 'RUNNING', startTime: '2024-01-01T00:00:00Z' });
@@ -57,7 +57,7 @@ describe('IdMapper', () => {
     const [, init] = fetchMock.mock.calls[0];
     const body = JSON.parse(init.body);
     expect(body.flowVersionId).toBe('external-my-flow');
-    expect(body.projectId).toBe('proj-tenant-1');
+    expect(body.tenantRef).toBe('proj-tenant-1');
   });
 
   it('passthrough por defecto cuando no hay mapper', async () => {
@@ -67,7 +67,7 @@ describe('IdMapper', () => {
     const [, init] = fetchMock.mock.calls[0];
     const body = JSON.parse(init.body);
     expect(body.flowVersionId).toBe('flow-x');
-    expect(body.projectId).toBe('ten-y');
+    expect(body.tenantRef).toBe('ten-y');
   });
 });
 
@@ -100,15 +100,15 @@ describe('getRunStatus', () => {
     expect(run.output?.error).toBeUndefined();
   });
 
-  it('lanza 403 si el projectId del run no coincide con el tenant', async () => {
-    mockOk({ id: 'run-x', projectId: 'proj-otro-tenant', status: 'SUCCEEDED', startTime: '2024-01-01T00:00:00Z' });
+  it('lanza 403 si el tenantRef del run no coincide con el tenant', async () => {
+    mockOk({ id: 'run-x', tenantRef: 'proj-otro-tenant', status: 'SUCCEEDED', startTime: '2024-01-01T00:00:00Z' });
     const mapped = new ActivepiecesAdapter('http://engine:8080', 'key', {
-      projectId: (t) => `proj-${t}`,
+      tenantRef: (t) => `proj-${t}`,
     });
     await expect(mapped.getRunStatus('tenant-1', 'run-x')).rejects.toThrow(IntegrationEngineError);
   });
 
-  it('no lanza si el engine no devuelve projectId (campo ausente)', async () => {
+  it('no lanza si el engine no devuelve tenantRef (campo ausente)', async () => {
     mockOk({ id: 'run-y', status: 'SUCCEEDED', startTime: '2024-01-01T00:00:00Z' });
     const run = await adapter.getRunStatus('tenant-1', 'run-y');
     expect(run.runId).toBe('run-y');
@@ -133,25 +133,25 @@ describe('getRunStatus', () => {
 // ─── cancelRun ────────────────────────────────────────────────────────────────
 
 describe('cancelRun', () => {
-  it('llama a POST stop con el runId y projectId correctos', async () => {
+  it('llama a POST stop con el runId y tenantRef correctos', async () => {
     mockOk({});
     await adapter.cancelRun('tenant-1', 'run-abc');
 
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toContain('/v1/flow-runs/run-abc/requests/stop');
-    expect(url).toContain('projectId=tenant-1');
+    expect(url).toContain('tenantRef=tenant-1');
     expect(init.method).toBe('POST');
   });
 
-  it('aplica el mapper de projectId en cancelRun', async () => {
+  it('aplica el mapper de tenantRef en cancelRun', async () => {
     const mapped = new ActivepiecesAdapter('http://engine:8080', 'key', {
-      projectId: (t) => `proj-${t}`,
+      tenantRef: (t) => `proj-${t}`,
     });
     mockOk({});
     await mapped.cancelRun('tenant-1', 'run-xyz');
 
     const [url] = fetchMock.mock.calls[0];
-    expect(url).toContain('projectId=proj-tenant-1');
+    expect(url).toContain('tenantRef=proj-tenant-1');
   });
 });
 

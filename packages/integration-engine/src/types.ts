@@ -28,13 +28,19 @@ export interface TriggerFlowInput {
 /**
  * Traduce IDs internos de IntegraX a IDs del engine subyacente.
  * Por defecto es passthrough (identidad).
- * Sobrescribir cuando tenantId ≠ projectId o flowId ≠ flowVersionId en el engine.
+ * Sobrescribir cuando el tenantId interno no coincide con el identificador de tenant
+ * que usa el engine (project, workspace, organization, etc.), o cuando el flowId
+ * interno no coincide con el ID de flow del engine.
  */
 export interface IdMapper {
   /** Convierte un flowId interno al ID que usa el engine. */
   flowId?: (tenantId: string, internalFlowId: string) => string;
-  /** Convierte un tenantId al projectId (o equivalente) del engine. */
-  projectId?: (tenantId: string) => string;
+  /**
+   * Convierte un tenantId interno al identificador de "tenant" del engine.
+   * El nombre del concepto varía según el engine: project (Activepieces),
+   * workspace (n8n), organization (Zapier), etc.
+   */
+  tenantRef?: (tenantId: string) => string;
 }
 
 export interface IntegrationEngine {
