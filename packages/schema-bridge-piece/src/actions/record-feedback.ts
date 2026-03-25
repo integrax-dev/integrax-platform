@@ -50,7 +50,7 @@ export async function buildRecordFeedbackPieceAction() {
       confidence: Property.Number({ displayName: 'Confidence (0-1)', required: true }),
     },
     async run(ctx) {
-      const auth = ctx.auth as { controlPlaneUrl: string; apiKey: string };
+      const auth = ctx.auth as unknown as { controlPlaneUrl: string; apiKey: string };
       return runRecordFeedback({
         controlPlaneUrl: auth.controlPlaneUrl,
         apiKey: auth.apiKey,
