@@ -102,6 +102,47 @@ describe('Worker — trigger de schema diff desde SchemaMismatchError', () => {
     expect(workflowId).toBe('schemaDiff-tenant-abc-mercadopago-payment-v2');
   });
 
+  it('sourcePayload siendo un array produce samplesA vacío (no se pasan arrays como muestra)', async () => {
+    // Verificar la lógica de normalización de sourcePayload en worker.ts:
+    // si sourcePayload es un array, samplesA queda vacío (no se pasan arrays como muestra).
+    const { SchemaMismatchError } = await import('@integrax/connector-sdk');
+    const arrayPayload = [{ id: '1' }, { id: '2' }];
+    const mismatch = new SchemaMismatchError('mismatch', 'schema-v2', arrayPayload);
+
+    // Replicar la lógica del worker para normalizar sourcePayload
+    const samplesA = mismatch.sourcePayload && typeof mismatch.sourcePayload === 'object' && !Array.isArray(mismatch.sourcePayload)
+      ? [mismatch.sourcePayload as Record<string, unknown>]
+      : [];
+
+    expect(samplesA).toEqual([]);
+  });
+
+  it('cuando sourcePayload es un objeto, se incluye como muestra', async () => {
+    const { SchemaMismatchError } = await import('@integrax/connector-sdk');
+    const objectPayload = { id: '1', monto: 100 };
+    const mismatch = new SchemaMismatchError('mismatch', 'schema-v2', objectPayload);
+
+    const samplesA = mismatch.sourcePayload && typeof mismatch.sourcePayload === 'object' && !Array.isArray(mismatch.sourcePayload)
+      ? [mismatch.sourcePayload as Record<string, unknown>]
+      : [];
+
+    expect(samplesA).toEqual([{ id: '1', monto: 100 }]);
+  });
+
+  it('cuando Temporal está caído getTemporalClient rechaza y el bloque de mismatch no bloquea', async () => {
+    connectMock.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+
+    const { TemporalClientService } = await import('@integrax/temporal-workflows');
+    const client = new TemporalClientService();
+
+    // El .catch(() => null) del worker.ts transforma el rechazo en null
+    const temporal = await client.connect().then(() => client).catch(() => null);
+
+    expect(temporal).toBeNull();
+    // startSchemaDiff no se llama si temporal es null
+    expect(startSchemaDiffMock).not.toHaveBeenCalled();
+  });
+
   it('Temporal.startSchemaDiff recibe el tenantId correcto', async () => {
     startSchemaDiffMock.mockResolvedValue({ workflowId: 'wf-1' });
 

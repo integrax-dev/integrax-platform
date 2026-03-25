@@ -224,9 +224,6 @@ export class SchemaBridge {
   }
 
   /**
-   * Genera el Markdown del reporte para un BridgeReport existente.
-   */
-  /**
    * Registra el feedback del operador sobre un par de campos.
    * Actualiza la memoria interna. Llamar a `getMemorySnapshot()` para obtener
    * el estado actualizado y persistirlo.
@@ -249,6 +246,7 @@ export class SchemaBridge {
     return [...this.memoryEntries];
   }
 
+  /** Genera el Markdown del reporte para un BridgeReport existente. */
   toMarkdown(report: BridgeReport): string {
     return this.reporter.toMarkdown(
       report.requirementsReport,

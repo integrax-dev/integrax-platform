@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { ulid } from 'ulid';
 import { TemporalClientService } from '@integrax/temporal-workflows';
 import { requireAuth, requireTenant } from '../middleware/auth.js';
 import { audit } from '../middleware/audit.js';
@@ -15,9 +16,11 @@ const logger = createLogger({ service: 'control-plane:schemas', version: '0.1.0'
 // Lock basado en Promise: requests concurrentes comparten la misma Promise de init
 // en vez de crear múltiples clientes (lo que filtraría conexiones).
 // Si la Promise rechaza (Temporal caído), se nullea para que el próximo request vuelva a intentarlo.
-let _temporalClientPromise: Promise<TemporalClientService> | null = null;
+// Si TEMPORAL_ADDRESS no está configurado, devuelve null sin intentar conectar.
+let _temporalClientPromise: Promise<TemporalClientService | null> | null = null;
 
-function getTemporalClient(): Promise<TemporalClientService> {
+function getTemporalClient(): Promise<TemporalClientService | null> {
+  if (!process.env.TEMPORAL_ADDRESS) return Promise.resolve(null);
   if (!_temporalClientPromise) {
     _temporalClientPromise = (async () => {
       const c = new TemporalClientService();
@@ -57,14 +60,24 @@ router.post(
   '/diff',
   requireAuth,
   requireTenant,
+  rateLimit({ maxRequests: 30, windowMs: 60_000 }),
   validate(startSchemaDiffOpts),
   audit('schemas.diff.start'),
   async (req: Request, res: Response) => {
     try {
       const tenantId = req.tenantId!;
       const client = await getTemporalClient();
+
+      if (!client) {
+        return res.status(503).json({
+          success: false,
+          error: { code: 'TEMPORAL_UNAVAILABLE', message: 'Schema diff service is not configured' },
+        });
+      }
+
       const { sourceSchemaId, targetSchemaId, samplesA, samplesB, options } = req.body;
-      const workflowId = `schemaDiff-${tenantId}-${Date.now()}`;
+      // ulid() garantiza unicidad incluso con múltiples requests en el mismo milisegundo
+      const workflowId = `schemaDiff-${tenantId}-${ulid()}`;
 
       const handle = await client.startSchemaDiff(tenantId, {
         sourceSchemaId,
@@ -115,6 +128,12 @@ router.get(
       }
 
       const client = await getTemporalClient();
+      if (!client) {
+        return res.status(503).json({
+          success: false,
+          error: { code: 'TEMPORAL_UNAVAILABLE', message: 'Schema diff service is not configured' },
+        });
+      }
       const status = await client.getWorkflowStatus(workflowId);
 
       let reportLink: string | null = null;

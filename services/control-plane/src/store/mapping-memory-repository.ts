@@ -84,6 +84,8 @@ export async function loadMappingMemory(
   const cached = await cacheAdapter.get(key);
   if (cached) return cached;
 
+  // LIMIT 500: evita cargar miles de filas históricas en RAM.
+  // Índice recomendado: CREATE INDEX ON schema_mapping_memory (tenant_id, source_connector_id, target_connector_id);
   const result = await pool.query<MemoryRow>(
     `SELECT source_connector_id, target_connector_id,
             source_path, target_path,
@@ -93,7 +95,8 @@ export async function loadMappingMemory(
      WHERE tenant_id = $1
        AND source_connector_id = $2
        AND target_connector_id = $3
-     ORDER BY accepted_count + rejected_count DESC`,
+     ORDER BY accepted_count + rejected_count DESC
+     LIMIT 500`,
     [tenantId, connectorAId, connectorBId],
   );
 
