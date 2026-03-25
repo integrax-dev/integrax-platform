@@ -62,23 +62,23 @@ export class MemoryCacheAdapter<T = unknown> implements ICacheAdapter<T> {
       this.store.delete(key);
       return null;
     }
-    // LRU touch: move to end
+    // Toque LRU: mover al final del Map para marcarlo como reciente
     this.store.delete(key);
     this.store.set(key, entry);
     return entry.value;
   }
 
   async set(key: string, value: T, ttlMs: number): Promise<void> {
-    this.store.delete(key); // move to end if re-set
+    this.store.delete(key); // mover al final si se re-establece
     this.store.set(key, { value, expiresAt: Date.now() + ttlMs });
     if (this.store.size > this.maxEntries) {
-      // Evict oldest (first entry)
+      // Evictar la entrada más antigua (primera del Map)
       this.store.delete(this.store.keys().next().value!);
       this.evictionCount++;
       if (this.evictionCount % 10 === 1) {
-        // Log every 10th eviction to avoid log spam while still surfacing pressure.
-        // If evictions are frequent, consider switching to RedisCacheAdapter.
-        console.warn(`[MemoryCacheAdapter] LRU eviction #${this.evictionCount} — cache pressure detected (maxEntries=${this.maxEntries})`);
+        // Log cada 10 evictions para no saturar los logs pero detectar presión.
+        // Si las evictions son frecuentes, considerar migrar a RedisCacheAdapter.
+        console.warn(`[MemoryCacheAdapter] LRU eviction #${this.evictionCount} — presión de cache detectada (maxEntries=${this.maxEntries})`);
       }
     }
   }

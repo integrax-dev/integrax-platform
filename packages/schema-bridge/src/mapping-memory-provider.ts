@@ -48,13 +48,13 @@ function isVetoed(
 function confidenceScore(entry: MappingMemoryEntry): number {
   const total = entry.acceptedCount + entry.rejectedCount;
   const acceptanceRatio = total === 0 ? 0 : entry.acceptedCount / total;
-  // log10(10) === 1, so dividing by it is a no-op — kept implicit for clarity.
-  // Saturates at 10 samples: log10(11) ≈ 1.04, clamped to 1 by Math.min.
+  // log10(10) === 1, dividir por eso es un no-op — se mantiene implícito por claridad.
+  // Satura en 10 muestras: log10(11) ≈ 1.04, recortado a 1 por Math.min.
   const experienceBoost = Math.min(1, Math.log10(total + 1));
   return Math.max(
     0.55,
-    // Weights sum to 0.99 (not 1.0) intentionally — score can never reach 1.0,
-    // preserving a margin that signals "human-validated but still probabilistic".
+    // Los pesos suman 0.99 (no 1.0) intencionalmente — el score nunca puede llegar a 1.0,
+    // preservando un margen que indica "validado por humano pero aún probabilístico".
     Math.min(0.99, entry.averageConfidence * 0.60 + acceptanceRatio * 0.25 + experienceBoost * 0.14),
   );
 }
@@ -144,7 +144,7 @@ export function createMappingMemoryOntologyProvider(
 
     byPathPair.set(`${sourcePath}=>${targetPath}`, entry);
 
-    // On leaf collision keep the entry with the most total feedback (most experience).
+    // En colisión de leaf, conservar la entrada con más feedback total (más experiencia).
     const leafKey = `${sourceLeaf}=>${targetLeaf}`;
     const existing = byLeafPair.get(leafKey);
     const entryTotal = entry.acceptedCount + entry.rejectedCount;

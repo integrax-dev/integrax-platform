@@ -1,5 +1,5 @@
 /**
- * Authentication and Authorization Middleware
+ * Middleware de autenticación y autorización
  */
 
 import { Request, Response, NextFunction } from 'express';
@@ -8,7 +8,7 @@ import * as bcrypt from 'bcrypt';
 import { UserRole } from '../types.js';
 import { getTenant } from '../store/tenants.js';
 
-// Extend Express Request type
+// Extender el tipo Request de Express
 declare global {
   namespace Express {
     interface Request {
@@ -23,7 +23,7 @@ declare global {
   }
 }
 
-// JWT secret - REQUIRED in production
+// JWT secret — REQUERIDO en producción
 function getJwtSecret(): Uint8Array {
   const secret = process.env.JWT_SECRET;
 
@@ -41,7 +41,7 @@ function getJwtSecret(): Uint8Array {
 const JWT_SECRET = getJwtSecret();
 
 /**
- * Authenticate request via JWT or API key
+ * Autentica el request via JWT o API key
  */
 export async function requireAuth(
   req: Request,
@@ -58,7 +58,7 @@ export async function requireAuth(
       });
     }
 
-    // Handle Bearer token (JWT)
+    // Manejar Bearer token (JWT)
     if (authHeader.startsWith('Bearer ')) {
       const token = authHeader.slice(7);
 
@@ -85,7 +85,7 @@ export async function requireAuth(
       }
     }
 
-    // Handle API key (for tenant-level access)
+    // Manejar API key (para acceso a nivel tenant)
     if (authHeader.startsWith('ApiKey ')) {
       const apiKey = authHeader.slice(7);
       const tenantId = req.headers['x-tenant-id'] as string;
@@ -97,7 +97,7 @@ export async function requireAuth(
         });
       }
 
-      // Validate API key against tenant's stored hash
+      // Validar el API key contra el hash almacenado del tenant
       if (!apiKey.startsWith('ixk_')) {
         return res.status(401).json({
           success: false,
@@ -152,7 +152,7 @@ export async function requireAuth(
 }
 
 /**
- * Require specific role(s)
+ * Requiere rol(es) específico(s)
  */
 export function requireRole(...allowedRoles: UserRole[]) {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -163,7 +163,7 @@ export function requireRole(...allowedRoles: UserRole[]) {
       });
     }
 
-    // Platform admin has access to everything
+    // El platform admin tiene acceso a todo
     if (req.user.role === 'platform_admin') {
       return next();
     }
@@ -183,15 +183,15 @@ export function requireRole(...allowedRoles: UserRole[]) {
 }
 
 /**
- * Require tenant context
+ * Requiere contexto de tenant
  */
 export function requireTenant(req: Request, res: Response, next: NextFunction) {
   if (!req.tenantId) {
-    // Try to get from header
+    // Intentar obtener desde el header
     const headerTenantId = req.headers['x-tenant-id'] as string;
 
     if (headerTenantId) {
-      // Verify user has access to this tenant
+      // Verificar que el usuario tenga acceso a este tenant
       if (req.user?.role !== 'platform_admin' && req.user?.tenantId !== headerTenantId) {
         return res.status(403).json({
           success: false,
@@ -213,7 +213,7 @@ export function requireTenant(req: Request, res: Response, next: NextFunction) {
 }
 
 /**
- * Generate JWT token for user
+ * Genera un JWT token para el usuario
  */
 export async function generateToken(user: {
   id: string;
@@ -236,7 +236,7 @@ export async function generateToken(user: {
 }
 
 /**
- * Verify webhook signature
+ * Verifica la firma del webhook
  */
 export function verifyWebhookSignature(
   payload: string,

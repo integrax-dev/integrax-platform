@@ -1,9 +1,9 @@
 /**
- * SchemaDiffs Page — Schema Diff Reports
+ * Página SchemaDiffs — Reportes de comparación de schemas
  *
- * Lists schema diff reports for the current tenant.
- * Operators can review mapping suggestions and submit accept/reject feedback
- * that feeds back into the schema-bridge learning memory.
+ * Lista los reportes de diff de schemas para el tenant actual.
+ * Los operadores pueden revisar los mappings sugeridos y enviar feedback
+ * de aceptación/rechazo que retroalimenta la memoria de aprendizaje del schema-bridge.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -54,7 +54,7 @@ export function SchemaDiffs() {
   const [error, setError] = useState<string | null>(null);
   const [feedbackStatus, setFeedbackStatus] = useState<Record<string, 'accepted' | 'rejected'>>({});
   const [submitting, setSubmitting] = useState<string | null>(null);
-  // Tracks the id of the last loadReport call to discard out-of-order responses (T-05).
+  // Guarda el id de la última llamada a loadReport para descartar respuestas fuera de orden.
   const currentReportRequestId = useRef<string | null>(null);
 
   const loadReports = useCallback(async () => {
@@ -80,7 +80,7 @@ export function SchemaDiffs() {
       const result = await fetchAdminJson<{ success: boolean; data: DiffReport }>(
         `/api/schemas/reports/${id}`
       );
-      if (currentReportRequestId.current !== id) return; // discard stale response
+      if (currentReportRequestId.current !== id) return; // descartar respuesta obsoleta
       setSelectedReport(result.data);
       setFeedbackStatus({});
     } catch (err) {
@@ -136,7 +136,7 @@ export function SchemaDiffs() {
       )}
 
       <div className="split-layout">
-        {/* Report list */}
+        {/* Lista de reportes */}
         <div className="split-left">
           <div className="card">
             <div className="card-header">
@@ -175,7 +175,7 @@ export function SchemaDiffs() {
           </div>
         </div>
 
-        {/* Report detail */}
+        {/* Detalle del reporte */}
         <div className="split-right">
           {!selectedReport && (
             <div className="card empty-state-card">

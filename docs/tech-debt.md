@@ -59,3 +59,23 @@ en español para el operador. Es UX, no precisión.
 1. Endpoint `POST /api/schemas/reports/:id/explain` en `routes/schemas.ts`
 2. Handler carga el report de Postgres → llama `drift-analyzer.analyzeReport(report)`
 3. Devuelve markdown/texto para el panel de admin
+
+---
+
+## TD-004 — Paginación por cursor en listTenants (control-plane)
+
+**Prioridad:** Baja — activar cuando haya decenas de miles de tenants.
+
+`store/tenants.ts → listTenants()` usa paginación por offset (`LIMIT $1 OFFSET $2`).
+Con > 10.000 tenants, los offsets altos hacen full-scan de la tabla.
+
+**Cuándo se convierte en problema:** si la plataforma supera ~10.000 tenants y
+el endpoint `GET /api/tenants` empieza a tardar > 200ms en páginas tardías.
+
+**Cómo migrar:** reemplazar offset por cursor basado en `(created_at, id)`:
+```sql
+WHERE created_at > $cursor_at OR (created_at = $cursor_at AND id > $cursor_id)
+ORDER BY created_at ASC, id ASC
+LIMIT $page_size
+```
+El response debe incluir un `nextCursor` opaco en lugar de `page/totalPages`.

@@ -1,5 +1,5 @@
 /**
- * Tenant Management API Routes
+ * Rutas de la API de gestión de tenants
  */
 
 import { Router, Request, Response } from 'express';
@@ -20,7 +20,7 @@ import { getTenant, saveTenant, listTenants } from '../store/tenants.js';
 
 const router: Router = Router();
 
-// Default limits per plan
+// Límites por defecto según el plan
 const PLAN_LIMITS: Record<TenantPlan, typeof TenantLimitsSchema._type> = {
   free: {
     requestsPerMinute: 30,
@@ -57,7 +57,7 @@ const PLAN_LIMITS: Record<TenantPlan, typeof TenantLimitsSchema._type> = {
 };
 
 /**
- * POST /tenants - Create a new tenant
+ * POST /tenants - Crea un nuevo tenant
  */
 router.post(
   '/',
@@ -101,7 +101,7 @@ router.post(
 );
 
 /**
- * GET /tenants - List all tenants (platform admin only)
+ * GET /tenants - Lista todos los tenants (solo platform_admin)
  */
 router.get(
   '/',
@@ -129,7 +129,7 @@ router.get(
 );
 
 /**
- * GET /tenants/:id - Get tenant details
+ * GET /tenants/:id - Obtiene los detalles de un tenant
  */
 router.get(
   '/:id',
@@ -160,7 +160,7 @@ router.get(
 );
 
 /**
- * PATCH /tenants/:id - Update tenant
+ * PATCH /tenants/:id - Actualiza un tenant
  */
 router.patch(
   '/:id',
@@ -204,7 +204,7 @@ router.patch(
 );
 
 /**
- * POST /tenants/:id/suspend - Suspend a tenant
+ * POST /tenants/:id/suspend - Suspende un tenant
  */
 router.post(
   '/:id/suspend',
@@ -233,7 +233,7 @@ router.post(
 );
 
 /**
- * POST /tenants/:id/resume - Resume a suspended tenant
+ * POST /tenants/:id/resume - Reactiva un tenant suspendido
  */
 router.post(
   '/:id/resume',
@@ -262,7 +262,7 @@ router.post(
 );
 
 /**
- * POST /tenants/:id/rotate-api-key - Rotate API key
+ * POST /tenants/:id/rotate-api-key - Rota la API key del tenant
  */
 router.post(
   '/:id/rotate-api-key',
@@ -302,7 +302,7 @@ router.post(
 );
 
 /**
- * DELETE /tenants/:id - Cancel a tenant (soft delete)
+ * DELETE /tenants/:id - Cancela un tenant (soft delete)
  */
 router.delete(
   '/:id',

@@ -1,7 +1,7 @@
 import { pool } from './db.js';
 import type { TenantConnector, ConnectorStatus } from '../types.js';
 
-// ─── Row → Domain ─────────────────────────────────────────────────────────────
+// ─── Fila → Dominio ───────────────────────────────────────────────────────────
 
 interface TenantConnectorRow {
   id: string;
@@ -29,7 +29,7 @@ function rowToTenantConnector(row: TenantConnectorRow): TenantConnector {
   };
 }
 
-// ─── Repository functions ─────────────────────────────────────────────────────
+// ─── Funciones del repositorio ────────────────────────────────────────────────
 
 export async function getTenantConnector(id: string): Promise<TenantConnector | null> {
   const result = await pool.query<TenantConnectorRow>(
@@ -59,10 +59,10 @@ export async function listTenantConnectors(tenantId: string): Promise<TenantConn
 }
 
 /**
- * Upsert a tenant connector.
- * Uses ON CONFLICT (tenant_id, connector_id) — the natural unique key — so
- * concurrent requests for the same connector never cause a constraint violation.
- * Returns the actual stored id (may differ from tc.id on conflict).
+ * Upsert de un conector de tenant.
+ * Usa ON CONFLICT (tenant_id, connector_id) — la clave única natural — para que
+ * requests concurrentes sobre el mismo conector nunca generen una violación de constraint.
+ * Devuelve el id real guardado por Postgres (puede diferir de tc.id en caso de conflicto).
  */
 export async function saveTenantConnector(tc: TenantConnector): Promise<string> {
   const result = await pool.query<{ id: string }>(

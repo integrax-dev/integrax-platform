@@ -13,7 +13,7 @@ import { z } from 'zod';
 
 const router: Router = Router();
 
-// Temporal client (singleton per worker)
+// Cliente Temporal (singleton por worker)
 let temporalClient: TemporalClientService | null = null;
 
 async function getTemporalClient(): Promise<TemporalClientService> {
@@ -24,7 +24,7 @@ async function getTemporalClient(): Promise<TemporalClientService> {
   return temporalClient;
 }
 
-// Schemas
+// Schemas de validación
 const startPaymentSchema = z.object({
   paymentId: z.string().optional(),
   source: z.enum(['webhook', 'api', 'cdc']).default('api'),
@@ -150,7 +150,7 @@ router.get(
       const { workflowId } = req.params;
       const tenantId = req.tenantId!;
 
-      // Validate tenant owns this workflow
+      // Verificar que el workflow pertenece al tenant
       if (!workflowId.startsWith(tenantId)) {
         return res.status(403).json({
           success: false,
@@ -234,7 +234,7 @@ router.post(
       const { workflowId } = req.params;
       const tenantId = req.tenantId!;
 
-      // Validate tenant owns this workflow
+      // Verificar que el workflow pertenece al tenant
       if (!workflowId.startsWith(tenantId)) {
         return res.status(403).json({
           success: false,
@@ -293,7 +293,7 @@ router.post(
         });
       }
 
-      // Validate tenant owns this workflow
+      // Verificar que el workflow pertenece al tenant
       if (!workflowId.startsWith(tenantId)) {
         return res.status(403).json({
           success: false,
@@ -341,7 +341,7 @@ router.get(
       const { workflowId } = req.params;
       const tenantId = req.tenantId!;
 
-      // Validate tenant owns this workflow
+      // Verificar que el workflow pertenece al tenant
       if (!workflowId.startsWith(tenantId)) {
         return res.status(403).json({
           success: false,

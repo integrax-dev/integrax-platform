@@ -39,7 +39,7 @@ export class SchemaBridge {
   private readonly updater: ClientUpdater;
   private readonly logger: Required<SchemaBridgeConfig>['logger'];
   private memoryEntries: MappingMemoryEntry[];
-  // Stored for per-compare SimilarityEngine creation with connector-scoped memory.
+  // Guardado para crear SimilarityEngine por llamada a compare() con memoria scoped al conector.
   private readonly baseOntologyProviders: OntologyProvider[];
   private readonly similarityConfig: Pick<SchemaBridgeConfig, 'businessTypeWeights' | 'decisionPolicy'>;
   private readonly memoryVetoRatio: number | undefined;
@@ -126,9 +126,9 @@ export class SchemaBridge {
     const rawDiffs = this.differ.diff(schemaA, schemaB);
 
     // ── 3. Detectar renombrados ────────────────────────────────────────────────
-    // Build a connector-scoped SimilarityEngine for this compare call.
-    // Global entries (no connector scope) always apply; connector-specific entries
-    // only apply when their connector pair matches the current request.
+    // Construir un SimilarityEngine con scope de conector para esta llamada a compare().
+    // Las entradas globales (sin scope de conector) siempre aplican; las específicas
+    // solo aplican cuando el par de conectores coincide con la solicitud actual.
     const scopedMemory = this.memoryEntries.filter(e =>
       (!e.connectorAId && !e.connectorBId) ||
       (e.connectorAId === request.connectorAId && e.connectorBId === request.connectorBId),

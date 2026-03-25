@@ -312,12 +312,12 @@ function buildValueProfile(node: SchemaNode): ValueProfile {
     counts.set(normalized, (counts.get(normalized) ?? 0) + 1);
   }
 
-  // For object/array container nodes that carry no leaf examples, build a structural
-  // signature from their child field names. This lets value-similarity detect that
-  // orders[*] and salesOrders[*] share children like "id", "status", "total" even
-  // when the container names are completely different.
-  // Cap at 0.35 contribution (enforced in valueSimilarity) so this signal alone
-  // cannot push a pair into auto-accept — it only supplements lexical/structural.
+  // Para nodos contenedor (object/array) sin ejemplos leaf, construir una firma estructural
+  // a partir de los nombres de sus campos hijo. Esto permite que value-similarity detecte que
+  // orders[*] y salesOrders[*] comparten hijos como "id", "status", "total" incluso cuando
+  // los nombres del contenedor son completamente distintos.
+  // Capped en 0.35 (forzado en valueSimilarity) para que esta señal sola no lleve un par
+  // a auto-accept — solo complementa la señal léxica/estructural.
   if (counts.size === 0) {
     const childKeys =
       node.children
@@ -344,8 +344,8 @@ function valueSimilarity(nodeA: SchemaNode | null, nodeB: SchemaNode | null, wei
   const profileB = buildValueProfile(nodeB);
   if (profileA.total === 0 || profileB.total === 0) return 0;
 
-  // Detect if both profiles are structural (container) signatures, not real values.
-  // Container signatures get a dampened score: max 0.35 to prevent false auto-accepts.
+  // Detectar si ambos perfiles son firmas estructurales (contenedor), no valores reales.
+  // Las firmas de contenedor reciben un score amortiguado: máx 0.35 para evitar falsos auto-accept.
   const bothStructural = nodeA.examples.length === 0 && nodeB.examples.length === 0;
 
   const sharedTokens = [...profileA.counts.keys()].filter(token => profileB.counts.has(token));
@@ -374,7 +374,7 @@ function valueSimilarity(nodeA: SchemaNode | null, nodeB: SchemaNode | null, wei
   const distributionSignal = Math.sqrt(Math.max(0, entropyAlignment) * Math.max(0, cardinalityAlignment));
   const score = overlapSignal * (0.65 + 0.35 * distributionSignal) * Math.max(0.35, diversityAlignment) * sufficiency * reliability;
 
-  // Container signatures (no real examples) can supplement but never drive auto-accept.
+  // Las firmas de contenedor (sin ejemplos reales) complementan pero nunca impulsan un auto-accept.
   return bothStructural ? Math.min(0.35, clamp01(score)) : clamp01(score);
 }
 

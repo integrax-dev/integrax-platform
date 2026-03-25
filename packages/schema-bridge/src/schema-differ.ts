@@ -64,9 +64,9 @@ function diffEnum(
 
   if (removals === 0 && additions === 0) return { hasChanges: false, breakingScore: 0 };
 
-  // Removal of any enum value is breaking: consumers that send removed values will fail.
-  // Addition of new values is non-breaking for existing consumers (exhaustive switch
-  // statements are the only risk, but that's a consumer code smell, not a schema error).
+  // Eliminar cualquier valor de enum es breaking: los consumers que envíen valores eliminados fallarán.
+  // Agregar nuevos valores es non-breaking para consumers existentes (los switch exhaustivos
+  // son el único riesgo, pero eso es un code smell del consumer, no un error de schema).
   const breakingScore = removals > 0 ? 0.95 : 0.20;
 
   return { hasChanges: true, breakingScore };

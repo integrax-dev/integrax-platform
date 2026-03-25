@@ -1,5 +1,5 @@
 /**
- * Workflow Management API Routes
+ * Rutas de la API de gestión de workflows
  */
 
 import { Router } from 'express';
@@ -19,12 +19,12 @@ import { getTemporalClient, TemporalClientService } from '@integrax/temporal-wor
 
 const router: Router = Router();
 
-// Temporal client instance (lazy initialization)
+// Instancia del cliente Temporal (inicialización lazy)
 let temporalClient: TemporalClientService | null = null;
 let temporalConnected = false;
 
 /**
- * Get connected Temporal client (lazy connection)
+ * Obtiene el cliente Temporal conectado (conexión lazy)
  */
 async function getConnectedTemporalClient(): Promise<TemporalClientService | null> {
   if (!temporalClient) {
@@ -44,13 +44,13 @@ async function getConnectedTemporalClient(): Promise<TemporalClientService | nul
   return temporalClient;
 }
 
-// In-memory stores
+// Stores en memoria
 const workflows = new Map<string, Workflow>();
 const workflowVersions = new Map<string, WorkflowVersion>();
 const workflowRuns = new Map<string, WorkflowRun>();
 
 /**
- * GET /workflows - List tenant's workflows
+ * GET /workflows - Lista los workflows del tenant
  */
 router.get(
   '/',
@@ -68,7 +68,7 @@ router.get(
       tenantWorkflows = tenantWorkflows.filter((w) => w.status === status);
     }
 
-    // Sort by creation date (newest first)
+    // Ordenar por fecha de creación (más reciente primero)
     tenantWorkflows.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
     res.json({
@@ -206,7 +206,7 @@ router.post(
       });
     }
 
-    // Create new version
+    // Crear nueva versión
     const newVersion = workflow.version + 1;
     const versionId = `wfv_${ulid()}`;
 
@@ -222,7 +222,7 @@ router.post(
 
     workflowVersions.set(versionId, version);
 
-    // Update workflow
+    // Actualizar el workflow
     workflow.version = newVersion;
     workflow.status = 'active';
     workflow.publishedAt = new Date();
@@ -326,7 +326,7 @@ router.post(
       });
     }
 
-    // Find the target version
+    // Buscar la versión objetivo
     const version = Array.from(workflowVersions.values()).find(
       (v) => v.workflowId === workflow.id && v.version === targetVersion
     );
@@ -338,7 +338,7 @@ router.post(
       });
     }
 
-    // Restore from version
+    // Restaurar desde la versión
     workflow.trigger = version.trigger;
     workflow.steps = version.steps;
     workflow.version = workflow.version + 1; // New version with old content
@@ -412,14 +412,14 @@ router.get(
       runs = runs.filter((r) => r.status === status);
     }
 
-    // Sort by start time (newest first)
+    // Ordenar por hora de inicio (más reciente primero)
     runs.sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
 
-    // Paginate
+    // Paginar
     const start = (page - 1) * pageSize;
     const data = runs.slice(start, start + pageSize);
 
-    // Mask sensitive data in input/output
+    // Enmascarar datos sensibles en input/output
     const maskedData = data.map((run) => ({
       ...run,
       input: maskSecrets(run.input),
@@ -491,15 +491,15 @@ router.post(
 
     workflowRuns.set(runId, run);
 
-    // Execute workflow via Temporal
+    // Ejecutar el workflow vía Temporal
     const temporal = await getConnectedTemporalClient();
 
     if (temporal) {
       try {
-        // Determine workflow type based on trigger or default to order
+        // Determinar el tipo de workflow según el trigger (default: order)
         const workflowType = (workflow.trigger?.type as any) === 'payment.approved' ? 'payment' : 'order';
 
-        // Start workflow in Temporal
+        // Iniciar el workflow en Temporal
         const handle = await temporal.startWorkflow(
           workflow.tenantId,
           workflowType,
@@ -512,11 +512,11 @@ router.post(
           temporalWorkflowId
         );
 
-        // Update run with Temporal handle info
+        // Actualizar la ejecución con info del handle de Temporal
         run.status = 'running';
         workflowRuns.set(runId, run);
 
-        // Start background task to update run status when workflow completes
+        // Tarea en background para actualizar el estado cuando el workflow complete
         handle.result().then(
           (result: any) => {
             const storedRun = workflowRuns.get(runId);
@@ -565,12 +565,12 @@ router.post(
         });
       }
     } else {
-      // Fallback: Execute workflow steps synchronously (dev mode)
+      // Fallback: ejecutar pasos del workflow de forma síncrona (modo dev)
       console.warn('[Workflows] Temporal not available, running in dev mode');
       run.status = 'running';
       workflowRuns.set(runId, run);
 
-      // Simulate execution (in production, this would be handled by Temporal)
+      // Simular la ejecución (en producción, esto lo maneja Temporal)
       setTimeout(() => {
         const storedRun = workflowRuns.get(runId);
         if (storedRun && storedRun.status === 'running') {

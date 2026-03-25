@@ -66,7 +66,7 @@ export class SimilarityDecisionPolicy {
     const dominantMargin = Math.max(sourceMargin, targetMargin);
     const b             = score.evidenceBreakdown ?? fallbackBreakdown();
 
-    // Rule 1 — Golden path
+    // Regla 1 — Camino dorado
     if (
       score.combined >= Math.max(0.90, this.autoAcceptThreshold) &&
       minMargin >= this.minConfidenceMargin &&
@@ -77,7 +77,7 @@ export class SimilarityDecisionPolicy {
       )
     ) return 'auto_accept';
 
-    // Rule 2 — Value-dominant (works for opaque field names)
+    // Regla 2 — Dominancia de valor (funciona con nombres de campo opacos)
     if (
       score.combined >= Math.max(0.84, this.autoAcceptThreshold - 0.04) &&
       minMargin >= 0.25 &&
@@ -86,7 +86,7 @@ export class SimilarityDecisionPolicy {
       b.sufficiency >= 0.65
     ) return 'auto_accept';
 
-    // Rule 3 — Margin-dominant (overwhelmingly clear winner)
+    // Regla 3 — Dominancia de margen (ganador inequívoco)
     if (
       score.combined >= Math.max(0.80, this.autoAcceptThreshold - 0.08) &&
       (minMargin >= 0.40 || (dominantMargin >= 0.60 && minMargin >= 0.12)) &&
@@ -95,7 +95,7 @@ export class SimilarityDecisionPolicy {
       b.sufficiency >= 0.60
     ) return 'auto_accept';
 
-    // Rule 4 — Semantic certainty (ontology/business-type anchor)
+    // Regla 4 — Certeza semántica (ancla de ontología/tipo de negocio)
     if (
       score.combined >= Math.max(0.80, this.autoAcceptThreshold - 0.08) &&
       minMargin >= 0.12 &&
@@ -104,7 +104,7 @@ export class SimilarityDecisionPolicy {
       b.structural >= 0.70
     ) return 'auto_accept';
 
-    // Rule 5 — Review (good score, some positive signal)
+    // Regla 5 — Revisión (score aceptable, alguna señal positiva)
     if (
       score.combined >= this.reviewThreshold &&
       (

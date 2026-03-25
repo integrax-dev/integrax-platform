@@ -10,9 +10,9 @@ import { TemporalClientService } from '@integrax/temporal-workflows';
 
 const logger = createLogger('worker');
 
-// Lazy Temporal client — only initialized when TEMPORAL_ADDRESS is set.
-// Promise-based lock: concurrent jobs share the same init Promise instead of
-// creating multiple clients (which would leak connections).
+// Cliente Temporal lazy — solo se inicializa si TEMPORAL_ADDRESS está configurado.
+// Lock basado en Promise: los jobs concurrentes comparten la misma Promise de init
+// en vez de crear múltiples clientes (lo que filtraría conexiones).
 let _temporalClientPromise: Promise<TemporalClientService | null> | null = null;
 
 function getTemporalClient(): Promise<TemporalClientService | null> {
@@ -22,7 +22,10 @@ function getTemporalClient(): Promise<TemporalClientService | null> {
       const c = new TemporalClientService();
       await c.connect();
       return c;
-    })();
+    })().catch(err => {
+      _temporalClientPromise = null; // permite reintentar si Temporal estaba caído
+      throw err;
+    });
   }
   return _temporalClientPromise;
 }
@@ -141,14 +144,14 @@ export async function createWorker(auditLogger: AuditLogger): Promise<Worker> {
           durationMs,
         }, 'Task failed');
 
-        // If a connector detected a schema mismatch, trigger an async schema diff
-        // workflow in Temporal so the platform can auto-detect and learn the delta.
+        // Si un conector detectó un schema mismatch, disparar un workflow de schema diff
+        // en Temporal para que la plataforma detecte y aprenda el delta automáticamente.
         if (error instanceof SchemaMismatchError) {
           const mismatch: SchemaMismatchError = error;
           const temporal = await getTemporalClient().catch(() => null);
           if (temporal) {
-            // Deterministic ID: Temporal rejects duplicates with WorkflowExecutionAlreadyStarted,
-            // so a BullMQ retry of the same SchemaMismatchError won't spawn a second workflow.
+            // ID determinístico: Temporal rechaza duplicados con WorkflowExecutionAlreadyStarted,
+            // así que un retry de BullMQ del mismo SchemaMismatchError no crea un segundo workflow.
             const workflowId = `schemaDiff-${tenantId}-${mismatch.expectedSchemaId}`;
             await temporal.startSchemaDiff(
               tenantId,
@@ -162,7 +165,7 @@ export async function createWorker(auditLogger: AuditLogger): Promise<Worker> {
                 options: { useSampleReservoir: true },
               },
               workflowId,
-            ).catch(diffErr => {
+            ).catch((diffErr: unknown) => {
               logger.warn({ diffErr: String(diffErr), workflowId }, 'Failed to start schema diff workflow');
             });
             logger.info({ workflowId, expectedSchemaId: mismatch.expectedSchemaId }, 'Schema diff triggered from SchemaMismatchError');

@@ -56,14 +56,14 @@ if (!process.env.JWT_SECRET) {
 // Logger
 const logger = createLogger({ service: 'control-plane', version: '0.1.0' });
 
-// Security middleware
+// Middleware de seguridad
 app.use(helmet());
 app.use(express.json({ limit: '10mb' }));
 
-// Structured request logging (skips /health and /ready)
+// Logging estructurado de requests (omite /health y /ready)
 app.use(requestLogger(logger));
 
-// Prometheus HTTP metrics
+// Métricas HTTP de Prometheus
 app.use(metricsMiddleware({ excludePaths: ['/health', '/ready', '/metrics'] }));
 
 // Health & Readiness
@@ -87,14 +87,14 @@ app.get('/api', (req, res) => {
   });
 });
 
-// API Routes
+// Rutas de la API
 app.use('/api/tenants', tenantsRouter);
 app.use('/api/connectors', connectorsRouter);
 app.use('/api/workflows', workflowsRouter);
 app.use('/api/workflows/temporal', temporalWorkflowsRouter);
 app.use('/api/schemas', schemasRouter);
 
-// Audit logs endpoint
+// Endpoint de logs de auditoría
 app.get(
   '/api/audit',
   requireAuth,
@@ -102,7 +102,7 @@ app.get(
   (req, res) => {
     const { tenantId, userId, action, startDate, endDate, limit, offset } = req.query;
 
-    // Tenant admins can only see their own tenant's logs
+    // Los tenant admins solo pueden ver los logs de su propio tenant
     const effectiveTenantId =
       req.user?.role === 'tenant_admin' ? req.tenantId : (tenantId as string);
 
@@ -128,7 +128,7 @@ app.get(
   }
 );
 
-// Metrics endpoint (placeholder)
+// Endpoint de métricas (placeholder)
 app.get(
   '/api/metrics',
   requireAuth,
@@ -159,7 +159,7 @@ app.get(
   }
 );
 
-// Error handling
+// Manejo de errores
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   logger.error({ err, path: req.path, method: req.method }, 'Unhandled error');
 
@@ -183,10 +183,10 @@ app.use((req, res) => {
   });
 });
 
-// Start server
+// Iniciar servidor
 const PORT = parsePositiveInt(process.env.PORT, 3000);
 
-// ESM entry point check
+// Verificación de entry point ESM
 const isMainModule = import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}`;
 if (isMainModule || process.env.START_SERVER === 'true') {
   app.listen(PORT, () => {

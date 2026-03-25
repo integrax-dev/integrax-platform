@@ -1,8 +1,8 @@
 /**
  * @integrax/realtime
  *
- * WebSocket server for real-time notifications.
- * Supports tenant-isolated channels and Redis pub/sub for scaling.
+ * Servidor WebSocket para notificaciones en tiempo real.
+ * Soporta canales aislados por tenant y Redis pub/sub para escalar horizontalmente.
  */
 
 import { WebSocket, WebSocketServer } from 'ws';
@@ -11,7 +11,7 @@ import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import type { IncomingMessage } from 'http';
 import { createServer, Server as HttpServer } from 'http';
-import express, { Express } from 'express';
+import express from 'express';
 import { createLogger, Logger } from '@integrax/logger';
 import { createHealthManager, HealthManager } from '@integrax/health';
 import { config as loadEnv } from 'dotenv';
@@ -21,7 +21,7 @@ loadEnv();
 const logger = createLogger({ service: 'realtime', version: '0.1.0' });
 
 // ============================================
-// Types
+// Tipos
 // ============================================
 
 export interface RealtimeConfig {
@@ -60,7 +60,7 @@ export interface BroadcastOptions {
 }
 
 // ============================================
-// Event Types
+// Tipos de Evento
 // ============================================
 
 export type EventType =
@@ -81,7 +81,7 @@ export type EventType =
   | 'schema.diff.failed';
 
 // ============================================
-// WebSocket Server
+// Servidor WebSocket
 // ============================================
 
 export class RealtimeServer {
@@ -116,32 +116,32 @@ export class RealtimeServer {
   async start(): Promise<void> {
     this.logger.info({ port: this.config.port }, 'Starting Realtime server');
 
-    // Initialize Redis
+    // Inicializar Redis
     this.redis = new Redis(this.config.redisUrl);
     this.redisSub = new Redis(this.config.redisUrl);
 
-    // Subscribe to Redis pub/sub for cross-instance messaging and schema-bridge events
+    // Suscribirse a Redis pub/sub para mensajería entre instancias y eventos de schema-bridge
     await this.redisSub.psubscribe('integrax:realtime:*', 'integrax:schema:*');
     this.redisSub.on('pmessage', (_pattern, channel, message) => {
       this.handleRedisMessage(channel, message);
     });
 
-    // Initialize HTTP and health
+    // Inicializar HTTP y health check
     const app = express();
     this.httpServer = createServer(app);
     this.healthManager = createHealthManager('0.1.0');
 
-    // Add health routes
+    // Agregar rutas de health
     app.use(this.healthManager.router());
 
-    // Initialize WebSocket server
-    this.wss = new WebSocketServer({ server: this.httpServer, maxPayload: 64 * 1024 }); // 64 KB — prevents large frame DoS
+    // Inicializar servidor WebSocket
+    this.wss = new WebSocketServer({ server: this.httpServer, maxPayload: 64 * 1024 }); // 64 KB — previene ataques DoS con frames grandes
 
     this.wss.on('connection', (ws, req) => {
       this.handleConnection(ws, req);
     });
 
-    // Start ping interval
+    // Iniciar intervalo de ping
     this.pingInterval = setInterval(() => {
       this.pingClients();
     }, this.config.pingInterval);
@@ -157,14 +157,14 @@ export class RealtimeServer {
       this.pingInterval = null;
     }
 
-    // Close all connections
+    // Cerrar todas las conexiones
     for (const [, conn] of this.connections) {
       conn.ws.close(1001, 'Server shutting down');
     }
     this.connections.clear();
     this.tenantConnections.clear();
 
-    // Close Redis
+    // Cerrar Redis
     if (this.redisSub) {
       await this.redisSub.quit();
     }
@@ -172,12 +172,12 @@ export class RealtimeServer {
       await this.redis.quit();
     }
 
-    // Close WebSocket server
+    // Cerrar servidor WebSocket
     if (this.wss) {
       this.wss.close();
     }
 
-    // Close HTTP server
+    // Cerrar servidor HTTP
     if (this.httpServer) {
       this.httpServer.close();
     }
@@ -186,11 +186,11 @@ export class RealtimeServer {
   }
 
   // ============================================
-  // Connection Handling
+  // Manejo de Conexiones
   // ============================================
 
   private handleConnection(ws: WebSocket, req: IncomingMessage): void {
-    // Authenticate connection
+    // Autenticar la conexión
     const auth = this.authenticateConnection(req);
     if (!auth) {
       ws.close(4001, 'Unauthorized');
@@ -208,7 +208,7 @@ export class RealtimeServer {
 
     this.connections.set(connection.id, connection);
 
-    // Track by tenant
+    // Agrupar por tenant
     if (!this.tenantConnections.has(auth.tenantId)) {
       this.tenantConnections.set(auth.tenantId, new Set());
     }
@@ -216,7 +216,7 @@ export class RealtimeServer {
 
     this.logger.info({ connectionId: connection.id, tenantId: auth.tenantId }, 'Client connected');
 
-    // Send welcome message
+    // Enviar mensaje de bienvenida
     this.send(connection, {
       type: 'event',
       channel: 'system',
@@ -224,28 +224,29 @@ export class RealtimeServer {
       timestamp: new Date().toISOString(),
     });
 
-    // Handle messages
+    // Manejar mensajes entrantes
     ws.on('message', (data) => {
       this.handleMessage(connection, data.toString());
     });
 
-    // Handle close
+    // Manejar cierre de conexión
     ws.on('close', () => {
       this.handleDisconnect(connection);
     });
 
-    // Handle errors
+    // Manejar errores del cliente
     ws.on('error', (error) => {
       this.logger.error({ err: error, connectionId: connection.id }, 'Client error');
     });
   }
 
   private authenticateConnection(req: IncomingMessage): { tenantId: string; userId?: string } | null {
-    // Token accepted from query string (?token=...) or Authorization header.
-    // Token-in-URL is the standard WebSocket auth pattern because browsers can't
-    // set custom headers on the WS handshake. Tradeoff: tokens appear in nginx/proxy
-    // access logs and browser history. Mitigation: filter access logs in production
-    // (e.g., nginx log_format that strips the token param) and use short-lived JWTs.
+    // Token aceptado desde query string (?token=...) o header Authorization.
+    // Token-en-URL es el patrón estándar de auth para WebSocket porque los browsers
+    // no pueden enviar headers custom en el handshake WS. Compromiso: los tokens
+    // aparecen en logs de nginx/proxy y en el historial del browser. Mitigación:
+    // filtrar los logs de acceso en producción (ej: nginx log_format que omite el
+    // parámetro token) y usar JWTs de vida corta.
     const url = new URL(req.url || '', `http://${req.headers.host}`);
     const token = url.searchParams.get('token') || req.headers.authorization?.replace('Bearer ', '');
 
@@ -270,7 +271,7 @@ export class RealtimeServer {
   }
 
   private handleDisconnect(connection: ClientConnection): void {
-    // Remove from tenant connections
+    // Eliminar de las conexiones del tenant
     const tenantConns = this.tenantConnections.get(connection.tenantId);
     if (tenantConns) {
       tenantConns.delete(connection.id);
@@ -284,7 +285,7 @@ export class RealtimeServer {
   }
 
   // ============================================
-  // Message Handling
+  // Manejo de Mensajes
   // ============================================
 
   private handleMessage(connection: ClientConnection, data: string): void {
@@ -324,7 +325,7 @@ export class RealtimeServer {
   }
 
   private subscribe(connection: ClientConnection, channel: string): void {
-    // Validate channel belongs to tenant
+    // Validar que el canal pertenezca al tenant
     if (!this.isValidChannel(connection.tenantId, channel)) {
       this.send(connection, {
         type: 'error',
@@ -354,9 +355,9 @@ export class RealtimeServer {
     });
   }
 
-  private isValidChannel(tenantId: string, channel: string): boolean {
-    // Channels are prefixed with tenant ID for isolation
-    // Allow: workflows, events, connectors, system
+  private isValidChannel(_tenantId: string, channel: string): boolean {
+    // Los canales están prefijados con el tenant ID para aislamiento
+    // Permitidos: workflows, events, connectors, system, alerts, schema
     const validPrefixes = ['workflows', 'events', 'connectors', 'system', 'alerts', 'schema'];
     return validPrefixes.some((prefix) => channel === prefix || channel.startsWith(`${prefix}.`));
   }
@@ -366,12 +367,12 @@ export class RealtimeServer {
   // ============================================
 
   /**
-   * Broadcast event to all connections in a tenant subscribed to a channel
+   * Emite un evento a todas las conexiones de un tenant suscritas al canal dado.
    */
   async broadcast(options: BroadcastOptions): Promise<void> {
     const { tenantId, channel, data, excludeConnectionId } = options;
 
-    // Publish to Redis for cross-instance delivery
+    // Publicar en Redis para entrega cross-instancia
     if (this.redis) {
       await this.redis.publish(
         `integrax:realtime:${tenantId}`,
@@ -379,12 +380,12 @@ export class RealtimeServer {
       );
     }
 
-    // Also deliver locally
+    // También entregar localmente
     this.deliverToTenant(tenantId, channel, data, excludeConnectionId);
   }
 
   private handleRedisMessage(redisChannel: string, message: string): void {
-    // integrax:realtime:{tenantId} — generic realtime broadcast
+    // integrax:realtime:{tenantId} — broadcast realtime genérico entre instancias
     const realtimeMatch = redisChannel.match(/^integrax:realtime:(.+)$/);
     if (realtimeMatch) {
       const tenantId = realtimeMatch[1];
@@ -397,7 +398,7 @@ export class RealtimeServer {
       return;
     }
 
-    // integrax:schema:{tenantId} — schema-bridge diff events
+    // integrax:schema:{tenantId} — eventos de diff de schema-bridge
     const schemaMatch = redisChannel.match(/^integrax:schema:(.+)$/);
     if (schemaMatch) {
       const tenantId = schemaMatch[1];
@@ -437,7 +438,7 @@ export class RealtimeServer {
   }
 
   // ============================================
-  // Event Publishing Helpers
+  // Helpers para Publicar Eventos
   // ============================================
 
   async publishWorkflowEvent(
@@ -520,7 +521,7 @@ export class RealtimeServer {
   }
 
   // ============================================
-  // Utility Methods
+  // Métodos Utilitarios
   // ============================================
 
   private send(connection: ClientConnection, message: RealtimeMessage): void {
@@ -545,7 +546,7 @@ export class RealtimeServer {
   }
 
   // ============================================
-  // Stats
+  // Estadísticas
   // ============================================
 
   getStats(): {
@@ -566,6 +567,7 @@ export class RealtimeServer {
 
 // ============================================
 // Singleton
+// (una sola instancia del servidor por proceso)
 // ============================================
 
 let instance: RealtimeServer | null = null;

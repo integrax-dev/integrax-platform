@@ -1,5 +1,5 @@
 /**
- * Connector Management API Routes
+ * Rutas de la API de gestión de conectores
  */
 
 import { Router } from 'express';
@@ -9,7 +9,6 @@ import {
   ConnectorDefinition,
   TenantConnector,
   ConfigureConnectorSchema,
-  ConnectorStatus,
 } from '../types.js';
 import { requireAuth, requireRole, requireTenant } from '../middleware/auth.js';
 import { audit } from '../middleware/audit.js';
@@ -22,7 +21,7 @@ import {
   deleteTenantConnector,
 } from '../store/tenant-connectors.js';
 
-// Connector test functions - dynamic imports to avoid circular dependencies
+// Funciones de test de conectores — importaciones dinámicas para evitar dependencias circulares
 interface TestConnectionResult {
   success: boolean;
   testedAt: Date;
@@ -34,7 +33,7 @@ interface TestConnectionResult {
 type ConnectorTester = (credentials: Record<string, string>) => Promise<TestConnectionResult>;
 
 /**
- * Test connection for MercadoPago
+ * Prueba la conexión con MercadoPago
  */
 async function testMercadoPago(credentials: Record<string, string>): Promise<TestConnectionResult> {
   const startTime = Date.now();
@@ -52,6 +51,7 @@ async function testMercadoPago(credentials: Record<string, string>): Promise<Tes
   try {
     const response = await fetch('https://api.mercadopago.com/users/me', {
       headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!response.ok) {
@@ -85,7 +85,7 @@ async function testMercadoPago(credentials: Record<string, string>): Promise<Tes
 }
 
 /**
- * Test connection for WhatsApp Business API
+ * Prueba la conexión con WhatsApp Business API
  */
 async function testWhatsApp(credentials: Record<string, string>): Promise<TestConnectionResult> {
   const startTime = Date.now();
@@ -103,7 +103,7 @@ async function testWhatsApp(credentials: Record<string, string>): Promise<TestCo
   try {
     const response = await fetch(
       `https://graph.facebook.com/v18.0/${phone_number_id}`,
-      { headers: { Authorization: `Bearer ${access_token}` } }
+      { headers: { Authorization: `Bearer ${access_token}` }, signal: AbortSignal.timeout(10000) }
     );
 
     if (!response.ok) {
@@ -141,7 +141,7 @@ async function testWhatsApp(credentials: Record<string, string>): Promise<TestCo
 }
 
 /**
- * Test connection for Email/SMTP
+ * Prueba la conexión SMTP de Email
  */
 async function testEmail(credentials: Record<string, string>): Promise<TestConnectionResult> {
   const startTime = Date.now();
@@ -157,7 +157,7 @@ async function testEmail(credentials: Record<string, string>): Promise<TestConne
   }
 
   try {
-    // Dynamic import to avoid loading nodemailer if not needed
+    // Importación dinámica para no cargar nodemailer si no hace falta
     const nodemailer = await import('nodemailer');
     const transporter = nodemailer.createTransport({
       host: smtp_host,
@@ -187,7 +187,7 @@ async function testEmail(credentials: Record<string, string>): Promise<TestConne
 }
 
 /**
- * Test connection for Google Sheets
+ * Prueba la conexión con Google Sheets
  */
 async function testGoogleSheets(credentials: Record<string, string>): Promise<TestConnectionResult> {
   const startTime = Date.now();
@@ -214,8 +214,8 @@ async function testGoogleSheets(credentials: Record<string, string>): Promise<Te
       };
     }
 
-    // For a full test, we'd need to authenticate and make an API call
-    // For now, validate the JSON structure
+    // Para un test completo habría que autenticarse y hacer una llamada real
+    // Por ahora se valida solo la estructura del JSON
     return {
       success: true,
       testedAt: new Date(),
@@ -237,7 +237,7 @@ async function testGoogleSheets(credentials: Record<string, string>): Promise<Te
 }
 
 /**
- * Test connection for Contabilium
+ * Prueba la conexión con Contabilium
  */
 async function testContabilium(credentials: Record<string, string>): Promise<TestConnectionResult> {
   const startTime = Date.now();
@@ -253,12 +253,13 @@ async function testContabilium(credentials: Record<string, string>): Promise<Tes
   }
 
   try {
-    // Test authentication with Contabilium API
+    // Probar autenticación con la API de Contabilium
     const response = await fetch('https://rest.contabilium.com/api/v2/empresa', {
       headers: {
         Authorization: `Bearer ${api_key}`,
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!response.ok) {
@@ -288,7 +289,7 @@ async function testContabilium(credentials: Record<string, string>): Promise<Tes
 }
 
 /**
- * Test connection for AFIP WSFE
+ * Prueba la conexión con AFIP WSFE
  */
 async function testAfipWsfe(credentials: Record<string, string>): Promise<TestConnectionResult> {
   const startTime = Date.now();
@@ -303,7 +304,7 @@ async function testAfipWsfe(credentials: Record<string, string>): Promise<TestCo
     };
   }
 
-  // Validate certificate format
+  // Validar formato del certificado
   if (!certificate.includes('BEGIN CERTIFICATE') || !private_key.includes('BEGIN')) {
     return {
       success: false,
@@ -313,8 +314,8 @@ async function testAfipWsfe(credentials: Record<string, string>): Promise<TestCo
     };
   }
 
-  // Note: Full AFIP authentication requires CMS/PKCS#7 signing which is complex
-  // For now, we validate the credential format
+  // Nota: la auth completa de AFIP requiere firma CMS/PKCS#7, que es compleja
+  // Por ahora se valida solo el formato de las credenciales
   return {
     success: true,
     testedAt: new Date(),
@@ -328,7 +329,7 @@ async function testAfipWsfe(credentials: Record<string, string>): Promise<TestCo
 }
 
 /**
- * Test connection for Tienda Nube
+ * Prueba la conexión con Tienda Nube
  */
 async function testTiendaNube(credentials: Record<string, string>): Promise<TestConnectionResult> {
   const startTime = Date.now();
@@ -349,6 +350,7 @@ async function testTiendaNube(credentials: Record<string, string>): Promise<Test
         Authentication: `bearer ${access_token}`,
         'User-Agent': 'IntegraX/1.0',
       },
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!response.ok) {
@@ -377,7 +379,7 @@ async function testTiendaNube(credentials: Record<string, string>): Promise<Test
   }
 }
 
-// Connector test registry
+// Registro de testers por conector
 const CONNECTOR_TESTERS: Record<string, ConnectorTester> = {
   mercadopago: testMercadoPago,
   whatsapp: testWhatsApp,
@@ -407,7 +409,7 @@ function getCredentialEncryptionKey(): string {
 
 const ENCRYPTION_KEY = getCredentialEncryptionKey();
 
-// Available connectors catalog
+// Catálogo de conectores disponibles
 const CONNECTOR_CATALOG: ConnectorDefinition[] = [
   {
     id: 'mercadopago',
@@ -542,7 +544,7 @@ const CONNECTOR_CATALOG: ConnectorDefinition[] = [
   },
 ];
 
-// ============ Encryption Helpers ============
+// ============ Helpers de Cifrado ============
 
 function encrypt(text: string): string {
   const key = Buffer.from(ENCRYPTION_KEY.slice(0, 32), 'utf-8');
@@ -563,10 +565,10 @@ function decrypt(encrypted: string): string {
   return decrypted;
 }
 
-// ============ Routes ============
+// ============ Rutas ============
 
 /**
- * GET /connectors/catalog - List available connectors
+ * GET /connectors/catalog - Lista los conectores disponibles en el catálogo
  */
 router.get('/catalog', requireAuth, async (req, res) => {
   const category = req.query.category as string | undefined;
@@ -583,7 +585,7 @@ router.get('/catalog', requireAuth, async (req, res) => {
 });
 
 /**
- * GET /connectors/catalog/:id - Get connector definition
+ * GET /connectors/catalog/:id - Obtiene la definición de un conector del catálogo
  */
 router.get('/catalog/:id', requireAuth, async (req, res) => {
   const connector = CONNECTOR_CATALOG.find((c) => c.id === req.params.id);
@@ -602,7 +604,7 @@ router.get('/catalog/:id', requireAuth, async (req, res) => {
 });
 
 /**
- * GET /connectors - List tenant's configured connectors
+ * GET /connectors - Lista los conectores configurados del tenant
  */
 router.get(
   '/',
@@ -613,12 +615,12 @@ router.get(
 
     const connectors = await listTenantConnectors(tenantId);
 
-    // Add connector definitions
+    // Enriquecer con la definición del catálogo
     const enriched = connectors.map((tc) => {
       const definition = CONNECTOR_CATALOG.find((c) => c.id === tc.connectorId);
       return {
         ...tc,
-        credentials: undefined, // Never expose credentials
+        credentials: undefined, // Nunca exponer credenciales
         definition,
       };
     });
@@ -631,7 +633,7 @@ router.get(
 );
 
 /**
- * POST /connectors - Configure a connector for tenant
+ * POST /connectors - Configura un conector para el tenant
  */
 router.post(
   '/',
@@ -644,7 +646,7 @@ router.post(
     const tenantId = req.tenantId!;
     const { connectorId, credentials } = req.body;
 
-    // Check connector exists
+    // Verificar que el conector exista en el catálogo
     const definition = CONNECTOR_CATALOG.find((c) => c.id === connectorId);
     if (!definition) {
       return res.status(400).json({
@@ -653,7 +655,7 @@ router.post(
       });
     }
 
-    // Check required credentials
+    // Verificar credenciales requeridas
     for (const cred of definition.requiredCredentials) {
       if (cred.required && !credentials[cred.name]) {
         return res.status(400).json({
@@ -666,18 +668,18 @@ router.post(
       }
     }
 
-    // Encrypt credentials
+    // Cifrar credenciales antes de guardar
     const encryptedCredentials: Record<string, string> = {};
     for (const [key, value] of Object.entries(credentials)) {
       encryptedCredentials[key] = encrypt(value as string);
     }
 
-    // Upsert — ON CONFLICT (tenant_id, connector_id) handles concurrent requests.
-    // Pass existing createdAt so the update doesn't change it; new rows get NOW().
+    // Upsert — ON CONFLICT (tenant_id, connector_id) maneja requests concurrentes.
+    // Se pasa el createdAt existente para que el update no lo modifique; las filas nuevas usan NOW().
     const existing = await findTenantConnector(tenantId, connectorId);
 
     const tenantConnector: TenantConnector = {
-      id: `tc_${ulid()}`, // only used on first INSERT; ignored on conflict (Postgres keeps original)
+      id: `tc_${ulid()}`, // solo se usa en el primer INSERT; ignorado en conflicto (Postgres conserva el original)
       tenantId,
       connectorId,
       status: 'configured',
@@ -693,7 +695,7 @@ router.post(
     res.status(existing ? 200 : 201).json({
       success: true,
       data: {
-        id: storedId, // use the id Postgres actually stored
+        id: storedId, // usar el id que realmente guardó Postgres
         connectorId,
         status: tenantConnector.status,
         definition,
@@ -703,7 +705,7 @@ router.post(
 );
 
 /**
- * POST /connectors/:id/test - Test connector credentials
+ * POST /connectors/:id/test - Prueba las credenciales de un conector
  */
 router.post(
   '/:id/test',
@@ -721,22 +723,22 @@ router.post(
       });
     }
 
-    // Decrypt credentials for testing
+    // Descifrar credenciales solo para el test
     const decryptedCredentials: Record<string, string> = {};
     for (const [key, value] of Object.entries(tenantConnector.credentials)) {
       decryptedCredentials[key] = decrypt(value as string);
     }
 
-    // Get the tester for this connector type
+    // Obtener la función de test para este tipo de conector
     const tester = CONNECTOR_TESTERS[tenantConnector.connectorId];
 
     let testResult: TestConnectionResult;
 
     if (tester) {
-      // Use real connector test
+      // Usar el test real del conector
       testResult = await tester(decryptedCredentials);
     } else {
-      // Fallback for connectors without a tester implementation
+      // Fallback para conectores sin implementación de test
       testResult = {
         success: true,
         testedAt: new Date(),
@@ -917,8 +919,7 @@ router.post(
       });
     }
 
-    // This would use the ConnectorLearningEngine
-    // For now, return a placeholder
+    // Usaría el ConnectorLearningEngine — por ahora retorna un placeholder
     res.json({
       success: true,
       data: {

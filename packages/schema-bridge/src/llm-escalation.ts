@@ -1,12 +1,12 @@
 /**
- * LLM Escalation — Anthropic call for ambiguous field pair decisions
+ * Escalación LLM — Llamada a Anthropic para decisiones sobre pares de campos ambiguos
  *
- * Called from bridge.ts when enableLlmEscalation=true.
- * Only fires for ResolvedConflicts with llmRequired=true (heuristic review + ambiguous).
- * Uses claude-haiku for speed and cost — the decision is binary (same field or not).
+ * Invocado desde bridge.ts cuando enableLlmEscalation=true.
+ * Solo dispara para ResolvedConflicts con llmRequired=true (revisión heurística + ambiguos).
+ * Usa claude-haiku por velocidad y costo — la decisión es binaria (mismo campo o no).
  *
- * Each call: ~300 input tokens + 64 output tokens → cheap per pair.
- * maxLlmEscalations caps total spend per compare() call.
+ * Cada llamada: ~300 tokens de entrada + 64 de salida → barato por par.
+ * maxLlmEscalations limita el gasto total por llamada a compare().
  */
 
 import Anthropic from '@anthropic-ai/sdk';
@@ -25,7 +25,7 @@ function buildPrompt(
   examplesA: unknown[],
   examplesB: unknown[],
 ): string {
-  // Up to 5 examples per side — enough signal, low token cost.
+  // Hasta 5 ejemplos por lado — señal suficiente, bajo costo en tokens.
   const fmtExamples = (vals: unknown[]) =>
     vals.slice(0, 5).map(v => JSON.stringify(v)).join(', ') || '(no samples)';
 
@@ -73,10 +73,10 @@ function makeRenameMapping(
 }
 
 /**
- * Runs LLM escalation for all llmRequired conflicts up to maxEscalations.
- * Returns a new array — confirmed renames are upgraded to deterministic mappings,
- * rejected pairs keep their original resolution with an updated llmReason.
- * Any API error leaves the conflict unchanged (fail-open, not fail-closed).
+ * Ejecuta la escalación LLM para todos los conflictos llmRequired hasta maxEscalations.
+ * Devuelve un nuevo array — los renombrados confirmados se elevan a mappings determinísticos,
+ * los pares rechazados mantienen su resolución original con el llmReason actualizado.
+ * Cualquier error de API deja el conflicto sin cambios (fail-open, no fail-closed).
  */
 export async function runLlmEscalations(
   conflicts: ResolvedConflict[],
@@ -92,7 +92,7 @@ export async function runLlmEscalations(
 
   const client = new Anthropic({ apiKey });
 
-  // Map of "pathA\x00pathB" → updated conflict
+  // Mapa de "pathA\x00pathB" → conflicto actualizado
   const updated = new Map<string, ResolvedConflict>();
 
   for (const conflict of toEscalate) {
@@ -130,7 +130,7 @@ export async function runLlmEscalations(
         logger.info({ pathA, pathB }, 'LLM rejected rename');
       }
     } catch (err) {
-      // Fail-open: keep conflict as-is if LLM call fails
+      // Fail-open: si la llamada al LLM falla, el conflicto se conserva tal como está
       logger.warn({ err: String(err), pathA, pathB }, 'LLM escalation failed — keeping ambiguous');
     }
   }

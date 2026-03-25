@@ -128,4 +128,103 @@ describe('schemas router', () => {
       [workflowId, 'tenant-1'],
     );
   });
+
+  it('rechaza con 403 si el workflowId no pertenece al tenant autenticado', async () => {
+    const workflowId = 'schemaDiff-otro-tenant-999';
+    const response = await fetch(`${baseUrl}/api/schemas/status/${workflowId}`);
+    const payload = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(payload.success).toBe(false);
+    expect(payload.error.code).toBe('FORBIDDEN');
+    expect(queryMock).not.toHaveBeenCalled();
+  });
+
+  it('POST /diff inicia el workflow y devuelve 202 con workflowId y pollUrl', async () => {
+    const body = {
+      sourceSchemaId: 'src-schema',
+      targetSchemaId: 'tgt-schema',
+      samplesA: [{ id: '1', monto: 100 }],
+      samplesB: [{ id: '1', amount: 100 }],
+    };
+
+    const response = await fetch(`${baseUrl}/api/schemas/diff`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(202);
+    expect(payload.success).toBe(true);
+    expect(payload.data.workflowId).toBeDefined();
+    expect(payload.data.pollUrl).toContain('/api/schemas/status/');
+  });
+
+  it('POST /reports/:id/feedback guarda el feedback y devuelve 200', async () => {
+    // Primera query: resolver el reporte
+    queryMock.mockResolvedValueOnce({
+      rows: [{ source_connector_id: 'mercadopago', target_connector_id: 'contabilium' }],
+    });
+
+    const { upsertEntry } = await import('../store/mapping-memory-repository.js');
+
+    const response = await fetch(`${baseUrl}/api/schemas/reports/br_01/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sourcePath: 'total',
+        targetPath: 'monto_total',
+        accepted: true,
+        confidence: 0.88,
+      }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.success).toBe(true);
+    expect(payload.data.accepted).toBe(true);
+    expect(upsertEntry).toHaveBeenCalledWith(
+      'tenant-1',
+      'mercadopago',
+      'contabilium',
+      'total',
+      'monto_total',
+      true,
+      0.88,
+    );
+  });
+
+  it('POST /reports/:id/feedback devuelve 404 si el reporte no existe', async () => {
+    queryMock.mockResolvedValueOnce({ rows: [] });
+
+    const response = await fetch(`${baseUrl}/api/schemas/reports/inexistente/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sourcePath: 'a', targetPath: 'b', accepted: true, confidence: 0.8 }),
+    });
+
+    expect(response.status).toBe(404);
+  });
+
+  it('GET /memory devuelve las entradas de mapping para el par de conectores', async () => {
+    const { loadMappingMemory } = await import('../store/mapping-memory-repository.js');
+    (loadMappingMemory as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+      { sourcePath: 'total', targetPath: 'monto_total', acceptedCount: 3, rejectedCount: 0 },
+    ]);
+
+    const response = await fetch(
+      `${baseUrl}/api/schemas/memory?connectorAId=mercadopago&connectorBId=contabilium`,
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.success).toBe(true);
+    expect(payload.data).toHaveLength(1);
+  });
+
+  it('GET /memory devuelve 400 si faltan los query params', async () => {
+    const response = await fetch(`${baseUrl}/api/schemas/memory`);
+    expect(response.status).toBe(400);
+  });
 });

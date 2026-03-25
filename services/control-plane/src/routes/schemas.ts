@@ -12,8 +12,9 @@ import { createLogger } from '@integrax/logger';
 const router: Router = Router();
 const logger = createLogger({ service: 'control-plane:schemas', version: '0.1.0' });
 
-// Promise-based lock: concurrent requests share the same init Promise instead
-// of creating multiple clients (which would leak connections).
+// Lock basado en Promise: requests concurrentes comparten la misma Promise de init
+// en vez de crear múltiples clientes (lo que filtraría conexiones).
+// Si la Promise rechaza (Temporal caído), se nullea para que el próximo request vuelva a intentarlo.
 let _temporalClientPromise: Promise<TemporalClientService> | null = null;
 
 function getTemporalClient(): Promise<TemporalClientService> {
@@ -22,7 +23,10 @@ function getTemporalClient(): Promise<TemporalClientService> {
       const c = new TemporalClientService();
       await c.connect();
       return c;
-    })();
+    })().catch(err => {
+      _temporalClientPromise = null; // permite reintentar en la próxima request
+      throw err;
+    });
   }
   return _temporalClientPromise;
 }
@@ -101,8 +105,8 @@ router.get(
       const { workflowId } = req.params;
       const tenantId = req.tenantId!;
 
-      // workflowId format: schemaDiff-{tenantId}-{timestamp}
-      // startsWith with trailing dash prevents "tenant-abc" bypassing check for "tenant-a"
+      // Formato del workflowId: schemaDiff-{tenantId}-{timestamp}
+      // El dash al final en startsWith evita que "tenant-abc" eluda el check de "tenant-a"
       if (!workflowId.startsWith(`schemaDiff-${tenantId}-`)) {
         return res.status(403).json({
           success: false,
