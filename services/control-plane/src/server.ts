@@ -7,7 +7,6 @@ import helmet from 'helmet';
 import { tenantsRouter } from './routes/tenants.js';
 import { connectorsRouter } from './routes/connectors.js';
 import { workflowsRouter } from './routes/workflows.js';
-import { temporalWorkflowsRouter } from './routes/workflows-temporal.js';
 import { schemasRouter } from './routes/schemas.js';
 import { getAuditLogs } from './middleware/audit.js';
 import { requireAuth, requireRole } from './middleware/auth.js';
@@ -91,7 +90,6 @@ app.get('/api', (req, res) => {
 app.use('/api/tenants', tenantsRouter);
 app.use('/api/connectors', connectorsRouter);
 app.use('/api/workflows', workflowsRouter);
-app.use('/api/workflows/temporal', temporalWorkflowsRouter);
 app.use('/api/schemas', schemasRouter);
 
 // Endpoint de logs de auditoría

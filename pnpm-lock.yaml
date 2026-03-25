@@ -439,6 +439,9 @@ importers:
       '@integrax/health':
         specifier: workspace:*
         version: link:../../packages/health
+      '@integrax/integration-engine':
+        specifier: workspace:*
+        version: link:../../packages/integration-engine
       '@integrax/logger':
         specifier: workspace:*
         version: link:../../packages/logger
