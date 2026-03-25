@@ -18,6 +18,7 @@ export interface SchemaNode {
   /** El campo puede ser null en las muestras */
   nullable: boolean;
   /** Muestras de ejemplo (máx 3) */
+  /** Muestras de ejemplo retenidas para la señal estadística (configurable, default 200) */
   examples: unknown[];
   /** Hijos si type === 'object' */
   children?: Record<string, SchemaNode>;
@@ -87,6 +88,18 @@ export interface OntologyProvider {
   match(context: OntologyMatchContext): OntologyMatch | null;
 }
 
+export interface MappingMemoryEntry {
+  sourcePath: string;
+  targetPath: string;
+  /** Scope opcional: si se provee, la entrada solo aplica a este par de conectores. */
+  connectorAId?: string;
+  connectorBId?: string;
+  acceptedCount: number;
+  rejectedCount: number;
+  averageConfidence: number;
+  lastAcceptedAt?: string;
+}
+
 // ─── Diff ────────────────────────────────────────────────────────────────────
 
 export type DiffKind =
@@ -123,6 +136,12 @@ export interface SimilarityEvidenceBreakdown {
   businessType: number;
   ontology: number;
   sufficiency: number;
+}
+
+export interface SimilarityDecisionPolicyConfig {
+  autoAcceptThreshold?: number;
+  reviewThreshold?: number;
+  minConfidenceMargin?: number;
 }
 
 export interface FieldDiff {
@@ -311,12 +330,14 @@ export interface SchemaInferrerConfig {
 export interface SimilarityEngineConfig {
   businessTypeWeights?: BusinessTypeWeightMap;
   ontologyProviders?: OntologyProvider[];
+  decisionPolicy?: SimilarityDecisionPolicyConfig;
 }
 
 export interface ConflictResolverConfig {
   autoAcceptThreshold?: number;
   humanReviewThreshold?: number;
   minConfidenceMargin?: number;
+  decisionPolicy?: SimilarityDecisionPolicyConfig;
 }
 
 // ─── Zod schemas para validación de request ──────────────────────────────────
@@ -331,9 +352,9 @@ export const CompareSchemasRequestSchema = z.object({
   connectorAId: z.string().min(1),
   connectorBId: z.string().min(1),
   /** Muestras de datos del Sistema A (JSON objects) */
-  samplesA: z.array(z.record(z.unknown())).min(1).max(50),
+  samplesA: z.array(z.record(z.unknown())).min(1).max(2000),
   /** Muestras de datos del Sistema B (JSON objects) */
-  samplesB: z.array(z.record(z.unknown())).min(1).max(50),
+  samplesB: z.array(z.record(z.unknown())).min(1).max(2000),
   tenantId: z.string().optional(),
   options: CompareOptionsSchema.optional(),
 });
@@ -359,10 +380,21 @@ export interface SchemaBridgeConfig {
   businessTypeWeights?: BusinessTypeWeightMap;
   /** Cantidad máxima de examples retenidos por campo para la señal estadística. */
   maxExamples?: number;
+  mappingMemory?: MappingMemoryEntry[];
   /** Umbral mínimo de margen entre el mejor candidato y el segundo. */
   confidenceMarginThreshold?: number;
   /** Umbral absoluto de auto-aceptación para renombrados. */
   autoAcceptThreshold?: number;
   /** Umbral para escalar a revisión humana/LLM. */
   humanReviewThreshold?: number;
+  decisionPolicy?: SimilarityDecisionPolicyConfig;
+  /**
+   * Ratio de rechazos para vetar un par de campos en la memoria (default: 0.70).
+   * Si rejectedCount/total ≥ este valor y hay ≥ rejectionMinSamples, el par se excluye.
+   */
+  rejectionVetoRatio?: number;
+  /**
+   * Mínimo de muestras necesarias para activar el veto por rechazo (default: 3).
+   */
+  rejectionMinSamples?: number;
 }

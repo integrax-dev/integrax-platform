@@ -341,14 +341,14 @@ const officialWebScenarios: Scenario[] = [
     label: 'Square orders API',
     sourceUrl: 'https://developer.squareup.com/reference/square/orders-api',
     samplesA: [
-      { ticket_ccy: 'USD', order_rows: [{ catalog_code: 'SQ-100', qty_value: '101' }] },
-      { ticket_ccy: 'EUR', order_rows: [{ catalog_code: 'SQ-200', qty_value: '202' }] },
-      { ticket_ccy: 'GBP', order_rows: [{ catalog_code: 'SQ-300', qty_value: '303' }] },
+      { ticket_ccy: 'USD', order_rows: [{ catalog_code: 'SQ-100', qty_value: 'SQ-1501' }] },
+      { ticket_ccy: 'EUR', order_rows: [{ catalog_code: 'SQ-200', qty_value: 'SQ-2502' }] },
+      { ticket_ccy: 'GBP', order_rows: [{ catalog_code: 'SQ-300', qty_value: 'SQ-3503' }] },
     ],
     samplesB: [
-      { line_items: [{ catalog_object_id: 'SQ-100', quantity: '101', base_price_money: { currency: 'USD' } }] },
-      { line_items: [{ catalog_object_id: 'SQ-200', quantity: '202', base_price_money: { currency: 'EUR' } }] },
-      { line_items: [{ catalog_object_id: 'SQ-300', quantity: '303', base_price_money: { currency: 'GBP' } }] },
+      { line_items: [{ catalog_object_id: 'SQ-100', quantity: 'SQ-1501', base_price_money: { currency: 'USD' } }] },
+      { line_items: [{ catalog_object_id: 'SQ-200', quantity: 'SQ-2502', base_price_money: { currency: 'EUR' } }] },
+      { line_items: [{ catalog_object_id: 'SQ-300', quantity: 'SQ-3503', base_price_money: { currency: 'GBP' } }] },
     ],
     requiredMappings: [
       ['ticket_ccy', 'line_items[*].base_price_money.currency'],

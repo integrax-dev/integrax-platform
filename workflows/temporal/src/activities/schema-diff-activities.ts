@@ -1,22 +1,32 @@
 /**
- * Schema Diff Activities — Temporal
+ * Schema Diff Activities - Temporal orchestration layer
  *
- * Wrappea el motor @integrax/schema-bridge como Temporal Activity.
- * Toda la lógica determinística (inferencia, diff, similitud, resolución)
- * vive en el paquete schema-bridge. Esta activity solo orquesta la llamada
- * y traduce el resultado al contrato DiffResult existente.
+ * This file keeps orchestration concerns only:
+ * - resolve effective samples (inline + reservoir)
+ * - compute cache keys
+ * - invoke the schema bridge
+ * - delegate persistence to the repository layer
  */
 
 import { Context } from '@temporalio/activity';
 import type { BridgeReport } from '@integrax/schema-bridge';
 import { Redis } from 'ioredis';
 import { Pool } from 'pg';
-
-// ─── Contrato público (compatible con ID-0001 + enriquecido por ID-0002) ──────
+import { createHash } from 'node:crypto';
+import {
+  countReservoirSamples,
+  ensureConnectorVersion,
+  getMemoryVersion,
+  loadMappingMemoryEntries,
+  loadReservoirSamples,
+  persistDiffResultTransactional,
+  upsertSampleReservoirEntries,
+} from './schema-diff-repository.js';
 
 export interface DiffResult {
   sourceSchemaId: string;
   targetSchemaId: string;
+  workflowId?: string;
   hasDifferences: boolean;
   mismatches: {
     addedFields: string[];
@@ -24,23 +34,25 @@ export interface DiffResult {
     typeChanges: Array<{ path: string; fromType: string; toType: string }>;
     renameCandidates: Array<{ fromPath: string; toPath: string; similarityPct: number }>;
   };
-  /** Reglas de transformación listas para ejecutar (A → B) */
   blueprint: BlueprintAction[];
-  /** Código TypeScript generado para la transformación A→B */
   generatedTransformTs: string;
-  /** true si quedaron conflictos incompatibles que el LLM debe resolver */
   requiresLLMFallback: boolean;
-  /** IDs de los conflictos que necesitan LLM, con el prompt sugerido */
   llmEscalations: Array<{ path: string; reason: string; promptSeed: string }>;
-  /** Resumen ejecutivo */
   summary: BridgeReport['requirementsReport']['summary'];
   reportId: string;
-  // --- Versioning data ---
   tenantId?: string;
   sourceFingerprint: string;
   targetFingerprint: string;
   fullSchemaA: any;
   fullSchemaB: any;
+  sampleInventory?: {
+    sourceInputCount: number;
+    targetInputCount: number;
+    sourceEffectiveCount: number;
+    targetEffectiveCount: number;
+    sourceReservoirCount: number;
+    targetReservoirCount: number;
+  };
 }
 
 export interface BlueprintAction {
@@ -55,18 +67,19 @@ export interface BlueprintAction {
 }
 
 export interface SchemaDiffInput {
-  /** ID del sistema A (conector fuente) */
   sourceSchemaId: string;
-  /** ID del sistema B (conector destino) */
   targetSchemaId: string;
-  /** Muestras reales de datos del sistema A */
-  samplesA: Record<string, unknown>[];
-  /** Muestras reales de datos del sistema B */
-  samplesB: Record<string, unknown>[];
+  samplesA?: Record<string, unknown>[];
+  samplesB?: Record<string, unknown>[];
   tenantId?: string;
   options?: {
     renameSimilarityThreshold?: number;
     enableLlmEscalation?: boolean;
+    useSampleReservoir?: boolean;
+    sampleLimit?: number;
+    forceRecalculate?: boolean;
+    /** Máximo de entradas de memoria a cargar desde Postgres (default: 500). */
+    memoryLimit?: number;
   };
 }
 
@@ -75,9 +88,38 @@ export interface QueryableClient {
   release?: () => void;
 }
 
-// ─── Traducción BridgeReport → DiffResult ────────────────────────────────────
+let redisClient: Redis | null = null;
+let postgresPool: Pool | null = null;
+const DEFAULT_RUNTIME_SAMPLE_LIMIT = 200;
+const MAX_RUNTIME_SAMPLE_LIMIT = 2000;
+const DEFAULT_RESERVOIR_LIMIT = 2000;
 
-function bridgeToDiffResult(report: BridgeReport, input: SchemaDiffInput): DiffResult {
+function sampleSetHash(samples: Record<string, unknown>[]): string {
+  const sorted = samples.map(s => JSON.stringify(s)).sort().join('|');
+  return createHash('sha256').update(sorted, 'utf8').digest('hex').slice(0, 12);
+}
+
+function getRedisClient(): Redis {
+  if (!redisClient) {
+    redisClient = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+  }
+  return redisClient;
+}
+
+function getPgPool(): Pool {
+  if (!postgresPool) {
+    postgresPool = new Pool({
+      connectionString: process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/integrax',
+    });
+  }
+  return postgresPool;
+}
+
+function bridgeToDiffResult(
+  report: BridgeReport,
+  input: SchemaDiffInput,
+  sampleInventory: DiffResult['sampleInventory'],
+): DiffResult {
   const addedFields: string[] = [];
   const removedFields: string[] = [];
   const typeChanges: Array<{ path: string; fromType: string; toType: string }> = [];
@@ -90,12 +132,10 @@ function bridgeToDiffResult(report: BridgeReport, input: SchemaDiffInput): DiffR
         if (diff.pathB) addedFields.push(diff.pathB);
         blueprint.push({ action: 'add', path: diff.pathB!, description: `Nuevo campo en Sistema B: "${diff.pathB}"` });
         break;
-
       case 'field_removed':
         if (diff.pathA) removedFields.push(diff.pathA);
         blueprint.push({ action: 'remove', path: diff.pathA!, description: `Campo eliminado de Sistema B: "${diff.pathA}"` });
         break;
-
       case 'type_changed':
         if (diff.pathA && diff.nodeA && diff.nodeB) {
           const fromType = String(Array.isArray(diff.nodeA.type) ? diff.nodeA.type[0] : diff.nodeA.type);
@@ -103,7 +143,6 @@ function bridgeToDiffResult(report: BridgeReport, input: SchemaDiffInput): DiffR
           typeChanges.push({ path: diff.pathA, fromType, toType });
         }
         break;
-
       case 'rename_candidate':
         if (diff.pathA && diff.pathB && diff.similarity) {
           renameCandidates.push({
@@ -116,7 +155,6 @@ function bridgeToDiffResult(report: BridgeReport, input: SchemaDiffInput): DiffR
     }
   }
 
-  // Construir blueprint desde los mappings generados
   for (const mapping of report.mappings) {
     const { pathA, pathB, transform } = mapping;
     if (!pathA && !pathB) continue;
@@ -125,9 +163,9 @@ function bridgeToDiffResult(report: BridgeReport, input: SchemaDiffInput): DiffR
       transform.kind === 'identity' ? 'identity' :
       transform.kind === 'rename' ? 'rename' :
       transform.kind === 'coerce_type' ? 'cast' :
-      transform.kind === 'restructure' ? 'restructure' : 'add';
+      transform.kind === 'restructure' ? 'restructure' :
+      'add';
 
-    // Evitar duplicados con los add/remove ya registrados
     if (action === 'identity' || action === 'rename' || action === 'cast' || action === 'restructure') {
       blueprint.push({
         action,
@@ -140,10 +178,10 @@ function bridgeToDiffResult(report: BridgeReport, input: SchemaDiffInput): DiffR
     }
   }
 
-  const llmEscalations = report.requirementsReport.llmEscalations.map(e => ({
-    path: e.diff.pathA ?? e.diff.pathB ?? 'unknown',
-    reason: e.reason,
-    promptSeed: e.promptSeed,
+  const llmEscalations = report.requirementsReport.llmEscalations.map(escalation => ({
+    path: escalation.diff.pathA ?? escalation.diff.pathB ?? 'unknown',
+    reason: escalation.reason,
+    promptSeed: escalation.promptSeed,
   }));
 
   return {
@@ -162,223 +200,185 @@ function bridgeToDiffResult(report: BridgeReport, input: SchemaDiffInput): DiffR
     targetFingerprint: report.inferredSchemaB.fingerprint,
     fullSchemaA: report.inferredSchemaA,
     fullSchemaB: report.inferredSchemaB,
+    sampleInventory,
   };
 }
 
-// ─── Temporal Activity ────────────────────────────────────────────────────────
+async function resolveSamples(
+  client: QueryableClient,
+  tenantId: string,
+  schemaId: string,
+  inlineSamples: Record<string, unknown>[] | undefined,
+  useReservoir: boolean,
+  sampleLimit: number,
+  reservoirLimit: number,
+): Promise<{ effective: Record<string, unknown>[]; reservoirCount: number }> {
+  const directSamples = inlineSamples ?? [];
 
-let redisClient: Redis | null = null;
-let postgresPool: Pool | null = null;
-
-function getRedisClient(): Redis {
-  if (!redisClient) {
-    redisClient = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+  if (directSamples.length > 0) {
+    await upsertSampleReservoirEntries(client, tenantId, schemaId, directSamples, reservoirLimit);
   }
-  return redisClient;
+
+  const reservoirCount = await countReservoirSamples(client, tenantId, schemaId);
+  const reservoirSamples = useReservoir || directSamples.length === 0
+    ? await loadReservoirSamples(client, tenantId, schemaId, sampleLimit)
+    : [];
+
+  if (directSamples.length === 0) {
+    return { effective: reservoirSamples, reservoirCount };
+  }
+
+  if (!useReservoir) {
+    return { effective: directSamples.slice(0, sampleLimit), reservoirCount };
+  }
+
+  const unique = new Map<string, Record<string, unknown>>();
+  for (const sample of [...directSamples, ...reservoirSamples]) {
+    unique.set(JSON.stringify(sample), sample);
+    if (unique.size >= sampleLimit) break;
+  }
+
+  return {
+    effective: [...unique.values()],
+    reservoirCount,
+  };
 }
 
-function getPgPool(): Pool {
-  if (!postgresPool) {
-    postgresPool = new Pool({
-      connectionString: process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/integrax',
-    });
-  }
-  return postgresPool;
-}
-
-/**
- * Activity de Temporal que ejecuta el motor de comparación de schemas.
- * Implementa caché en Redis usando el fingerprint inferido de las muestras.
- */
-export async function generateSchemaDiff(input: SchemaDiffInput & { options?: { forceRecalculate?: boolean } }): Promise<DiffResult> {
+export async function generateSchemaDiff(input: SchemaDiffInput): Promise<DiffResult> {
   const ctx = Context.current();
+  const tenantId = input.tenantId || 'system';
+  const sampleLimit = Math.max(1, Math.min(input.options?.sampleLimit ?? DEFAULT_RUNTIME_SAMPLE_LIMIT, MAX_RUNTIME_SAMPLE_LIMIT));
+  const reservoirLimit = Math.max(sampleLimit, DEFAULT_RESERVOIR_LIMIT);
+  const useSampleReservoir = input.options?.useSampleReservoir ?? true;
+  const client = await getPgPool().connect();
 
-  // Heartbeat inicial
-  ctx.heartbeat({ stage: 'inferring_schemas' });
-
-  // 1. Inferir schemas para obtener los fingerprints usados como Cache Key
-  const { createSchemaBridge, SchemaInferrer } = await import('@integrax/schema-bridge');
-  const inferrer = new SchemaInferrer();
-  
-  const schemaA = inferrer.infer(input.samplesA);
-  const schemaB = inferrer.infer(input.samplesB);
-  
-  const cacheKey = `integrax:schemadiff:v2:${schemaA.fingerprint}:${schemaB.fingerprint}`;
-
-  // 2. Verificar caché en Redis (Omitir si forceRecalculate = true)
-  if (!input.options?.forceRecalculate) {
-    ctx.heartbeat({ stage: 'checking_cache' });
-    try {
-      const cached = await getRedisClient().get(cacheKey);
-      if (cached) {
-        ctx.log.info(`✅ Cache HIT para fingerprints ${schemaA.fingerprint} y ${schemaB.fingerprint}`);
-        return JSON.parse(cached) as DiffResult;
-      }
-    } catch (error) {
-      ctx.log.warn(`⚠️ Error leyendo de Redis el key ${cacheKey}`, { error });
-    }
-  }
-
-  // 3. Si no hay hit, generar reporte ejecutando el pipeline completo
-  ctx.log.info(`❌ Cache MISS. Ejecutando SchemaBridge engine para ${schemaA.fingerprint} y ${schemaB.fingerprint}`);
-  ctx.heartbeat({ stage: 'comparing_in_engine' });
-
-  const bridge = createSchemaBridge({
-    redisUrl: process.env.REDIS_URL,
-    anthropicApiKey: process.env.ANTHROPIC_API_KEY,
-  });
-
-  const report = await bridge.compare({
-    connectorAId: input.sourceSchemaId,
-    connectorBId: input.targetSchemaId,
-    samplesA: input.samplesA,
-    samplesB: input.samplesB,
-    tenantId: input.tenantId,
-    options: {
-      renameSimilarityThreshold: input.options?.renameSimilarityThreshold ?? 0.70,
-      enableLlmEscalation: input.options?.enableLlmEscalation ?? false,
-      maxLlmEscalations: 3,
-    },
-  });
-
-  const diffResult = bridgeToDiffResult(report, input);
-
-  // 4. Guardar en Caché por 30 días
   try {
-    ctx.heartbeat({ stage: 'saving_cache' });
-    // Guardamos 30 días (30 * 24 * 60 * 60)
-    await getRedisClient().setex(cacheKey, 2592000, JSON.stringify(diffResult));
-  } catch (error) {
-    ctx.log.warn(`⚠️ Error guardando en Redis el key ${cacheKey}`, { error });
-  }
+    ctx.heartbeat({ stage: 'inferring_schemas' });
 
-  ctx.heartbeat({ stage: 'done', reportId: report.id });
-  return diffResult;
+    const sourceSampleSet = await resolveSamples(
+      client,
+      tenantId,
+      input.sourceSchemaId,
+      input.samplesA,
+      useSampleReservoir,
+      sampleLimit,
+      reservoirLimit,
+    );
+    const targetSampleSet = await resolveSamples(
+      client,
+      tenantId,
+      input.targetSchemaId,
+      input.samplesB,
+      useSampleReservoir,
+      sampleLimit,
+      reservoirLimit,
+    );
+
+    if (sourceSampleSet.effective.length === 0 || targetSampleSet.effective.length === 0) {
+      throw new Error('No hay suficientes muestras efectivas para comparar schemas. Cargá samples inline o llená el sample reservoir.');
+    }
+
+    const { createSchemaBridge, SchemaInferrer } = await import('@integrax/schema-bridge');
+    const inferrer = new SchemaInferrer({ maxExamples: sampleLimit });
+    const schemaA = inferrer.infer(sourceSampleSet.effective);
+    const schemaB = inferrer.infer(targetSampleSet.effective);
+    // v5: include memory version so operator feedback invalidates cached results.
+    // getMemoryVersion is a single O(1) indexed query — much cheaper than loading
+    // all memory rows just to decide whether to use the cache.
+    const valHash = `${sampleSetHash(sourceSampleSet.effective)}:${sampleSetHash(targetSampleSet.effective)}`;
+    ctx.heartbeat({ stage: 'checking_memory_version' });
+    const memoryVersion = await getMemoryVersion(client, tenantId, input.sourceSchemaId, input.targetSchemaId);
+    const cacheKey = `integrax:schemadiff:v5:${schemaA.fingerprint}:${schemaB.fingerprint}:${valHash}:mem${memoryVersion}`;
+
+    const sampleInventory: DiffResult['sampleInventory'] = {
+      sourceInputCount: input.samplesA?.length ?? 0,
+      targetInputCount: input.samplesB?.length ?? 0,
+      sourceEffectiveCount: sourceSampleSet.effective.length,
+      targetEffectiveCount: targetSampleSet.effective.length,
+      sourceReservoirCount: sourceSampleSet.reservoirCount,
+      targetReservoirCount: targetSampleSet.reservoirCount,
+    };
+
+    if (!input.options?.forceRecalculate) {
+      ctx.heartbeat({ stage: 'checking_cache' });
+      try {
+        const cached = await getRedisClient().get(cacheKey);
+        if (cached) {
+          ctx.log.info(`Cache HIT for ${schemaA.fingerprint} -> ${schemaB.fingerprint} mem=${memoryVersion}`);
+          return JSON.parse(cached) as DiffResult;
+        }
+      } catch (error) {
+        ctx.log.warn(`Error reading Redis cache key ${cacheKey}`, { error });
+      }
+    }
+
+    ctx.heartbeat({ stage: 'loading_mapping_memory' });
+    const mappingMemory = await loadMappingMemoryEntries(
+      client,
+      tenantId,
+      input.sourceSchemaId,
+      input.targetSchemaId,
+      input.options?.memoryLimit,
+    );
+
+    ctx.heartbeat({ stage: 'comparing_in_engine' });
+    const bridge = createSchemaBridge({
+      redisUrl: process.env.REDIS_URL,
+      anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+      maxExamples: sampleLimit,
+      mappingMemory,
+    });
+
+    const report = await bridge.compare({
+      connectorAId: input.sourceSchemaId,
+      connectorBId: input.targetSchemaId,
+      samplesA: sourceSampleSet.effective,
+      samplesB: targetSampleSet.effective,
+      tenantId: input.tenantId,
+      options: {
+        renameSimilarityThreshold: input.options?.renameSimilarityThreshold ?? 0.70,
+        enableLlmEscalation: input.options?.enableLlmEscalation ?? false,
+        maxLlmEscalations: 3,
+      },
+    });
+
+    const diffResult = bridgeToDiffResult(report, input, sampleInventory);
+
+    try {
+      ctx.heartbeat({ stage: 'saving_cache' });
+      await getRedisClient().setex(cacheKey, 2592000, JSON.stringify(diffResult));
+    } catch (error) {
+      ctx.log.warn(`Error writing Redis cache key ${cacheKey}`, { error });
+    }
+
+    ctx.heartbeat({ stage: 'done', reportId: report.id });
+    return diffResult;
+  } finally {
+    client.release();
+  }
 }
 
-/**
- * Persiste el reporte de diferencias en la base de datos (Postgres).
- * Sirve como un Audit Trail inmutable de los cambios de versión.
- */
 export async function persistDiffResult(result: DiffResult): Promise<void> {
   const ctx = Context.current();
   const tenantId = result.tenantId || 'system';
 
-  ctx.log.info(`Guardando reporte ${result.reportId} y gestionando versiones en Postgres`, {
+  ctx.log.info(`Persisting report ${result.reportId} in Postgres`, {
     source: result.sourceSchemaId,
     target: result.targetSchemaId,
-    tenantId
+    tenantId,
+    workflowId: result.workflowId,
   });
 
   const client = await getPgPool().connect();
   try {
     await persistDiffResultTransactional(client, result, tenantId);
-    ctx.log.info(`✅ Reporte ${result.reportId} y versiones procesadas exitosamente.`);
+    ctx.log.info(`Report ${result.reportId} persisted successfully.`);
   } catch (error) {
-    ctx.log.error(`❌ Error al persistir el reporte ${result.reportId} en Postgres`, { error });
+    ctx.log.error(`Error persisting report ${result.reportId} in Postgres`, { error });
     throw error;
   } finally {
     client.release();
   }
 }
 
-/**
- * Lógica interna para decidir si se crea una nueva versión de un conector.
- * Si el fingerprint cambió respecto a la última versión, incrementa version_number.
- */
-export async function persistDiffResultTransactional(
-  client: QueryableClient,
-  result: DiffResult,
-  tenantId = result.tenantId || 'system',
-): Promise<void> {
-  await client.query('BEGIN');
-
-  try {
-    await upsertSchemaInventory(client, result.sourceFingerprint, result.fullSchemaA);
-    await upsertSchemaInventory(client, result.targetFingerprint, result.fullSchemaB);
-
-    await ensureConnectorVersion(client, result.sourceSchemaId, tenantId, result.sourceFingerprint, result.reportId);
-    await ensureConnectorVersion(client, result.targetSchemaId, tenantId, result.targetFingerprint, result.reportId);
-
-    await upsertSchemaDiffReport(client, result, tenantId);
-    await client.query('COMMIT');
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  }
-}
-
-async function upsertSchemaInventory(client: QueryableClient, fingerprint: string, definition: unknown): Promise<void> {
-  await client.query(`
-    INSERT INTO schema_inventory (fingerprint, schema_definition)
-    VALUES ($1, $2)
-    ON CONFLICT (fingerprint) DO NOTHING
-  `, [fingerprint, JSON.stringify(definition)]);
-}
-
-async function upsertSchemaDiffReport(client: QueryableClient, result: DiffResult, tenantId: string): Promise<void> {
-  await client.query(`
-    INSERT INTO schema_diff_reports (
-      id, tenant_id, source_connector_id, target_connector_id,
-      source_fingerprint, target_fingerprint, has_differences, diff_payload, created_at
-    ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, NOW()
-    )
-    ON CONFLICT (id) DO UPDATE SET
-      diff_payload = EXCLUDED.diff_payload,
-      has_differences = EXCLUDED.has_differences,
-      source_fingerprint = EXCLUDED.source_fingerprint,
-      target_fingerprint = EXCLUDED.target_fingerprint
-  `, [
-    result.reportId,
-    tenantId,
-    result.sourceSchemaId,
-    result.targetSchemaId,
-    result.sourceFingerprint,
-    result.targetFingerprint,
-    result.hasDifferences,
-    JSON.stringify(result),
-  ]);
-}
-
-export async function ensureConnectorVersion(
-  client: QueryableClient,
-  connectorId: string,
-  tenantId: string,
-  fingerprint: string,
-  reportId: string,
-): Promise<void> {
-  const lastVersionRes = await client.query(`
-    SELECT fingerprint, version_number 
-    FROM connector_schema_versions 
-    WHERE connector_id = $1 AND tenant_id = $2 
-    ORDER BY version_number DESC
-    LIMIT 1
-    FOR UPDATE
-  `, [connectorId, tenantId]);
-
-  if (lastVersionRes.rows.length === 0) {
-    await client.query(`
-      INSERT INTO connector_schema_versions (connector_id, tenant_id, fingerprint, version_number, metadata)
-      VALUES ($1, $2, $3, 1, $4)
-    `, [connectorId, tenantId, fingerprint, JSON.stringify({
-      source: 'auto-discovery',
-      report_id: reportId,
-      first_seen: new Date().toISOString(),
-    })]);
-    return;
-  }
-
-  if (lastVersionRes.rows[0].fingerprint !== fingerprint) {
-    const newVersion = lastVersionRes.rows[0].version_number + 1;
-    await client.query(`
-      INSERT INTO connector_schema_versions (connector_id, tenant_id, fingerprint, version_number, metadata)
-      VALUES ($1, $2, $3, $4, $5)
-    `, [connectorId, tenantId, fingerprint, newVersion, JSON.stringify({
-      source: 'auto-discovery',
-      report_id: reportId,
-      detected_at: new Date().toISOString(),
-      previous_fingerprint: lastVersionRes.rows[0].fingerprint,
-    })]);
-  }
-}
+export { ensureConnectorVersion, persistDiffResultTransactional };

@@ -1,4 +1,4 @@
-import { proxyActivities, log } from '@temporalio/workflow';
+import { proxyActivities, log, workflowInfo } from '@temporalio/workflow';
 import type * as activities from '../activities/schema-diff-activities.js';
 
 const {
@@ -16,13 +16,15 @@ const {
 export interface SchemaDiffWorkflowInput {
   sourceSchemaId: string;
   targetSchemaId: string;
-  samplesA: Record<string, unknown>[];
-  samplesB: Record<string, unknown>[];
+  samplesA?: Record<string, unknown>[];
+  samplesB?: Record<string, unknown>[];
   tenantId?: string;
   options?: {
     renameSimilarityThreshold?: number;
     enableLlmEscalation?: boolean;
     forceRecalculate?: boolean;
+    useSampleReservoir?: boolean;
+    sampleLimit?: number;
   };
 }
 
@@ -37,10 +39,12 @@ export interface SchemaDiffWorkflowInput {
  * 3. Devuelve el reporte estandarizado.
  */
 export async function schemaDiffWorkflow(input: SchemaDiffWorkflowInput): Promise<activities.DiffResult> {
+  const info = workflowInfo();
   log.info('Iniciando SchemaDiffWorkflow', {
     source: input.sourceSchemaId,
     target: input.targetSchemaId,
-    tenantId: input.tenantId
+    tenantId: input.tenantId,
+    workflowId: info.workflowId,
   });
 
   // 1. Generar Diff (esta actividad revisará el caché en Redis internamente)
@@ -56,6 +60,7 @@ export async function schemaDiffWorkflow(input: SchemaDiffWorkflowInput): Promis
   log.info(`Diff generado exitosamente. DiffResult reportId: ${diffResult.reportId}`);
 
   // 2. Persistir resultado (audit trail / base de datos)
+  diffResult.workflowId = info.workflowId;
   await persistDiffResult(diffResult);
 
   return diffResult;

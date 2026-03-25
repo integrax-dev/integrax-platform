@@ -36,6 +36,15 @@ vi.mock('../store/db.js', () => ({
   },
 }));
 
+vi.mock('../store/mapping-memory-repository.js', () => ({
+  loadMappingMemory: vi.fn().mockResolvedValue([]),
+  upsertEntry: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../middleware/rate-limit.js', () => ({
+  rateLimit: () => (_req: express.Request, _res: express.Response, next: express.NextFunction) => next(),
+}));
+
 vi.mock('@integrax/temporal-workflows', () => ({
   TemporalClientService: class {
     async connect(): Promise<void> {}
@@ -97,8 +106,26 @@ describe('schemas router', () => {
     expect(payload.success).toBe(true);
     expect(payload.data.id).toBe('br_01REPORT');
     expect(queryMock).toHaveBeenCalledWith(
-      'SELECT * FROM schema_diff_reports WHERE id = $1',
-      ['br_01REPORT'],
+      'SELECT * FROM schema_diff_reports WHERE id = $1 AND tenant_id = $2',
+      ['br_01REPORT', 'tenant-1'],
+    );
+  });
+
+  it('resolves reportLink from workflow_id when the workflow is completed', async () => {
+    queryMock.mockResolvedValueOnce({
+      rows: [{ id: 'br_01REPORT' }],
+    });
+
+    const workflowId = 'schemaDiff-tenant-1-123';
+    const response = await fetch(`${baseUrl}/api/schemas/status/${workflowId}`);
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.success).toBe(true);
+    expect(payload.data.reportLink).toBe('/api/schemas/reports/br_01REPORT');
+    expect(queryMock).toHaveBeenCalledWith(
+      'SELECT id FROM schema_diff_reports WHERE workflow_id = $1 AND tenant_id = $2',
+      [workflowId, 'tenant-1'],
     );
   });
 });

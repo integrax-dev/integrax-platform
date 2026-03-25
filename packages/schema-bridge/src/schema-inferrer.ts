@@ -20,7 +20,7 @@ import type {
   SchemaNode,
 } from './types.js';
 
-const DEFAULT_MAX_EXAMPLES = 50;
+const DEFAULT_MAX_EXAMPLES = 200;
 const FINGERPRINT_LENGTH = 32;
 const PLACEHOLDER_TOKENS = new Set([
   '',

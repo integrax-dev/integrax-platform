@@ -18,6 +18,7 @@ import type {
   ResolvedConflict,
   TransformSpec,
 } from './types.js';
+import { SimilarityDecisionPolicy } from './similarity-decision-policy.js';
 import { TypeResolver } from './type-resolver.js';
 
 const resolver = new TypeResolver();
@@ -26,6 +27,12 @@ const HUMAN_REVIEW_THRESHOLD = 0.70;
 const MIN_CONFIDENCE_MARGIN = 0.15;
 
 const MONEY_FIELD = /monto|importe|precio|amount|valor|costo|tarifa|total/i;
+
+type EffectiveConflictResolverConfig = {
+  autoAcceptThreshold: number;
+  humanReviewThreshold: number;
+  minConfidenceMargin: number;
+};
 
 function normalizeType(node: { type: string | string[] }): string {
   if (Array.isArray(node.type)) return node.type.find(t => t !== 'null') ?? 'null';
@@ -50,55 +57,16 @@ function makeMapping(
 
 function isHighConfidenceRename(
   diff: FieldDiff,
-  config: Required<ConflictResolverConfig>,
+  policy: SimilarityDecisionPolicy,
 ): boolean {
   if (diff.kind !== 'rename_candidate' || !diff.similarity) return false;
-
-  const combined = diff.similarity.combined;
-  const margin = diff.similarity.margin ?? 0;
-  const reciprocalMargin = diff.similarity.reciprocalMargin ?? 0;
-  const minimumMargin = Math.min(margin, reciprocalMargin);
-  const dominantMargin = Math.max(margin, reciprocalMargin);
-  const decision = diff.similarity.decision;
-  const evidence = diff.similarity.evidenceBreakdown;
-
-  if (decision === 'auto_accept' && combined >= 0.90) return true;
-  if (
-    decision === 'auto_accept' &&
-    combined >= 0.80 &&
-    dominantMargin >= 0.60 &&
-    minimumMargin >= 0.12
-  ) {
-    return true;
-  }
-  if (
-    decision === 'auto_accept' &&
-    combined >= 0.80 &&
-    minimumMargin >= 0.12 &&
-    (evidence?.ontology ?? 0) >= 0.90 &&
-    (diff.similarity.value ?? 0) >= 0.50 &&
-    (evidence?.structural ?? 0) >= 0.95
-  ) {
-    return true;
-  }
-  if (combined >= config.autoAcceptThreshold && minimumMargin >= config.minConfidenceMargin) {
-    return true;
-  }
-
-  return (
-    decision === 'auto_accept' &&
-    combined >= config.humanReviewThreshold &&
-    (
-      (diff.similarity.value ?? 0) >= 0.60 ||
-      Math.max(evidence?.businessType ?? 0, evidence?.ontology ?? 0) >= 0.90
-    ) &&
-    minimumMargin >= Math.max(0.25, config.minConfidenceMargin * 1.7)
-  );
+  return policy.evaluate(diff.similarity) === 'auto_accept';
 }
 
 function resolveDeterministic(
   diff: FieldDiff,
-  config: Required<ConflictResolverConfig>,
+  config: EffectiveConflictResolverConfig,
+  policy: SimilarityDecisionPolicy,
 ): ResolvedConflict | null {
   const { kind, nodeA, nodeB, pathA, pathB } = diff;
 
@@ -118,7 +86,7 @@ function resolveDeterministic(
     };
   }
 
-  if (kind === 'rename_candidate' && diff.similarity && isHighConfidenceRename(diff, config)) {
+  if (kind === 'rename_candidate' && diff.similarity && isHighConfidenceRename(diff, policy)) {
     const transform: TransformSpec = {
       kind: 'rename',
       fromPath: pathA,
@@ -223,19 +191,23 @@ function resolveDeterministic(
 
 function resolveHeuristic(
   diff: FieldDiff,
-  config: Required<ConflictResolverConfig>,
+  config: EffectiveConflictResolverConfig,
+  policy: SimilarityDecisionPolicy,
 ): ResolvedConflict | null {
   const { kind, nodeA, nodeB, pathA, pathB } = diff;
 
   if (kind === 'rename_candidate' && diff.similarity) {
-    const { combined, margin = 0, reciprocalMargin = 0 } = diff.similarity;
+    const similarity = diff.similarity.decision
+      ? diff.similarity
+      : policy.annotate(diff.similarity);
+    const { combined, margin = 0, reciprocalMargin = 0 } = similarity;
     if (
       combined >= config.humanReviewThreshold &&
-      diff.similarity.decision === 'review' &&
-      !isHighConfidenceRename(diff, config)
+      similarity.decision === 'review' &&
+      !isHighConfidenceRename({ ...diff, similarity }, policy)
     ) {
       return {
-        diff,
+        diff: { ...diff, similarity },
         resolution: 'heuristic',
         mapping: null,
         confidence: combined,
@@ -331,7 +303,8 @@ function resolveAmbiguous(diff: FieldDiff): ResolvedConflict {
 }
 
 export class ConflictResolver {
-  private readonly config: Required<ConflictResolverConfig>;
+  private readonly config: EffectiveConflictResolverConfig;
+  private readonly policy: SimilarityDecisionPolicy;
 
   constructor(config: ConflictResolverConfig = {}) {
     this.config = {
@@ -339,19 +312,24 @@ export class ConflictResolver {
       humanReviewThreshold: config.humanReviewThreshold ?? HUMAN_REVIEW_THRESHOLD,
       minConfidenceMargin: config.minConfidenceMargin ?? MIN_CONFIDENCE_MARGIN,
     };
+    this.policy = new SimilarityDecisionPolicy(config.decisionPolicy ?? {
+      autoAcceptThreshold: this.config.autoAcceptThreshold,
+      reviewThreshold: this.config.humanReviewThreshold,
+      minConfidenceMargin: this.config.minConfidenceMargin,
+    });
   }
 
   resolveAll(diffs: FieldDiff[], options?: Partial<CompareOptions>): ResolvedConflict[] {
     const results: ResolvedConflict[] = [];
 
     for (const diff of diffs) {
-      const det = resolveDeterministic(diff, this.config);
+      const det = resolveDeterministic(diff, this.config, this.policy);
       if (det) {
         results.push(det);
         continue;
       }
 
-      const heu = resolveHeuristic(diff, this.config);
+      const heu = resolveHeuristic(diff, this.config, this.policy);
       if (heu) {
         results.push(heu);
         continue;

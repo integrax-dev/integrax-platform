@@ -16,11 +16,11 @@ import {
   defaultBusinessTypeWeights,
 } from './business-type-registry.js';
 import { defaultOntologyProviders } from './ontology-registry.js';
+import { SimilarityDecisionPolicy } from './similarity-decision-policy.js';
 import type {
   FieldDiff,
   OntologyProvider,
   SchemaNode,
-  SimilarityDecision,
   SimilarityEngineConfig,
   SimilarityEvidenceBreakdown,
   SimilarityScore,
@@ -137,13 +137,89 @@ function semanticSimilarity(left: string, right: string): number {
   return shared / Math.max(leftTokens.length, rightTokens.length);
 }
 
+/** @internal — exported for unit testing only */
+export function _tokenReliability(token: string): number {
+  return tokenReliability(token);
+}
+
+/** @internal — exported for unit testing only */
+export function _normalizeValueForMatching(value: unknown): string {
+  return normalizeValueForMatching(value);
+}
+
+/**
+ * Normaliza un valor a una string canónica para Jaccard overlap.
+ *
+ * Reglas especiales para datos LatAm / legacy:
+ *  - Decimal comma ("1234,56") → punto decimal ("1234.56")
+ *    Aplica solo cuando: string de dígitos con coma seguida de exactamente 1-4 dígitos
+ *    y sin punto (distingue "1.234,56" euro-style de "AR,US" que son dos códigos).
+ *  - Fecha DD/MM/YYYY → YYYY-MM-DD (ISO 8601)
+ *  - Fecha YYYYMMDD (entero o string de 8 dígitos en rango 19000101-20991231) → YYYY-MM-DD
+ *
+ * Conservadora: si el patrón es ambiguo, no normaliza.
+ */
 function normalizeValueForMatching(value: unknown): string {
   if (value === null) return '<null>';
   if (value === undefined) return '<undefined>';
-  if (typeof value === 'string') return value.trim().toLowerCase();
-  if (typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean') {
-    return String(value).toLowerCase();
+
+  if (typeof value === 'string') {
+    const s = value.trim();
+
+    // Fecha DD/MM/YYYY — inequívoco: dos dígitos, slash, dos dígitos, slash, cuatro dígitos
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+      const [d, m, y] = s.split('/');
+      return `${y}-${m}-${d}`;
+    }
+
+    // Fecha YYYYMMDD como string de 8 dígitos (formato AFIP y legacy ERPs)
+    if (/^\d{8}$/.test(s)) {
+      const year = Number(s.slice(0, 4));
+      const month = Number(s.slice(4, 6));
+      const day = Number(s.slice(6, 8));
+      if (year >= 1900 && year <= 2099 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+        return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
+      }
+    }
+
+    // Decimal comma: "1234,56" → canonical float string ("1234.56")
+    // Usa parseFloat para eliminar ceros finales: "15000,00" → "15000" (no "15000.00").
+    // Esto permite matching con valores numéricos JS: 15000.0 → String(15000) = "15000".
+    // Solo aplica cuando: toda la parte entera son dígitos, hay una coma,
+    // y la parte decimal tiene 1-4 dígitos.
+    // No aplica a "AR,US" porque "AR" no es puramente numérico.
+    if (/^-?\d+,\d{1,4}$/.test(s)) {
+      return String(parseFloat(s.replace(',', '.'))).toLowerCase();
+    }
+
+    // Decimal dot trailing zeros: "1500.50" → "1500.5", "15000.00" → "15000"
+    // Normaliza strings con punto decimal al mismo formato canónico que produce
+    // el bloque decimal-comma. Permite que "15000,00" (LatAm) y "15000.00" (US/moderno)
+    // sean idénticos después de la normalización — ambos → "15000".
+    // Solo aplica a strings con exactamente un punto decimal.
+    if (/^-?\d+\.\d+$/.test(s)) {
+      return String(parseFloat(s)).toLowerCase();
+    }
+
+    return s.toLowerCase();
   }
+
+  if (typeof value === 'number' || typeof value === 'bigint') {
+    const n = typeof value === 'number' ? value : Number(value);
+    // Entero de 8 dígitos → posible YYYYMMDD (formato AFIP)
+    // El rango n >= 19000101 && n <= 20991231 ya garantiza year entre 1900-2099.
+    if (Number.isInteger(n) && n >= 19000101 && n <= 20991231) {
+      const s = String(n);
+      const month = Number(s.slice(4, 6));
+      const day = Number(s.slice(6, 8));
+      if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+        return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
+      }
+    }
+    return String(n).toLowerCase();
+  }
+
+  if (typeof value === 'boolean') return String(value);
   return JSON.stringify(value);
 }
 
@@ -177,7 +253,13 @@ function tokenReliability(token: string): number {
   if (/^-?\d+(?:[.,]\d+)?$/.test(normalized)) {
     return normalized.length >= 7 ? 0.55 : 0.16;
   }
-  if (/^[a-z]{1,3}$/i.test(normalized)) return 0.12;
+  // 1-char alphabetic ('a', 'y', 'n', 'm'): genuine noise — very low reliability.
+  if (/^[a-z]$/i.test(normalized)) return 0.12;
+  // 2-char alphabetic: ISO 3166-1 alpha-2 country codes (AR, US, GB, BR, MX…)
+  // and ISO 639-1 language codes — discriminative values, treat at mid reliability.
+  if (/^[a-z]{2}$/i.test(normalized)) return 0.55;
+  // 3-char alphabetic: ISO 4217 currency (EUR, USD, ARS…), ISO 3166-1 alpha-3 —
+  // full reliability (handled by falling through to return 1 below).
 
   return 1;
 }
@@ -229,10 +311,30 @@ function buildValueProfile(node: SchemaNode): ValueProfile {
     const normalized = normalizeValueForMatching(example);
     counts.set(normalized, (counts.get(normalized) ?? 0) + 1);
   }
+
+  // For object/array container nodes that carry no leaf examples, build a structural
+  // signature from their child field names. This lets value-similarity detect that
+  // orders[*] and salesOrders[*] share children like "id", "status", "total" even
+  // when the container names are completely different.
+  // Cap at 0.35 contribution (enforced in valueSimilarity) so this signal alone
+  // cannot push a pair into auto-accept — it only supplements lexical/structural.
+  if (counts.size === 0) {
+    const childKeys =
+      node.children
+        ? Object.keys(node.children)
+        : node.itemSchema?.children
+          ? Object.keys(node.itemSchema.children)
+          : [];
+    for (const key of childKeys) {
+      const k = key.toLowerCase();
+      counts.set(k, (counts.get(k) ?? 0) + 1);
+    }
+  }
+
   const total = node.examples.length;
   const unique = counts.size;
-  const entropy = shannonEntropy(counts, total);
-  return { total, unique, entropy, counts };
+  const entropy = shannonEntropy(counts, total === 0 ? counts.size : total);
+  return { total: total === 0 && counts.size > 0 ? counts.size : total, unique, entropy, counts };
 }
 
 function valueSimilarity(nodeA: SchemaNode | null, nodeB: SchemaNode | null, weights: Map<string, number>): number {
@@ -241,6 +343,10 @@ function valueSimilarity(nodeA: SchemaNode | null, nodeB: SchemaNode | null, wei
   const profileA = buildValueProfile(nodeA);
   const profileB = buildValueProfile(nodeB);
   if (profileA.total === 0 || profileB.total === 0) return 0;
+
+  // Detect if both profiles are structural (container) signatures, not real values.
+  // Container signatures get a dampened score: max 0.35 to prevent false auto-accepts.
+  const bothStructural = nodeA.examples.length === 0 && nodeB.examples.length === 0;
 
   const sharedTokens = [...profileA.counts.keys()].filter(token => profileB.counts.has(token));
   if (sharedTokens.length === 0) return 0;
@@ -268,7 +374,8 @@ function valueSimilarity(nodeA: SchemaNode | null, nodeB: SchemaNode | null, wei
   const distributionSignal = Math.sqrt(Math.max(0, entropyAlignment) * Math.max(0, cardinalityAlignment));
   const score = overlapSignal * (0.65 + 0.35 * distributionSignal) * Math.max(0.35, diversityAlignment) * sufficiency * reliability;
 
-  return clamp01(score);
+  // Container signatures (no real examples) can supplement but never drive auto-accept.
+  return bothStructural ? Math.min(0.35, clamp01(score)) : clamp01(score);
 }
 
 function businessTypeSimilarity(
@@ -455,118 +562,6 @@ function deriveConfidence(breakdown: SimilarityEvidenceBreakdown): number {
   ));
 }
 
-function decisionFor(score: SimilarityScore): SimilarityDecision {
-  const sourceMargin = score.margin ?? 0;
-  const targetMargin = score.reciprocalMargin ?? 0;
-  const margin = Math.min(sourceMargin, targetMargin);
-  const dominantMargin = Math.max(sourceMargin, targetMargin);
-  const breakdown = score.evidenceBreakdown ?? {
-    lexical: 0,
-    value: 0,
-    structural: 0,
-    businessType: 0,
-    ontology: 0,
-    sufficiency: 0,
-  };
-
-  if (
-    score.combined >= 0.90 &&
-    margin >= 0.16 &&
-    breakdown.sufficiency >= 0.68 &&
-    (
-      (breakdown.value >= 0.78 && breakdown.structural >= 0.50) ||
-      (Math.max(breakdown.lexical, breakdown.ontology) >= 0.90 && breakdown.structural >= 0.40)
-    )
-  ) {
-    return 'auto_accept';
-  }
-
-  if (
-    score.combined >= 0.84 &&
-    margin >= 0.30 &&
-    breakdown.value >= 0.70 &&
-    breakdown.structural >= 0.80 &&
-    breakdown.sufficiency >= 0.70
-  ) {
-    return 'auto_accept';
-  }
-
-  if (
-    score.combined >= 0.80 &&
-    margin >= 0.45 &&
-    breakdown.value >= 0.55 &&
-    breakdown.structural >= 0.55 &&
-    breakdown.sufficiency >= 0.70
-  ) {
-    return 'auto_accept';
-  }
-
-  if (
-    score.combined >= 0.82 &&
-    margin >= 0.45 &&
-    Math.max(breakdown.businessType, breakdown.ontology) >= 0.90 &&
-    breakdown.value >= 0.18 &&
-    breakdown.structural >= 0.90
-  ) {
-    return 'auto_accept';
-  }
-
-  if (
-    score.combined >= 0.80 &&
-    margin >= 0.30 &&
-    Math.max(breakdown.ontology, breakdown.businessType) >= 0.90 &&
-    breakdown.value >= 0.50 &&
-    breakdown.structural >= 0.55
-  ) {
-    return 'auto_accept';
-  }
-
-  if (
-    score.combined >= 0.80 &&
-    margin >= 0.12 &&
-    breakdown.ontology >= 0.90 &&
-    breakdown.value >= 0.50 &&
-    breakdown.structural >= 0.95
-  ) {
-    return 'auto_accept';
-  }
-
-  if (
-    score.combined >= 0.80 &&
-    dominantMargin >= 0.63 &&
-    margin >= 0.12 &&
-    breakdown.value >= 0.70 &&
-    breakdown.structural >= 0.55 &&
-    breakdown.sufficiency >= 0.70
-  ) {
-    return 'auto_accept';
-  }
-
-  if (
-    score.combined >= 0.80 &&
-    dominantMargin >= 0.60 &&
-    margin >= 0.12 &&
-    Math.max(breakdown.businessType, breakdown.ontology) >= 0.90 &&
-    breakdown.value >= 0.18 &&
-    breakdown.structural >= 0.55
-  ) {
-    return 'auto_accept';
-  }
-
-  if (
-    score.combined >= 0.70 &&
-    (
-      margin >= 0.08 ||
-      breakdown.value >= 0.70 ||
-      Math.max(breakdown.businessType, breakdown.ontology) >= 0.90
-    )
-  ) {
-    return 'review';
-  }
-
-  return 'reject';
-}
-
 function comparisonSort(left: CandidateScore, right: CandidateScore): number {
   if (right.score.combined !== left.score.combined) return right.score.combined - left.score.combined;
   if ((right.score.margin ?? 0) !== (left.score.margin ?? 0)) return (right.score.margin ?? 0) - (left.score.margin ?? 0);
@@ -635,13 +630,18 @@ function buildScore(
 export class SimilarityEngine {
   private readonly weights: Map<string, number>;
   private readonly ontologyProviders: OntologyProvider[];
+  private readonly decisionPolicy: SimilarityDecisionPolicy;
 
   constructor(config: SimilarityEngineConfig = {}) {
     this.weights = new Map(Object.entries({
       ...defaultBusinessTypeWeights,
       ...(config.businessTypeWeights ?? {}),
     }));
-    this.ontologyProviders = config.ontologyProviders ?? defaultOntologyProviders;
+    this.ontologyProviders = [
+      ...defaultOntologyProviders,
+      ...(config.ontologyProviders ?? []),
+    ];
+    this.decisionPolicy = new SimilarityDecisionPolicy(config.decisionPolicy);
   }
 
   findRenameCandidates(
@@ -722,11 +722,10 @@ export class SimilarityEngine {
           margin: Math.max(0, margin),
           reciprocalMargin: Math.max(0, reciprocalMargin),
         };
-        score.decision = decisionFor(score);
 
         return {
           ...comparison,
-          score,
+          score: this.decisionPolicy.annotate(score),
         };
       })
       .filter(comparison =>
@@ -761,8 +760,7 @@ export class SimilarityEngine {
 
   score(nameA: string, nameB: string): SimilarityScore {
     const score = buildScore(nameA, nameB, null, null, this.weights, this.ontologyProviders);
-    score.decision = decisionFor(score);
-    return score;
+    return this.decisionPolicy.annotate(score);
   }
 }
 

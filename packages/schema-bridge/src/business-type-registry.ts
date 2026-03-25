@@ -35,7 +35,7 @@ export const defaultBusinessTypeWeights: BusinessTypeWeightMap = {
   'lat-lon': 0.95,
   'ar-cuit': 0.9,
   uri: 0.9,
-  'ar-money-string': 0.75,
+  'ar-money-string': 1.0,
   'date-time': 0.45,
   date: 0.35,
 };

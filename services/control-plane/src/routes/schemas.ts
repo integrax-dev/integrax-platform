@@ -5,11 +5,13 @@ import { audit } from '../middleware/audit.js';
 import { validate } from '../middleware/validate.js';
 import { z } from 'zod';
 import { pool } from '../store/db.js';
+import { loadMappingMemory, upsertEntry } from '../store/mapping-memory-repository.js';
+import { rateLimit } from '../middleware/rate-limit.js';
 
 const router: Router = Router();
 
-// Inyección de cliente Temporal
 let temporalClient: TemporalClientService | null = null;
+
 async function getTemporalClient(): Promise<TemporalClientService> {
   if (!temporalClient) {
     temporalClient = new TemporalClientService();
@@ -21,19 +23,25 @@ async function getTemporalClient(): Promise<TemporalClientService> {
 const startSchemaDiffOpts = z.object({
   sourceSchemaId: z.string(),
   targetSchemaId: z.string(),
-  samplesA: z.array(z.record(z.unknown())),
-  samplesB: z.array(z.record(z.unknown())),
+  samplesA: z.array(z.record(z.unknown())).max(2000).optional(),
+  samplesB: z.array(z.record(z.unknown())).max(2000).optional(),
   options: z.object({
     renameSimilarityThreshold: z.number().optional(),
     enableLlmEscalation: z.boolean().optional(),
     forceRecalculate: z.boolean().optional(),
+    useSampleReservoir: z.boolean().optional(),
+    sampleLimit: z.number().int().min(1).max(2000).optional(),
   }).optional(),
-});
+}).refine(
+  value =>
+    ((value.samplesA?.length ?? 0) > 0 && (value.samplesB?.length ?? 0) > 0) ||
+    value.options?.useSampleReservoir === true,
+  {
+    message: 'Provide samplesA/samplesB or enable options.useSampleReservoir',
+    path: ['samplesA'],
+  },
+);
 
-/**
- * POST /api/schemas/diff
- * Run cross-system mapping inference using Schema Bridge
- */
 router.post(
   '/diff',
   requireAuth,
@@ -44,7 +52,6 @@ router.post(
     try {
       const tenantId = req.tenantId!;
       const client = await getTemporalClient();
-
       const { sourceSchemaId, targetSchemaId, samplesA, samplesB, options } = req.body;
       const workflowId = `schemaDiff-${tenantId}-${Date.now()}`;
 
@@ -62,7 +69,7 @@ router.post(
         data: {
           workflowId: handle.workflowId,
           status: 'ACCEPTED',
-          pollUrl: `/api/schemas/diff/status/${handle.workflowId}`
+          pollUrl: `/api/schemas/status/${handle.workflowId}`,
         },
       });
     } catch (error) {
@@ -75,12 +82,9 @@ router.post(
         },
       });
     }
-  }
+  },
 );
 
-/**
- * GET /api/schemas/diff/status/:workflowId
- */
 router.get(
   '/status/:workflowId',
   requireAuth,
@@ -90,34 +94,28 @@ router.get(
       const { workflowId } = req.params;
       const tenantId = req.tenantId!;
 
-      if (!workflowId.includes(tenantId)) {
+      // workflowId format: schemaDiff-{tenantId}-{timestamp}
+      // startsWith with trailing dash prevents "tenant-abc" bypassing check for "tenant-a"
+      if (!workflowId.startsWith(`schemaDiff-${tenantId}-`)) {
         return res.status(403).json({
           success: false,
-          error: { code: 'FORBIDDEN', message: 'You do not own this workflow' }
+          error: { code: 'FORBIDDEN', message: 'You do not own this workflow' },
         });
       }
 
       const client = await getTemporalClient();
       const status = await client.getWorkflowStatus(workflowId);
 
-      let reportLink = null;
+      let reportLink: string | null = null;
       if (status.status === 'Completed' || status.status === 'COMPLETED') {
-         // Buscar el reporte generado por este flujo
-         const dbResult = await pool.query(
-           'SELECT id FROM schema_diff_reports WHERE id = $1',
-           [workflowId.split('-').pop()] // Esto es frágil, mejor sería guardar el workflowId en la DB
-         );
-         // Alternativa: buscar el más reciente para este tenant y conector
-         if (dbResult.rows.length > 0) {
-           reportLink = `/api/schemas/diff/reports/${dbResult.rows[0].id}`;
-         } else {
-            // Fallback: último reporte del tenant
-            const fallbackRes = await pool.query(
-              'SELECT id FROM schema_diff_reports WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 1',
-              [tenantId]
-            );
-            if (fallbackRes.rows.length > 0) reportLink = `/api/schemas/diff/reports/${fallbackRes.rows[0].id}`;
-         }
+        const dbResult = await pool.query(
+          'SELECT id FROM schema_diff_reports WHERE workflow_id = $1 AND tenant_id = $2',
+          [workflowId, tenantId],
+        );
+
+        if (dbResult.rows.length > 0) {
+          reportLink = `/api/schemas/reports/${dbResult.rows[0].id}`;
+        }
       }
 
       res.json({
@@ -125,25 +123,21 @@ router.get(
         data: {
           workflowId,
           ...status,
-          reportLink
-        }
+          reportLink,
+        },
       });
     } catch (error) {
       res.status(500).json({
         success: false,
         error: {
           code: 'WORKFLOW_STATUS_FAILED',
-          message: error instanceof Error ? error.message : 'Error retrieving workflow'
-        }
+          message: error instanceof Error ? error.message : 'Error retrieving workflow',
+        },
       });
     }
-  }
+  },
 );
 
-/**
- * GET /api/schemas/diff/reports/:id
- * Recupera el resultado final persistido en Postgres
- */
 router.get(
   '/reports/:id',
   requireAuth,
@@ -151,32 +145,157 @@ router.get(
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
+      const tenantId = req.tenantId!;
       const result = await pool.query(
-        'SELECT * FROM schema_diff_reports WHERE id = $1',
-        [id]
+        'SELECT * FROM schema_diff_reports WHERE id = $1 AND tenant_id = $2',
+        [id, tenantId],
       );
 
       if (result.rows.length === 0) {
         return res.status(404).json({
           success: false,
-          error: { code: 'NOT_FOUND', message: 'Report not found' }
+          error: { code: 'NOT_FOUND', message: 'Report not found' },
         });
       }
 
       res.json({
         success: true,
-        data: result.rows[0]
+        data: result.rows[0],
       });
     } catch (error) {
       res.status(500).json({
         success: false,
         error: {
           code: 'FETCH_REPORT_FAILED',
-          message: error instanceof Error ? error.message : 'Error retrieving report'
-        }
+          message: error instanceof Error ? error.message : 'Error retrieving report',
+        },
       });
     }
-  }
+  },
+);
+
+// ─── Schema: feedback body ────────────────────────────────────────────────────
+
+const feedbackBodySchema = z.object({
+  sourcePath: z.string().min(1),
+  targetPath: z.string().min(1),
+  accepted: z.boolean(),
+  /**
+   * Confianza del modelo en el momento de la sugerencia (0–1).
+   * Si no se provee, se usa 0.80 como valor neutral.
+   */
+  confidence: z.number().min(0).max(1).default(0.80),
+});
+
+/**
+ * POST /api/schemas/reports/:reportId/feedback
+ *
+ * Registra la decisión del operador (aceptar / rechazar) sobre un par de campos
+ * sugerido en un reporte de diff. Actualiza la memoria de mappings en Postgres.
+ *
+ * El reportId se usa para obtener el par de conectores (source/target) del reporte,
+ * garantizando que el feedback quede correctamente scopeado.
+ */
+router.post(
+  '/reports/:reportId/feedback',
+  requireAuth,
+  requireTenant,
+  rateLimit({ maxRequests: 120, windowMs: 60_000 }),
+  validate(feedbackBodySchema),
+  audit('schemas.feedback'),
+  async (req: Request, res: Response) => {
+    try {
+      const { reportId } = req.params;
+      const tenantId = req.tenantId!;
+      const { sourcePath, targetPath, accepted, confidence } = req.body as z.infer<typeof feedbackBodySchema>;
+
+      // Resolver el par de conectores desde el reporte para scopear el feedback.
+      const reportResult = await pool.query<{
+        source_connector_id: string;
+        target_connector_id: string;
+      }>(
+        'SELECT source_connector_id, target_connector_id FROM schema_diff_reports WHERE id = $1 AND tenant_id = $2',
+        [reportId, tenantId],
+      );
+
+      if (reportResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: { code: 'NOT_FOUND', message: 'Report not found' },
+        });
+      }
+
+      const { source_connector_id, target_connector_id } = reportResult.rows[0];
+
+      await upsertEntry(
+        tenantId,
+        source_connector_id,
+        target_connector_id,
+        sourcePath,
+        targetPath,
+        accepted,
+        confidence,
+      );
+
+      res.json({
+        success: true,
+        data: {
+          reportId,
+          sourcePath,
+          targetPath,
+          accepted,
+          confidence,
+          connectorAId: source_connector_id,
+          connectorBId: target_connector_id,
+        },
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'FEEDBACK_FAILED',
+          message: error instanceof Error ? error.message : 'Error saving feedback',
+        },
+      });
+    }
+  },
+);
+
+/**
+ * GET /api/schemas/memory
+ *
+ * Devuelve la memoria de mappings para un par de conectores del tenant.
+ * Útil para inspección / debug desde el panel de admin.
+ *
+ * Query params: connectorAId, connectorBId (ambos requeridos)
+ */
+router.get(
+  '/memory',
+  requireAuth,
+  requireTenant,
+  async (req: Request, res: Response) => {
+    const { connectorAId, connectorBId } = req.query;
+
+    if (typeof connectorAId !== 'string' || typeof connectorBId !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'connectorAId and connectorBId are required query params' },
+      });
+    }
+
+    try {
+      const entries = await loadMappingMemory(req.tenantId!, connectorAId, connectorBId);
+      res.json({ success: true, data: entries });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'MEMORY_FETCH_FAILED',
+          message: error instanceof Error ? error.message : 'Error fetching mapping memory',
+        },
+      });
+    }
+  },
 );
 
 export { router as schemasRouter };

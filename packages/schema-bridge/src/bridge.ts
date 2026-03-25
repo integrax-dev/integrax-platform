@@ -16,6 +16,7 @@ import type {
   BridgeReport,
   CompareSchemasRequest,
   FieldDiff,
+  MappingMemoryEntry,
   SchemaBridgeConfig,
 } from './types.js';
 import { SchemaInferrer } from './schema-inferrer.js';
@@ -25,31 +26,44 @@ import { ConflictResolver } from './conflict-resolver.js';
 import { MappingGenerator } from './mapping-generator.js';
 import { ChangeReporter } from './change-reporter.js';
 import { ClientUpdater } from './client-updater.js';
+import { createMappingMemoryOntologyProvider, updateMemoryEntry } from './mapping-memory-provider.js';
+import type { OntologyProvider } from './types.js';
 
 export class SchemaBridge {
   private readonly inferrer: SchemaInferrer;
   private readonly differ: SchemaDiffer;
-  private readonly similarity: SimilarityEngine;
   private readonly resolver: ConflictResolver;
   private readonly mapper: MappingGenerator;
   private readonly reporter: ChangeReporter;
   private readonly updater: ClientUpdater;
   private readonly logger: Required<SchemaBridgeConfig>['logger'];
+  private memoryEntries: MappingMemoryEntry[];
+  // Stored for per-compare SimilarityEngine creation with connector-scoped memory.
+  private readonly baseOntologyProviders: OntologyProvider[];
+  private readonly similarityConfig: Pick<SchemaBridgeConfig, 'businessTypeWeights' | 'decisionPolicy'>;
+  private readonly memoryVetoRatio: number | undefined;
+  private readonly memoryMinSamples: number | undefined;
 
   constructor(config: SchemaBridgeConfig = {}) {
+    this.memoryEntries = [...(config.mappingMemory ?? [])];
+    this.baseOntologyProviders = config.ontologyProviders ?? [];
+    this.similarityConfig = {
+      businessTypeWeights: config.businessTypeWeights,
+      decisionPolicy: config.decisionPolicy,
+    };
+    this.memoryVetoRatio = config.rejectionVetoRatio;
+    this.memoryMinSamples = config.rejectionMinSamples;
+
     this.inferrer = new SchemaInferrer({
       businessTypeProviders: config.businessTypeProviders,
       maxExamples: config.maxExamples,
     });
     this.differ = new SchemaDiffer();
-    this.similarity = new SimilarityEngine({
-      businessTypeWeights: config.businessTypeWeights,
-      ontologyProviders: config.ontologyProviders,
-    });
     this.resolver = new ConflictResolver({
       autoAcceptThreshold: config.autoAcceptThreshold,
       humanReviewThreshold: config.humanReviewThreshold,
       minConfidenceMargin: config.confidenceMarginThreshold,
+      decisionPolicy: config.decisionPolicy,
     });
     this.mapper = new MappingGenerator();
     this.reporter = new ChangeReporter();
@@ -75,7 +89,7 @@ export class SchemaBridge {
     const id = `br_${ulid()}`;
     const startMs = Date.now();
     const options = {
-      renameSimilarityThreshold: request.options?.renameSimilarityThreshold ?? 0.70,
+      renameSimilarityThreshold: request.options?.renameSimilarityThreshold ?? 0.80,
       enableLlmEscalation: request.options?.enableLlmEscalation ?? false,
       maxLlmEscalations: request.options?.maxLlmEscalations ?? 3,
     };
@@ -109,9 +123,27 @@ export class SchemaBridge {
     const rawDiffs = this.differ.diff(schemaA, schemaB);
 
     // ── 3. Detectar renombrados ────────────────────────────────────────────────
+    // Build a connector-scoped SimilarityEngine for this compare call.
+    // Global entries (no connector scope) always apply; connector-specific entries
+    // only apply when their connector pair matches the current request.
+    const scopedMemory = this.memoryEntries.filter(e =>
+      (!e.connectorAId && !e.connectorBId) ||
+      (e.connectorAId === request.connectorAId && e.connectorBId === request.connectorBId),
+    );
+    const memoryProviders: OntologyProvider[] = scopedMemory.length > 0
+      ? [createMappingMemoryOntologyProvider(scopedMemory, {
+          rejectionVetoRatio: this.memoryVetoRatio,
+          rejectionMinSamples: this.memoryMinSamples,
+        })]
+      : [];
+    const similarity = new SimilarityEngine({
+      ...this.similarityConfig,
+      ontologyProviders: [...this.baseOntologyProviders, ...memoryProviders],
+    });
+
     const removed = rawDiffs.filter(d => d.kind === 'field_removed');
     const added = rawDiffs.filter(d => d.kind === 'field_added');
-    const renameCandidates = this.similarity.findRenameCandidates(
+    const renameCandidates = similarity.findRenameCandidates(
       removed, added, options.renameSimilarityThreshold,
     );
 
@@ -169,6 +201,29 @@ export class SchemaBridge {
   /**
    * Genera el Markdown del reporte para un BridgeReport existente.
    */
+  /**
+   * Registra el feedback del operador sobre un par de campos.
+   * Actualiza la memoria interna. Llamar a `getMemorySnapshot()` para obtener
+   * el estado actualizado y persistirlo.
+   */
+  recordFeedback(
+    pathA: string,
+    pathB: string,
+    accepted: boolean,
+    confidence: number,
+    connectorAId?: string,
+    connectorBId?: string,
+  ): void {
+    this.memoryEntries = updateMemoryEntry(
+      this.memoryEntries, pathA, pathB, accepted, confidence, connectorAId, connectorBId,
+    );
+  }
+
+  /** Devuelve una copia del estado actual de la memoria para persistencia externa. */
+  getMemorySnapshot(): MappingMemoryEntry[] {
+    return [...this.memoryEntries];
+  }
+
   toMarkdown(report: BridgeReport): string {
     return this.reporter.toMarkdown(
       report.requirementsReport,

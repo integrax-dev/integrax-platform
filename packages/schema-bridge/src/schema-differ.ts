@@ -31,11 +31,45 @@ function computeBreakingScore(kind: FieldDiff['kind'], node?: SchemaNode | null,
     }
     case 'format_changed': return 0.5;
     case 'nullability_changed': return 0.4;
+    // constraint_changed is computed inline by diffEnum() which returns the exact score
     case 'constraint_changed': return 0.3;
     case 'field_added': return 0.0;
     case 'rename_candidate': return 0.2;
     default: return 0.5;
   }
+}
+
+/**
+ * Compara dos enum sets y devuelve el breaking score correcto.
+ *
+ * - Removal (valor en A que ya no está en B): CRÍTICO (0.95).
+ *   Cualquier mensaje que envíe ese valor rompería el sistema destino.
+ * - Addition (valor nuevo en B que A nunca envió): NON-BREAKING (0.20).
+ *   Los consumidores existentes no lo conocen pero tampoco lo envían.
+ * - Ambos cambios: domina el removal (0.95).
+ *
+ * Devuelve null si no hay diferencias.
+ */
+function diffEnum(
+  nodeA: SchemaNode,
+  nodeB: SchemaNode,
+): { hasChanges: boolean; breakingScore: number } {
+  if (!nodeA.enum || !nodeB.enum) return { hasChanges: false, breakingScore: 0 };
+
+  const setA = new Set(nodeA.enum.map(v => JSON.stringify(v)));
+  const setB = new Set(nodeB.enum.map(v => JSON.stringify(v)));
+
+  const removals = [...setA].filter(v => !setB.has(v)).length;
+  const additions = [...setB].filter(v => !setA.has(v)).length;
+
+  if (removals === 0 && additions === 0) return { hasChanges: false, breakingScore: 0 };
+
+  // Removal of any enum value is breaking: consumers that send removed values will fail.
+  // Addition of new values is non-breaking for existing consumers (exhaustive switch
+  // statements are the only risk, but that's a consumer code smell, not a schema error).
+  const breakingScore = removals > 0 ? 0.95 : 0.20;
+
+  return { hasChanges: true, breakingScore };
 }
 
 // ─── SchemaDiffer ─────────────────────────────────────────────────────────────
@@ -135,20 +169,16 @@ export class SchemaDiffer {
       }
 
       // Cambio de enum
-      if (nodeA.enum && nodeB.enum) {
-        const setA = new Set(nodeA.enum.map(v => JSON.stringify(v)));
-        const setB = new Set(nodeB.enum.map(v => JSON.stringify(v)));
-        const hasChanges = [...setA].some(v => !setB.has(v)) || [...setB].some(v => !setA.has(v));
-        if (hasChanges) {
-          diffs.push({
-            kind: 'constraint_changed',
-            pathA: path,
-            pathB: path,
-            nodeA,
-            nodeB,
-            breakingScore: computeBreakingScore('constraint_changed'),
-          });
-        }
+      const enumDiff = diffEnum(nodeA, nodeB);
+      if (enumDiff.hasChanges) {
+        diffs.push({
+          kind: 'constraint_changed',
+          pathA: path,
+          pathB: path,
+          nodeA,
+          nodeB,
+          breakingScore: enumDiff.breakingScore,
+        });
       }
     }
 

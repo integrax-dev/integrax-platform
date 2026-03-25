@@ -832,14 +832,14 @@ router.post(
         !Array.isArray(samplesB) || samplesB.length === 0) {
       return res.status(400).json({
         success: false,
-        error: { code: 'INVALID_INPUT', message: 'samplesA y samplesB deben ser arrays no vacíos (máx 50 elementos)' },
+        error: { code: 'INVALID_INPUT', message: 'samplesA y samplesB deben ser arrays no vacíos (máx 2000 elementos)' },
       });
     }
 
-    if (samplesA.length > 50 || samplesB.length > 50) {
+    if (samplesA.length > 2000 || samplesB.length > 2000) {
       return res.status(400).json({
         success: false,
-        error: { code: 'INVALID_INPUT', message: 'Máximo 50 muestras por sistema' },
+        error: { code: 'INVALID_INPUT', message: 'Máximo 2000 muestras por sistema' },
       });
     }
 
