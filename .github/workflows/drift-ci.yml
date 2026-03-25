@@ -1,19 +1,19 @@
 name: API Drift Detection CI
 
 on:
-  # Run on every push to main (to capture baseline changes)
+  # Ejecutar en cada push a main (para capturar cambios en el baseline)
   push:
     branches: [main]
 
-  # Run on PRs to catch drift before merging
+  # Ejecutar en PRs para detectar drift antes de mergear
   pull_request:
     branches: [main]
 
-  # Scheduled check: every 6 hours against live APIs
+  # Check programado: cada 6 horas contra las APIs en vivo
   schedule:
     - cron: '0 */6 * * *'
 
-  # Allow manual trigger with connector override
+  # Permitir disparo manual con override de conector
   workflow_dispatch:
     inputs:
       connector_id:
@@ -27,7 +27,7 @@ permissions:
   issues: write
 
 jobs:
-  # ─── Unit tests ─────────────────────────────────────────────────────────────
+  # ─── Tests unitarios ────────────────────────────────────────────────────────
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
@@ -62,11 +62,11 @@ jobs:
           path: ${{ matrix.package }}/test-results/
           if-no-files-found: ignore
 
-  # ─── Contract tests (requires env secrets) ──────────────────────────────────
+  # ─── Tests de contrato (requiere secrets de entorno) ────────────────────────
   contract-tests:
     name: Contract Tests
     runs-on: ubuntu-latest
-    # Only run contract tests on schedule and manual triggers — not on every PR
+    # Solo ejecutar tests de contrato en schedule y triggers manuales — no en cada PR
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     needs: unit-tests
 
@@ -93,7 +93,7 @@ jobs:
           TIENDANUBE_ACCESS_TOKEN: ${{ secrets.TIENDANUBE_ACCESS_TOKEN }}
         run: npm run test:contracts
 
-  # ─── Schema fingerprint check ────────────────────────────────────────────────
+  # ─── Verificación de fingerprint de schemas ─────────────────────────────────
   drift-check:
     name: Schema Drift Check
     runs-on: ubuntu-latest
@@ -103,7 +103,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Fetch full history so we can compare fingerprints
+          # Obtener historial completo para poder comparar fingerprints
           fetch-depth: 0
 
       - uses: actions/setup-node@v4
@@ -178,7 +178,7 @@ jobs:
               body,
             });
 
-  # ─── Lint & type-check ───────────────────────────────────────────────────────
+  # ─── Lint y verificación de tipos ───────────────────────────────────────────
   lint:
     name: Lint & Type Check
     runs-on: ubuntu-latest
@@ -186,9 +186,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # El monorepo usa pnpm workspaces. apps/admin-panel y los scripts raíz
+      # requieren pnpm — no tienen package-lock.json.
+      # services/connector-watchdog y contracts/ts son standalone (tienen su
+      # propio package-lock.json) y siguen usando npm ci.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install monorepo dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Type-check watchdog
         working-directory: services/connector-watchdog
@@ -203,17 +215,13 @@ jobs:
           npx tsc --noEmit
 
       - name: Lint admin-panel (strict)
-        working-directory: apps/admin-panel
-        run: |
-          npm ci
-          npm run lint:strict
+        run: pnpm --filter @integrax/admin-panel run lint:strict
 
       - name: Type-check admin-panel
-        working-directory: apps/admin-panel
-        run: npm run typecheck
+        run: pnpm --filter @integrax/admin-panel run typecheck
 
       - name: Validate service registry
-        run: npm run validate:services
+        run: pnpm run validate:services
 
       - name: Root quality gate
-        run: npm run quality:gate
+        run: pnpm run quality:gate

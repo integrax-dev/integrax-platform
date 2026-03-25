@@ -8,6 +8,11 @@ function isLikelyHtml(payload: string): boolean {
 export async function fetchAdminJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(buildAdminApiUrl(path), init);
 
+  if (response.status === 401) {
+    window.location.href = '/login';
+    throw new Error('HTTP_401');
+  }
+
   if (!response.ok) {
     throw new Error(`HTTP_${response.status}`);
   }
