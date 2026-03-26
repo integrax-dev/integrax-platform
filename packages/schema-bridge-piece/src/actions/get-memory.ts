@@ -48,11 +48,11 @@ export async function buildGetMemoryPieceAction() {
       connectorBId: Property.ShortText({ displayName: 'Connector B ID', required: true }),
     },
     async run(ctx) {
-      const auth = ctx.auth as { controlPlaneUrl: string; apiKey: string; tenantId: string };
+      const auth = ctx.auth as unknown as { controlPlaneUrl: string; apiKey: string; tenantRef: string };
       return runGetMemory({
         controlPlaneUrl: auth.controlPlaneUrl,
         apiKey: auth.apiKey,
-        tenantId: auth.tenantId,
+        tenantId: auth.tenantRef,
         connectorAId: ctx.propsValue.connectorAId,
         connectorBId: ctx.propsValue.connectorBId,
       });

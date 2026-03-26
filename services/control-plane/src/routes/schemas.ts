@@ -169,6 +169,45 @@ router.get(
 );
 
 router.get(
+  '/reports',
+  requireAuth,
+  requireTenant,
+  async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.tenantId!;
+      const result = await pool.query(
+        `SELECT 
+          id, 
+          tenant_id, 
+          workflow_id, 
+          source_connector_id, 
+          target_connector_id, 
+          created_at,
+          jsonb_build_object('summary', diff_payload->'summary') as diff_payload
+         FROM schema_diff_reports 
+         WHERE tenant_id = $1 
+         ORDER BY created_at DESC 
+         LIMIT 50`,
+        [tenantId],
+      );
+
+      res.json({
+        success: true,
+        data: result.rows,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'FETCH_REPORTS_FAILED',
+          message: error instanceof Error ? error.message : 'Error retrieving reports',
+        },
+      });
+    }
+  },
+);
+
+router.get(
   '/reports/:id',
   requireAuth,
   requireTenant,

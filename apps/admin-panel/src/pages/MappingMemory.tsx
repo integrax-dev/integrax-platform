@@ -8,7 +8,35 @@
 
 import { useState, useCallback } from 'react';
 import { fetchAdminJson } from '../lib/adminApi';
+import { allowDemoFallbacks } from '../lib/runtime';
 import './Pages.css';
+
+const MOCK_ENTRIES: MappingMemoryEntry[] = [
+  {
+    sourcePath: 'id',
+    targetPath: 'external_id',
+    acceptedCount: 15,
+    rejectedCount: 0,
+    averageConfidence: 0.99,
+    lastAcceptedAt: new Date(Date.now() - 86400000).toISOString()
+  },
+  {
+    sourcePath: 'customer.email',
+    targetPath: 'partner.email',
+    acceptedCount: 8,
+    rejectedCount: 1,
+    averageConfidence: 0.94,
+    lastAcceptedAt: new Date(Date.now() - 3600000).toISOString()
+  },
+  {
+    sourcePath: 'order.items[*].price',
+    targetPath: 'items[*].unit_price',
+    acceptedCount: 12,
+    rejectedCount: 3,
+    averageConfidence: 0.88,
+    lastAcceptedAt: new Date().toISOString()
+  }
+];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -45,8 +73,13 @@ export function MappingMemory() {
       );
       setEntries(result.data ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error cargando memoria');
-      setEntries([]);
+      if (allowDemoFallbacks) {
+        setEntries(MOCK_ENTRIES);
+        setError(null);
+      } else {
+        setError(err instanceof Error ? err.message : 'Error cargando memoria');
+        setEntries([]);
+      }
     } finally {
       setLoading(false);
     }

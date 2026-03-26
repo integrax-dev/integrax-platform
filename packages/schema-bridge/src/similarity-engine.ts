@@ -224,16 +224,22 @@ function normalizeValueForMatching(value: unknown): string {
 }
 
 function shannonEntropy(counts: Map<string, number>, total: number): number {
-  if (total === 0 || counts.size === 0) return 0;
+  // Eliminamos los nulls/undefineds del cálculo de entropía real para evitar que
+  // un campo sparse parezca poco entrópico simplemente porque el 90% es <null>.
+  const activeTotal = total - (counts.get('<null>') ?? 0) - (counts.get('<undefined>') ?? 0);
+  if (activeTotal <= 0 || counts.size === 0) return 0;
 
   let entropy = 0;
-  for (const count of counts.values()) {
-    const probability = count / total;
+  for (const [token, count] of counts.entries()) {
+    if (PLACEHOLDER_TOKENS.has(token)) continue;
+    const probability = count / activeTotal;
     entropy -= probability * Math.log2(probability);
   }
 
-  const normalizer = Math.log2(counts.size || 1);
-  if (normalizer === 0) return 0;
+  // Contamos solo clases de equivalencia reales
+  const activeClasses = [...counts.keys()].filter(k => !PLACEHOLDER_TOKENS.has(k)).length;
+  const normalizer = Math.log2(activeClasses || 1);
+  if (normalizer <= 0) return 0;
   return entropy / normalizer;
 }
 
@@ -354,12 +360,24 @@ function valueSimilarity(nodeA: SchemaNode | null, nodeB: SchemaNode | null, wei
   let overlapCount = 0;
   let overlapInformation = 0;
   for (const token of sharedTokens) {
+    // CRÍTICO: No premiar el overlap de nulos. Si ambos campos son 90% nulos (ej: middle_name y discount_code),
+    // eso NO significa que sean el mismo campo. La ausencia de señal no es señal.
+    if (PLACEHOLDER_TOKENS.has(token)) continue;
+    
     const overlap = Math.min(profileA.counts.get(token) ?? 0, profileB.counts.get(token) ?? 0);
     overlapCount += overlap;
     overlapInformation += intrinsicTokenInformation(token) * overlap;
   }
 
-  const overlapRatio = overlapCount / Math.max(profileA.total, profileB.total);
+  // Si después de ignorar los nulos no hay overlap activo, bail out
+  if (overlapCount === 0 && !bothStructural) return 0;
+
+  // El ratio se calcula sobre las muestras activas (no nulas) observadas en ambos campos
+  const activeA = profileA.total - (profileA.counts.get('<null>') ?? 0);
+  const activeB = profileB.total - (profileB.counts.get('<null>') ?? 0);
+  const maxActive = Math.max(activeA, activeB, bothStructural ? 1 : 0);
+  
+  const overlapRatio = maxActive > 0 ? overlapCount / maxActive : 0;
   const overlapQuality = overlapCount === 0 ? 0 : overlapInformation / overlapCount;
   const entropyAlignment = 1 - Math.abs(profileA.entropy - profileB.entropy);
   const cardinalityAlignment = Math.min(profileA.unique, profileB.unique) / Math.max(profileA.unique, profileB.unique, 1);

@@ -34,7 +34,7 @@ function makeEntry(
 }
 
 function makeContext(pathA: string, pathB: string) {
-  return { pathA, pathB };
+  return { pathA, pathB, nodeA: null, nodeB: null };
 }
 
 // ─── updateMemoryEntry ────────────────────────────────────────────────────────

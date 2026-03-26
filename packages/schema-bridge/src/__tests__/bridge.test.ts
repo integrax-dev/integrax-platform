@@ -28,7 +28,7 @@ vi.mock('@anthropic-ai/sdk', () => ({
 function makeRequest(
   samplesA: Record<string, unknown>[],
   samplesB: Record<string, unknown>[],
-  overrides: Partial<CompareSchemasRequest> = {},
+  overrides: Partial<Omit<CompareSchemasRequest, 'options'>> & { options?: Partial<CompareSchemasRequest['options']> } = {},
 ): CompareSchemasRequest {
   return {
     connectorAId: 'mp',
@@ -37,6 +37,12 @@ function makeRequest(
     samplesA,
     samplesB,
     ...overrides,
+    options: {
+      renameSimilarityThreshold: 0.70,
+      enableLlmEscalation: false,
+      maxLlmEscalations: 3,
+      ...overrides.options,
+    },
   };
 }
 
@@ -107,7 +113,7 @@ describe('SchemaBridge.compare — campos distintos', () => {
     expect(kinds).toContain('field_removed');
   });
 
-  it('genera TypeScript con la función transformAToB', async () => {
+  it('genera TypeScript con la función transformAToB (nombrada)', async () => {
     const bridge = new SchemaBridge({ logger: silentLogger });
 
     const samplesA = [{ userId: '1', totalAmount: 100 }];
@@ -115,7 +121,9 @@ describe('SchemaBridge.compare — campos distintos', () => {
 
     const report = await bridge.compare(makeRequest(samplesA, samplesB));
 
-    expect(report.generatedTransformTs).toContain('transformAToB');
+    // El generador ahora usa PascalCase(connectorId)
+    // Conector A: "mp" -> Mp, Conector B: "contabilium" -> Contabilium
+    expect(report.generatedTransformTs).toContain('transformMpToContabilium');
   });
 
   it('incluye un summary de cobertura en requirementsReport', async () => {

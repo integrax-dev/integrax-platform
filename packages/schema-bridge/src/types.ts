@@ -327,11 +327,11 @@ export interface BridgeReport {
 
 export interface CompareOptions {
   /** Umbral de similitud para detectar renombrados (default: 0.70) */
-  renameSimilarityThreshold: number;
+  renameSimilarityThreshold?: number;
   /** Activar escalación al LLM para casos ambiguos */
-  enableLlmEscalation: boolean;
+  enableLlmEscalation?: boolean;
   /** Máx de escalaciones LLM permitidas */
-  maxLlmEscalations: number;
+  maxLlmEscalations?: number;
 }
 
 export interface SchemaInferrerConfig {

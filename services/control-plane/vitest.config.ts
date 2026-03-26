@@ -5,11 +5,11 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/**/*.test.ts'],
-    pool: 'forks',
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
-    },
+    // pool: 'forks',
+    // poolOptions: {
+    //   forks: {
+    //     singleFork: true,
+    //   },
+    // },
   },
 });

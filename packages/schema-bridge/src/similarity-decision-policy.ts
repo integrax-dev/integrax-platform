@@ -66,6 +66,16 @@ export class SimilarityDecisionPolicy {
     const dominantMargin = Math.max(sourceMargin, targetMargin);
     const b             = score.evidenceBreakdown ?? fallbackBreakdown();
 
+    // Regla 0 — Memoria Histórica (Human-in-the-loop)
+    // Si la ontología (MappingMemory) aporta una señal fuerte (≥0.85) debido a iteraciones
+    // previas aceptadas, y la opción es clara (minMargin > 0.05), auto-aceptamos relajando
+    // drásticamente los requisitos estructurales y de valor. El feedback humano manda.
+    if (
+      b.ontology >= 0.85 &&
+      minMargin >= 0.05 &&
+      score.combined >= 0.60
+    ) return 'auto_accept';
+
     // Regla 1 — Camino dorado
     if (
       score.combined >= Math.max(0.90, this.autoAcceptThreshold) &&

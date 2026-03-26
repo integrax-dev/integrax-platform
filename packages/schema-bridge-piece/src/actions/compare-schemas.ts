@@ -25,7 +25,8 @@ export async function runCompareSchemas(input: CompareSchemasPieceInput): Promis
     samplesB: input.samplesB,
     options: {
       enableLlmEscalation: input.enableLlmEscalation ?? false,
-      renameSimilarityThreshold: input.renameSimilarityThreshold,
+      renameSimilarityThreshold: input.renameSimilarityThreshold ?? 0.70,
+      maxLlmEscalations: 3,
     },
   });
 }
@@ -53,10 +54,11 @@ export async function buildCompareSchemasPieceAction() {
       return runCompareSchemas({
         connectorAId: ctx.propsValue.connectorAId,
         connectorBId: ctx.propsValue.connectorBId,
-        tenantId: (ctx.auth as { projectId: string }).projectId,
-        samplesA: ctx.propsValue.samplesA as Record<string, unknown>[],
-        samplesB: ctx.propsValue.samplesB as Record<string, unknown>[],
+        tenantId: (ctx.auth as unknown as { tenantRef: string }).tenantRef,
+        samplesA: ctx.propsValue.samplesA as unknown as Record<string, unknown>[],
+        samplesB: ctx.propsValue.samplesB as unknown as Record<string, unknown>[],
         enableLlmEscalation: ctx.propsValue.enableLlmEscalation ?? false,
+        renameSimilarityThreshold: 0.70,
       });
     },
   });
