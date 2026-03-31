@@ -111,6 +111,18 @@ export function updateMemoryEntry(
   return [...entries, newEntry];
 }
 
+/** Mínimo de aceptaciones explícitas para que la memoria tenga autoridad de auto-accept.
+ *  Por debajo de este umbral la señal contribuye a otros canales pero no puede
+ *  disparar la Regla 0 (ontology ≥ 0.85) por sí sola. Default: 3.
+ *
+ *  Por qué 3 y no 1:
+ *    Con 1-2 aceptaciones el score calculado por confidenceScore() ya supera 0.85
+ *    (≈ 0.857 con 2 muestras). Esto significa que un solo operador aceptando dos
+ *    veces un mapping incorrecto auto-aceptaría ese mismo error en el futuro.
+ *    Con 3 aceptaciones hay corroboración mínima y el score llega a ≈ 0.87.
+ */
+export const MIN_FEEDBACK_FOR_AUTO_ACCEPT = 3;
+
 export interface MappingMemoryProviderOptions {
   /** Custom provider ID (default: 'mapping-memory') */
   providerId?: string;
@@ -123,6 +135,13 @@ export interface MappingMemoryProviderOptions {
    * Muestras mínimas necesarias para activar el veto por rechazo (default: REJECTION_MIN_SAMPLES = 3).
    */
   rejectionMinSamples?: number;
+  /**
+   * Mínimo de aceptaciones explícitas para que la memoria tenga autoridad de auto-accept.
+   * Si acceptedCount < este valor, el score se recorta a 0.82 para que no dispare
+   * la Regla 0 del SimilarityDecisionPolicy (requiere ontology ≥ 0.85).
+   * Default: MIN_FEEDBACK_FOR_AUTO_ACCEPT = 3.
+   */
+  minFeedbackForAutoAccept?: number;
 }
 
 export function createMappingMemoryOntologyProvider(
@@ -132,6 +151,7 @@ export function createMappingMemoryOntologyProvider(
   const providerId = options.providerId ?? 'mapping-memory';
   const vetoRatio = options.rejectionVetoRatio ?? REJECTION_VETO_RATIO;
   const minSamples = options.rejectionMinSamples ?? REJECTION_MIN_SAMPLES;
+  const minFeedback = options.minFeedbackForAutoAccept ?? MIN_FEEDBACK_FOR_AUTO_ACCEPT;
 
   const byPathPair = new Map<string, MappingMemoryEntry>();
   const byLeafPair = new Map<string, MappingMemoryEntry>();
@@ -162,20 +182,27 @@ export function createMappingMemoryOntologyProvider(
       const directEntry = byPathPair.get(`${sourcePath}=>${targetPath}`);
       if (directEntry) {
         if (isVetoed(directEntry, vetoRatio, minSamples)) return null;
+        const rawScore = confidenceScore(directEntry);
+        // Recortar a 0.82 si no hay suficiente feedback para autoridad de auto-accept.
+        // La Regla 0 requiere ontology ≥ 0.85 — por debajo del umbral la señal
+        // contribuye a otras reglas pero no puede auto-aceptar sola.
+        const score = directEntry.acceptedCount >= minFeedback ? rawScore : Math.min(rawScore, 0.82);
         return {
-          score: confidenceScore(directEntry),
-          label: 'mapping_memory_path',
-          reason: `Historical mapping memory for ${sourcePath} -> ${targetPath}.`,
+          score,
+          label: directEntry.acceptedCount >= minFeedback ? 'mapping_memory_path' : 'mapping_memory_path_provisional',
+          reason: `Historical mapping memory for ${sourcePath} -> ${targetPath} (${directEntry.acceptedCount} accepted, ${directEntry.rejectedCount} rejected).`,
         };
       }
 
       const leafEntry = byLeafPair.get(`${leaf(sourcePath)}=>${leaf(targetPath)}`);
       if (!leafEntry || isVetoed(leafEntry, vetoRatio, minSamples)) return null;
 
+      const rawLeafScore = Math.max(0.82, confidenceScore(leafEntry) - 0.08);
+      const leafScore = leafEntry.acceptedCount >= minFeedback ? rawLeafScore : Math.min(rawLeafScore, 0.82);
       return {
-        score: Math.max(0.82, confidenceScore(leafEntry) - 0.08),
-        label: 'mapping_memory_leaf',
-        reason: `Historical leaf mapping memory for ${leaf(sourcePath)} -> ${leaf(targetPath)}.`,
+        score: leafScore,
+        label: leafEntry.acceptedCount >= minFeedback ? 'mapping_memory_leaf' : 'mapping_memory_leaf_provisional',
+        reason: `Historical leaf mapping memory for ${leaf(sourcePath)} -> ${leaf(targetPath)} (${leafEntry.acceptedCount} accepted).`,
       };
     },
   };

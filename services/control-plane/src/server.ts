@@ -8,6 +8,7 @@ import { tenantsRouter } from './routes/tenants.js';
 import { connectorsRouter } from './routes/connectors.js';
 import { workflowsRouter } from './routes/workflows.js';
 import { schemasRouter } from './routes/schemas.js';
+import { adminRouter } from './routes/admin.js';
 import { getAuditLogs } from './middleware/audit.js';
 import { requireAuth, requireRole } from './middleware/auth.js';
 import { createLogger, requestLogger } from '@integrax/logger';
@@ -87,6 +88,7 @@ app.get('/api', (req, res) => {
 });
 
 // Rutas de la API
+app.use('/api/admin', adminRouter);
 app.use('/api/tenants', tenantsRouter);
 app.use('/api/connectors', connectorsRouter);
 app.use('/api/workflows', workflowsRouter);

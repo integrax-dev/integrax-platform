@@ -123,11 +123,26 @@ export interface SimilarityScore {
   /** Difference between this candidate and the runner-up for the same target field. */
   reciprocalMargin?: number;
   decision?: SimilarityDecision;
+  /** Regla que disparó la decisión — para auditoría y explainability. */
+  matchRule?: SimilarityMatchRule;
   evidenceQuality?: number;
   evidenceBreakdown?: SimilarityEvidenceBreakdown;
 }
 
 export type SimilarityDecision = 'auto_accept' | 'review' | 'reject';
+
+/**
+ * Identifica cuál regla del SimilarityDecisionPolicy disparó la decisión.
+ * Permite auditar por qué el engine aceptó, envió a review, o rechazó un par de campos.
+ */
+export type SimilarityMatchRule =
+  | 'rule0_memory'       // Memoria histórica de operadores (feedback loop)
+  | 'rule1_golden'       // Score alto + multi-canal + margen suficiente
+  | 'rule2_value'        // Dominancia de valor (campos con nombres opacos)
+  | 'rule3_margin'       // Ganador inequívoco (margen muy alto)
+  | 'rule4_semantic'     // Ancla de ontología/tipo de negocio
+  | 'rule5_review'       // Score aceptable, va a revisión humana/LLM
+  | 'reject';            // Debajo de todos los umbrales
 
 export interface SimilarityEvidenceBreakdown {
   lexical: number;
@@ -205,6 +220,30 @@ export interface TransformSpec {
   description: string;
 }
 
+/**
+ * Explicación estructurada de por qué el engine tomó una decisión de mapping.
+ * Expone los scores de cada canal de evidencia + la regla que disparó el resultado.
+ * Clave para auditoría enterprise y para que los operadores entiendan el razonamiento.
+ */
+export interface MatchExplanation {
+  /** Regla que disparó la decisión final. */
+  rule: SimilarityMatchRule;
+  /** Score de similitud de nombre (lexical + semántico). */
+  nameScore: number;
+  /** Score de overlap de valores observados. */
+  valueScore: number;
+  /** Score de similitud estructural/path. */
+  structuralScore: number;
+  /** Score de conocimiento semántico (ontología + tipo de negocio). */
+  semanticScore: number;
+  /** true si la decisión fue influenciada por memoria histórica de operadores. */
+  memoryBased: boolean;
+  /** true si la memoria aún no tiene suficientes feedbacks para autoridad total (provisional). */
+  memoryProvisional?: boolean;
+  /** Margen de ventaja sobre el segundo candidato (fuente→destino). */
+  margin: number;
+}
+
 export interface FieldMapping {
   id: string;
   pathA: string | null;
@@ -226,6 +265,11 @@ export interface FieldMapping {
    *   'heuristic:rename_review'       — renombrado con confianza media (requiere revisión)
    */
   decisionReason?: string;
+  /**
+   * Explicación estructurada de por qué se tomó esta decisión.
+   * Presente solo en rename_candidates — los campos determinísticos no necesitan justificación.
+   */
+  why?: MatchExplanation;
 }
 
 export interface ResolvedConflict {
@@ -409,4 +453,9 @@ export interface SchemaBridgeConfig {
    * Mínimo de muestras necesarias para activar el veto por rechazo (default: 3).
    */
   rejectionMinSamples?: number;
+  /**
+   * Mínimo de aceptaciones explícitas para que la memoria tenga autoridad de auto-accept (default: 3).
+   * Por debajo de este umbral el score de memoria se recorta a ≤ 0.82 para no disparar la Regla 0.
+   */
+  minFeedbackForAutoAccept?: number;
 }

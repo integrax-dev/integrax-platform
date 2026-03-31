@@ -51,10 +51,11 @@ export async function buildCompareSchemasPieceAction() {
       }),
     },
     async run(ctx) {
+      const auth = ctx.auth as unknown as import('../piece-auth.js').SchemaBridgePieceAuth;
       return runCompareSchemas({
         connectorAId: ctx.propsValue.connectorAId,
         connectorBId: ctx.propsValue.connectorBId,
-        tenantId: (ctx.auth as unknown as { tenantRef: string }).tenantRef,
+        tenantId: auth.tenantRef,
         samplesA: ctx.propsValue.samplesA as unknown as Record<string, unknown>[],
         samplesB: ctx.propsValue.samplesB as unknown as Record<string, unknown>[],
         enableLlmEscalation: ctx.propsValue.enableLlmEscalation ?? false,

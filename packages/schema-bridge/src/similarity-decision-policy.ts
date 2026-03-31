@@ -2,6 +2,7 @@ import type {
   SimilarityDecision,
   SimilarityDecisionPolicyConfig,
   SimilarityEvidenceBreakdown,
+  SimilarityMatchRule,
   SimilarityScore,
 } from './types.js';
 
@@ -60,6 +61,10 @@ export class SimilarityDecisionPolicy {
   }
 
   evaluate(score: SimilarityScore): SimilarityDecision {
+    return this.evaluateWithRule(score).decision;
+  }
+
+  evaluateWithRule(score: SimilarityScore): { decision: SimilarityDecision; rule: SimilarityMatchRule } {
     const sourceMargin  = score.margin           ?? 0;
     const targetMargin  = score.reciprocalMargin ?? 0;
     const minMargin     = Math.min(sourceMargin, targetMargin);
@@ -74,7 +79,7 @@ export class SimilarityDecisionPolicy {
       b.ontology >= 0.85 &&
       minMargin >= 0.05 &&
       score.combined >= 0.60
-    ) return 'auto_accept';
+    ) return { decision: 'auto_accept', rule: 'rule0_memory' };
 
     // Regla 1 — Camino dorado
     if (
@@ -85,7 +90,7 @@ export class SimilarityDecisionPolicy {
         (b.value >= 0.70 && b.structural >= 0.50) ||
         (Math.max(b.lexical, b.ontology) >= 0.90 && b.structural >= 0.40)
       )
-    ) return 'auto_accept';
+    ) return { decision: 'auto_accept', rule: 'rule1_golden' };
 
     // Regla 2 — Dominancia de valor (funciona con nombres de campo opacos)
     if (
@@ -94,7 +99,7 @@ export class SimilarityDecisionPolicy {
       b.value >= 0.70 &&
       b.structural >= 0.70 &&
       b.sufficiency >= 0.65
-    ) return 'auto_accept';
+    ) return { decision: 'auto_accept', rule: 'rule2_value' };
 
     // Regla 3 — Dominancia de margen (ganador inequívoco)
     if (
@@ -103,7 +108,7 @@ export class SimilarityDecisionPolicy {
       b.value >= 0.50 &&
       b.structural >= 0.50 &&
       b.sufficiency >= 0.60
-    ) return 'auto_accept';
+    ) return { decision: 'auto_accept', rule: 'rule3_margin' };
 
     // Regla 4 — Certeza semántica (ancla de ontología/tipo de negocio)
     if (
@@ -112,7 +117,7 @@ export class SimilarityDecisionPolicy {
       Math.max(b.businessType, b.ontology) >= 0.90 &&
       b.value >= 0.25 &&
       b.structural >= 0.70
-    ) return 'auto_accept';
+    ) return { decision: 'auto_accept', rule: 'rule4_semantic' };
 
     // Regla 5 — Revisión (score aceptable, alguna señal positiva)
     if (
@@ -122,16 +127,14 @@ export class SimilarityDecisionPolicy {
         b.value >= 0.70 ||
         Math.max(b.businessType, b.ontology) >= 0.90
       )
-    ) return 'review';
+    ) return { decision: 'review', rule: 'rule5_review' };
 
-    return 'reject';
+    return { decision: 'reject', rule: 'reject' };
   }
 
   annotate(score: SimilarityScore): SimilarityScore {
-    return {
-      ...score,
-      decision: this.evaluate(score),
-    };
+    const { decision, rule } = this.evaluateWithRule(score);
+    return { ...score, decision, matchRule: rule };
   }
 }
 
