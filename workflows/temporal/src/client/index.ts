@@ -11,6 +11,7 @@ import type {
   MultiTenantWorkflowOutput,
   PaymentWorkflowInput,
   OrderWorkflowInput,
+  SchemaDiffWorkflowInput,
 } from '../workflows/index.js';
 
 export interface TemporalClientConfig {
@@ -115,6 +116,27 @@ export class TemporalClientService {
     workflowId?: string
   ): Promise<WorkflowHandle<() => Promise<MultiTenantWorkflowOutput>>> {
     return this.startWorkflow(tenantId, 'order', input, workflowId);
+  }
+
+  /**
+   * Start a schema diff workflow
+   */
+  async startSchemaDiff(
+    tenantId: string,
+    input: SchemaDiffWorkflowInput,
+    workflowId?: string
+  ): Promise<WorkflowHandle<any>> {
+    const client = this.ensureConnected();
+    const id = workflowId || `${tenantId}-schemaDiff-${Date.now()}`;
+
+    const handle = await client.workflow.start('schemaDiffWorkflow', {
+      taskQueue: this.config.taskQueue,
+      workflowId: id,
+      args: [input],
+    });
+
+    logger.info(`[Temporal] Started schema diff workflow ${id} for tenant ${tenantId}`);
+    return handle;
   }
 
   /**

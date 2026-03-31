@@ -1,5 +1,5 @@
 /**
- * Tenant Management API Routes
+ * Rutas de la API de gestión de tenants
  */
 
 import { Router, Request, Response } from 'express';
@@ -16,12 +16,11 @@ import {
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { audit } from '../middleware/audit.js';
 import { validate } from '../middleware/validate.js';
+import { getTenant, saveTenant, listTenants } from '../store/tenants.js';
 
 const router: Router = Router();
 
-import { tenants } from '../store/tenants.js';
-
-// Default limits per plan
+// Límites por defecto según el plan
 const PLAN_LIMITS: Record<TenantPlan, typeof TenantLimitsSchema._type> = {
   free: {
     requestsPerMinute: 30,
@@ -58,7 +57,7 @@ const PLAN_LIMITS: Record<TenantPlan, typeof TenantLimitsSchema._type> = {
 };
 
 /**
- * POST /tenants - Create a new tenant
+ * POST /tenants - Crea un nuevo tenant
  */
 router.post(
   '/',
@@ -66,15 +65,12 @@ router.post(
   requireRole('platform_admin'),
   validate(CreateTenantSchema),
   audit('tenant.create'),
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     const input = req.body;
 
-    // Generate IDs and secrets
     const tenantId = `ten_${ulid()}`;
     const apiKey = `ixk_${randomBytes(32).toString('hex')}`;
     const webhookSecret = `whsec_${randomBytes(32).toString('hex')}`;
-
-    // Create owner user ID (would be created in users table)
     const ownerId = `usr_${ulid()}`;
 
     const tenant: Tenant = {
@@ -91,13 +87,13 @@ router.post(
       updatedAt: new Date(),
     };
 
-    tenants.set(tenantId, tenant);
+    await saveTenant(tenant);
 
     res.status(201).json({
       success: true,
       data: {
         tenant: { ...tenant, apiKeyHash: undefined },
-        apiKey, // Only returned once on creation
+        apiKey,
         webhookSecret,
       },
     });
@@ -105,34 +101,19 @@ router.post(
 );
 
 /**
- * GET /tenants - List all tenants (platform admin only)
+ * GET /tenants - Lista todos los tenants (solo platform_admin)
  */
 router.get(
   '/',
   requireAuth,
   requireRole('platform_admin'),
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = parseInt(req.query.pageSize as string) || 20;
     const status = req.query.status as TenantStatus | undefined;
     const plan = req.query.plan as TenantPlan | undefined;
 
-    let allTenants = Array.from(tenants.values());
-
-    // Filter
-    if (status) {
-      allTenants = allTenants.filter((t) => t.status === status);
-    }
-    if (plan) {
-      allTenants = allTenants.filter((t) => t.plan === plan);
-    }
-
-    // Sort by creation date
-    allTenants.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-    // Paginate
-    const start = (page - 1) * pageSize;
-    const data = allTenants.slice(start, start + pageSize);
+    const { data, totalItems } = await listTenants({ status, plan, page, pageSize });
 
     res.json({
       success: true,
@@ -140,22 +121,22 @@ router.get(
       pagination: {
         page,
         pageSize,
-        totalItems: allTenants.length,
-        totalPages: Math.ceil(allTenants.length / pageSize),
+        totalItems,
+        totalPages: Math.ceil(totalItems / pageSize),
       },
     });
   }
 );
 
 /**
- * GET /tenants/:id - Get tenant details
+ * GET /tenants/:id - Obtiene los detalles de un tenant
  */
 router.get(
   '/:id',
   requireAuth,
   requireRole('platform_admin', 'tenant_admin'),
-  async (req, res) => {
-    const tenant = tenants.get(req.params.id);
+  async (req: Request, res: Response) => {
+    const tenant = await getTenant(req.params.id);
 
     if (!tenant) {
       return res.status(404).json({
@@ -164,7 +145,6 @@ router.get(
       });
     }
 
-    // Tenant admins can only see their own tenant
     if (req.user?.role === 'tenant_admin' && req.user?.tenantId !== tenant.id) {
       return res.status(403).json({
         success: false,
@@ -180,15 +160,15 @@ router.get(
 );
 
 /**
- * PATCH /tenants/:id - Update tenant
+ * PATCH /tenants/:id - Actualiza un tenant
  */
 router.patch(
   '/:id',
   requireAuth,
   requireRole('platform_admin'),
   audit('tenant.update'),
-  async (req, res) => {
-    const tenant = tenants.get(req.params.id);
+  async (req: Request, res: Response) => {
+    const tenant = await getTenant(req.params.id);
 
     if (!tenant) {
       return res.status(404).json({
@@ -199,11 +179,9 @@ router.patch(
 
     const updates = req.body;
 
-    // Update allowed fields
     if (updates.name) tenant.name = updates.name;
     if (updates.plan) {
       tenant.plan = updates.plan;
-      // Optionally update limits to match new plan
       if (!updates.limits) {
         tenant.limits = PLAN_LIMITS[updates.plan as TenantPlan];
       }
@@ -216,7 +194,7 @@ router.patch(
     }
 
     tenant.updatedAt = new Date();
-    tenants.set(tenant.id, tenant);
+    await saveTenant(tenant);
 
     res.json({
       success: true,
@@ -226,15 +204,15 @@ router.patch(
 );
 
 /**
- * POST /tenants/:id/suspend - Suspend a tenant
+ * POST /tenants/:id/suspend - Suspende un tenant
  */
 router.post(
   '/:id/suspend',
   requireAuth,
   requireRole('platform_admin'),
   audit('tenant.suspend'),
-  async (req, res) => {
-    const tenant = tenants.get(req.params.id);
+  async (req: Request, res: Response) => {
+    const tenant = await getTenant(req.params.id);
 
     if (!tenant) {
       return res.status(404).json({
@@ -245,7 +223,7 @@ router.post(
 
     tenant.status = 'suspended';
     tenant.updatedAt = new Date();
-    tenants.set(tenant.id, tenant);
+    await saveTenant(tenant);
 
     res.json({
       success: true,
@@ -255,15 +233,15 @@ router.post(
 );
 
 /**
- * POST /tenants/:id/resume - Resume a suspended tenant
+ * POST /tenants/:id/resume - Reactiva un tenant suspendido
  */
 router.post(
   '/:id/resume',
   requireAuth,
   requireRole('platform_admin'),
   audit('tenant.resume'),
-  async (req, res) => {
-    const tenant = tenants.get(req.params.id);
+  async (req: Request, res: Response) => {
+    const tenant = await getTenant(req.params.id);
 
     if (!tenant) {
       return res.status(404).json({
@@ -274,7 +252,7 @@ router.post(
 
     tenant.status = 'active';
     tenant.updatedAt = new Date();
-    tenants.set(tenant.id, tenant);
+    await saveTenant(tenant);
 
     res.json({
       success: true,
@@ -284,15 +262,15 @@ router.post(
 );
 
 /**
- * POST /tenants/:id/rotate-api-key - Rotate API key
+ * POST /tenants/:id/rotate-api-key - Rota la API key del tenant
  */
 router.post(
   '/:id/rotate-api-key',
   requireAuth,
   requireRole('platform_admin', 'tenant_admin'),
   audit('tenant.rotate_api_key'),
-  async (req, res) => {
-    const tenant = tenants.get(req.params.id);
+  async (req: Request, res: Response) => {
+    const tenant = await getTenant(req.params.id);
 
     if (!tenant) {
       return res.status(404).json({
@@ -301,7 +279,6 @@ router.post(
       });
     }
 
-    // Tenant admins can only rotate their own key
     if (req.user?.role === 'tenant_admin' && req.user?.tenantId !== tenant.id) {
       return res.status(403).json({
         success: false,
@@ -312,12 +289,12 @@ router.post(
     const newApiKey = `ixk_${randomBytes(32).toString('hex')}`;
     tenant.apiKeyHash = await bcrypt.hash(newApiKey, 10);
     tenant.updatedAt = new Date();
-    tenants.set(tenant.id, tenant);
+    await saveTenant(tenant);
 
     res.json({
       success: true,
       data: {
-        apiKey: newApiKey, // Only returned once
+        apiKey: newApiKey,
         message: 'API key rotated successfully. Store the new key securely.',
       },
     });
@@ -325,15 +302,15 @@ router.post(
 );
 
 /**
- * DELETE /tenants/:id - Delete (cancel) a tenant
+ * DELETE /tenants/:id - Cancela un tenant (soft delete)
  */
 router.delete(
   '/:id',
   requireAuth,
   requireRole('platform_admin'),
   audit('tenant.delete'),
-  async (req, res) => {
-    const tenant = tenants.get(req.params.id);
+  async (req: Request, res: Response) => {
+    const tenant = await getTenant(req.params.id);
 
     if (!tenant) {
       return res.status(404).json({
@@ -344,9 +321,7 @@ router.delete(
 
     tenant.status = 'cancelled';
     tenant.updatedAt = new Date();
-    tenants.set(tenant.id, tenant);
-
-    // In production: schedule data deletion per retention policy
+    await saveTenant(tenant);
 
     res.json({
       success: true,

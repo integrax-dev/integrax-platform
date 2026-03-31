@@ -1,7 +1,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { fetchAdminJson } from '../lib/adminApi';
+import { fetchAdminJson, setTokenGetter } from '../lib/adminApi';
 import { allowDemoFallbacks, appEnv } from '../lib/runtime';
 
 interface User {
@@ -36,6 +36,7 @@ export const useAuthStore = create<AuthState>()(
             body: JSON.stringify({ email, password }),
           });
           set({ user: data.user, token: data.token, isAuthenticated: true });
+          setTokenGetter(() => useAuthStore.getState().token);
         } catch {
           if (!email || !password) {
             set({ user: null, token: null, isAuthenticated: false });
@@ -57,6 +58,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
+        setTokenGetter(() => null);
         set({
           user: null,
           token: null,
@@ -66,6 +68,13 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: `integrax-auth-${appEnv}`,
+      onRehydrateStorage: () => (state) => {
+        if (state?.token) {
+          // Restore the token getter after a page reload so all API calls
+          // continue to send Authorization headers without re-logging in.
+          setTokenGetter(() => useAuthStore.getState().token);
+        }
+      },
     }
   )
 );
