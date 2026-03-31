@@ -16,10 +16,12 @@ import type {
   FieldDiff,
   FieldMapping,
   ResolvedConflict,
+  SimilarityScore,
   TransformSpec,
 } from './types.js';
 import { SimilarityDecisionPolicy } from './similarity-decision-policy.js';
 import { TypeResolver } from './type-resolver.js';
+import { buildExplanation } from './explain.js';
 
 const resolver = new TypeResolver();
 const AUTO_ACCEPT_THRESHOLD = 0.88;
@@ -45,6 +47,7 @@ function makeMapping(
   transform: TransformSpec,
   confidence: number,
   decisionReason?: string,
+  score?: SimilarityScore,
 ): FieldMapping {
   return {
     id: `map_${ulid()}`,
@@ -54,6 +57,7 @@ function makeMapping(
     confidence,
     bidirectional: transform.kind === 'identity' || transform.kind === 'rename',
     decisionReason,
+    why: score ? buildExplanation(score) : undefined,
   };
 }
 
@@ -89,20 +93,21 @@ function resolveDeterministic(
   }
 
   if (kind === 'rename_candidate' && diff.similarity && isHighConfidenceRename(diff, policy)) {
+    const annotated = policy.annotate(diff.similarity);
     const transform: TransformSpec = {
       kind: 'rename',
       fromPath: pathA,
       toPath: pathB,
       description:
         `Renombrado detectado: "${pathA}" -> "${pathB}" ` +
-        `(score ${(diff.similarity.combined * 100).toFixed(0)}%, ` +
-        `margen ${(Math.min(diff.similarity.margin ?? 0, diff.similarity.reciprocalMargin ?? 0) * 100).toFixed(0)}%)`,
+        `(score ${(annotated.combined * 100).toFixed(0)}%, ` +
+        `margen ${(Math.min(annotated.margin ?? 0, annotated.reciprocalMargin ?? 0) * 100).toFixed(0)}%)`,
     };
     return {
       diff,
       resolution: 'deterministic',
-      mapping: makeMapping(pathA, pathB, transform, diff.similarity.combined, 'deterministic:rename'),
-      confidence: diff.similarity.combined,
+      mapping: makeMapping(pathA, pathB, transform, annotated.combined, 'deterministic:rename', annotated),
+      confidence: annotated.combined,
       llmRequired: false,
     };
   }

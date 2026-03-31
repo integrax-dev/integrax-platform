@@ -33,6 +33,7 @@ export { SchemaDiffer, createSchemaDiffer } from './schema-differ.js';
 export { SimilarityEngine, createSimilarityEngine, normalizeName } from './similarity-engine.js';
 export { SimilarityDecisionPolicy, createSimilarityDecisionPolicy } from './similarity-decision-policy.js';
 export { ConflictResolver, createConflictResolver } from './conflict-resolver.js';
+export { buildExplanation, formatExplanation } from './explain.js';
 export { MappingGenerator, createMappingGenerator } from './mapping-generator.js';
 export { ChangeReporter, createChangeReporter } from './change-reporter.js';
 export { ClientUpdater, createClientUpdater } from './client-updater.js';
@@ -87,6 +88,8 @@ export type {
   SimilarityEvidenceBreakdown,
   SimilarityEngineConfig,
   SchemaBridgeConfig,
+  SimilarityMatchRule,
+  MatchExplanation,
 } from './types.js';
 
 export { CompareSchemasRequestSchema, CompareOptionsSchema } from './types.js';
