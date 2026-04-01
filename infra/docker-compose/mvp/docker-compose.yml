@@ -16,7 +16,10 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./init-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./02-schema-versioning.sql:/docker-entrypoint-initdb.d/02-schema-versioning.sql:ro
+      - ./03-mapping-memory.sql:/docker-entrypoint-initdb.d/03-mapping-memory.sql:ro
+      - ./04-tenants-connectors.sql:/docker-entrypoint-initdb.d/04-tenants-connectors.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U integrax"]
       interval: 10s

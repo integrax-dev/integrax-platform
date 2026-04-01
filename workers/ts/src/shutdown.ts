@@ -8,13 +8,13 @@ export function gracefulShutdown(workers: Worker[], auditLogger: AuditLogger): v
   const shutdown = async (signal: string) => {
     logger.info({ signal }, 'Received shutdown signal');
 
-    // Stop accepting new jobs
+    // Dejar de aceptar nuevos jobs
     for (const worker of workers) {
       logger.info('Closing worker...');
       await worker.close();
     }
 
-    // Close audit logger connection
+    // Cerrar la conexión del logger de auditoría
     await auditLogger.close();
 
     logger.info('Graceful shutdown complete');

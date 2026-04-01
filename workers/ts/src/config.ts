@@ -3,12 +3,12 @@ import { z } from 'zod';
 const isProduction = process.env.NODE_ENV === 'production';
 
 const ConfigSchema = z.object({
-  // Redis - required
+  // Redis — requerido
   REDIS_HOST: z.string({ required_error: 'REDIS_HOST is required' }),
   REDIS_PORT: z.coerce.number().default(6379),
   REDIS_PASSWORD: z.string({ required_error: 'REDIS_PASSWORD is required' }).optional(),
 
-  // Postgres - required
+  // Postgres — requerido
   POSTGRES_HOST: z.string({ required_error: 'POSTGRES_HOST is required' }),
   POSTGRES_PORT: z.coerce.number().default(5432),
   POSTGRES_USER: z.string({ required_error: 'POSTGRES_USER is required' }),
@@ -22,7 +22,7 @@ const ConfigSchema = z.object({
   // Logging
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 
-  // Environment
+  // Entorno
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 });
 
