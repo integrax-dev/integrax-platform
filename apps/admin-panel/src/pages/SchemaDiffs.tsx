@@ -11,7 +11,9 @@ import { fetchAdminJson } from '../lib/adminApi';
 import { allowDemoFallbacks } from '../lib/runtime';
 import './Pages.css';
 
-const MOCK_REPORTS: DiffReport[] = [
+const MOCK_REPORTS: DiffReport[] = import.meta.env.PROD && !import.meta.env.VITE_ENABLE_DEMO_FALLBACKS 
+  ? []
+  : [
   {
     id: 'rep_01J8K9L0M1N2P3Q4R5S6T7V8W9',
     tenant_id: 'ten_01',

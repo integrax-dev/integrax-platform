@@ -1,5 +1,8 @@
 import { SchemaBridge } from '@integrax/schema-bridge';
-import type { BridgeReport } from '@integrax/schema-bridge';
+import type { BridgeReport, MappingMemoryEntry } from '@integrax/schema-bridge';
+import type { PieceAuthContext } from '@integrax/connector-sdk';
+import { runGetMemory } from './get-memory.js';
+
 
 export interface CompareSchemasPieceInput {
   connectorAId: string;
@@ -10,6 +13,7 @@ export interface CompareSchemasPieceInput {
   anthropicApiKey?: string;
   enableLlmEscalation?: boolean;
   renameSimilarityThreshold?: number;
+  mappingMemory?: MappingMemoryEntry[];
 }
 
 export async function runCompareSchemas(input: CompareSchemasPieceInput): Promise<BridgeReport> {
@@ -23,6 +27,7 @@ export async function runCompareSchemas(input: CompareSchemasPieceInput): Promis
     tenantId: input.tenantId,
     samplesA: input.samplesA,
     samplesB: input.samplesB,
+    mappingMemory: input.mappingMemory,
     options: {
       enableLlmEscalation: input.enableLlmEscalation ?? false,
       renameSimilarityThreshold: input.renameSimilarityThreshold ?? 0.70,
@@ -51,7 +56,20 @@ export async function buildCompareSchemasPieceAction() {
       }),
     },
     async run(ctx) {
-      const auth = ctx.auth as unknown as import('../piece-auth.js').SchemaBridgePieceAuth;
+      const auth = ctx.auth as unknown as PieceAuthContext;
+      let memory: MappingMemoryEntry[] = [];
+      try {
+        memory = await runGetMemory({
+          controlPlaneUrl: auth.controlPlaneUrl,
+          apiKey: auth.apiKey,
+          tenantId: auth.tenantRef,
+          connectorAId: ctx.propsValue.connectorAId,
+          connectorBId: ctx.propsValue.connectorBId,
+        });
+      } catch (err) {
+        console.warn('[SchemaBridge Piece] No se pudo obtener MemoryHistory, operando sin memoria:', err);
+      }
+
       return runCompareSchemas({
         connectorAId: ctx.propsValue.connectorAId,
         connectorBId: ctx.propsValue.connectorBId,
@@ -60,6 +78,7 @@ export async function buildCompareSchemasPieceAction() {
         samplesB: ctx.propsValue.samplesB as unknown as Record<string, unknown>[],
         enableLlmEscalation: ctx.propsValue.enableLlmEscalation ?? false,
         renameSimilarityThreshold: 0.70,
+        mappingMemory: memory,
       });
     },
   });

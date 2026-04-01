@@ -129,7 +129,8 @@ export class SchemaBridge {
     // Construir un SimilarityEngine con scope de conector para esta llamada a compare().
     // Las entradas globales (sin scope de conector) siempre aplican; las específicas
     // solo aplican cuando el par de conectores coincide con la solicitud actual.
-    const scopedMemory = this.memoryEntries.filter(e =>
+    const combinedMemory = [...this.memoryEntries, ...(request.mappingMemory ?? [])];
+    const scopedMemory = combinedMemory.filter(e =>
       (!e.connectorAId && !e.connectorBId) ||
       (e.connectorAId === request.connectorAId && e.connectorBId === request.connectorBId),
     );

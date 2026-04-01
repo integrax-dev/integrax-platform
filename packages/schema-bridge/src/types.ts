@@ -413,6 +413,7 @@ export const CompareSchemasRequestSchema = z.object({
   samplesB: z.array(z.record(z.unknown())).min(1).max(2000),
   tenantId: z.string().optional(),
   options: CompareOptionsSchema.optional(),
+  mappingMemory: z.array(z.custom<MappingMemoryEntry>()).optional(),
 });
 
 export type CompareSchemasRequest = z.infer<typeof CompareSchemasRequestSchema>;

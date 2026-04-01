@@ -11,7 +11,7 @@ import { fetchAdminJson } from '../lib/adminApi';
 import { allowDemoFallbacks } from '../lib/runtime';
 import './Pages.css';
 
-const MOCK_ENTRIES: MappingMemoryEntry[] = [
+const MOCK_ENTRIES: MappingMemoryEntry[] = import.meta.env.PROD && !import.meta.env.VITE_ENABLE_DEMO_FALLBACKS ? [] : [
   {
     sourcePath: 'id',
     targetPath: 'external_id',

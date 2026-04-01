@@ -14,7 +14,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@integrax/schema-bridge": "workspace:*"
+    "@integrax/schema-bridge": "workspace:*",
+    "@integrax/connector-sdk": "workspace:*"
   },
   "peerDependencies": {
     "@activepieces/pieces-framework": ">=0.20.0"

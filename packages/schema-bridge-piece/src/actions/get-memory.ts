@@ -1,3 +1,5 @@
+import type { PieceAuthContext } from '@integrax/connector-sdk';
+
 export interface MappingMemoryEntry {
   sourcePath: string;
   targetPath: string;
@@ -48,7 +50,7 @@ export async function buildGetMemoryPieceAction() {
       connectorBId: Property.ShortText({ displayName: 'Connector B ID', required: true }),
     },
     async run(ctx) {
-      const auth = ctx.auth as unknown as import('../piece-auth.js').SchemaBridgePieceAuth;
+      const auth = ctx.auth as unknown as PieceAuthContext;
       return runGetMemory({
         controlPlaneUrl: auth.controlPlaneUrl,
         apiKey: auth.apiKey,
