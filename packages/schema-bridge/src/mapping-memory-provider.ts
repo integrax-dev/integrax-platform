@@ -208,29 +208,36 @@ export const MIN_FEEDBACK_FOR_AUTO_ACCEPT = 3;
  */
 export const MIN_HITS_FOR_CHANNEL_WEIGHTS = 5;
 
+/** Vida media del decay de confianza histórica en días. Default: 90. */
+export const DECAY_HALF_LIFE_DAYS = 90;
+
 /**
- * Deriva multiplicadores por canal de evidencia a partir del historial de feedback.
- *
- * Algoritmo:
- *   1. Filtra entradas por par de conectores (si se proveen) con al menos 1 aceptación.
- *   2. Suma los `channelHits` de todas las entradas relevantes.
- *   3. Calcula la participación (share) de cada canal sobre el total de hits.
- *   4. Un canal con share > 20% (avg de 5 canales) recibe un boost proporcional,
- *      hasta +0.20 puntos. Un canal subrepresentado recibe una reducción de hasta -0.15.
- *   5. Clampea el resultado en [0.80, 1.20] para evitar amplificaciones extremas.
- *
- * Los multiplicadores se pasan a `SimilarityEngine` vía `config.channelMultipliers`.
- *
- * @param entries - Entradas de memoria a analizar.
- * @param connectorAId - Opcional: filtrar por conector origen.
- * @param connectorBId - Opcional: filtrar por conector destino.
- * @param minHits - Umbral mínimo de hits totales para derivar pesos (default: 5).
+ * Factor de decay temporal basado en `lastAcceptedAt`.
+ * decayFactor = 0.5 ^ (ageDays / halfLifeDays)
+ * Sin timestamp → 1.0 (neutro, no penaliza datos legacy).
+ */
+export function computeDecayFactor(
+  lastAcceptedAt: string | undefined,
+  now = Date.now(),
+  halfLifeDays = DECAY_HALF_LIFE_DAYS,
+): number {
+  if (!lastAcceptedAt) return 1.0;
+  const ageMs = now - new Date(lastAcceptedAt).getTime();
+  if (ageMs <= 0) return 1.0;
+  return Math.pow(0.5, (ageMs / (1000 * 60 * 60 * 24)) / halfLifeDays);
+}
+
+/**
+ * Deriva multiplicadores por canal desde el historial de feedback.
+ * Aplica decay exponencial (half-life 90 días) para que feedback reciente pese más.
+ * Filtra opcionalmente por par de conectores para no mezclar dominios.
  */
 export function computeSignalWeights(
   entries: MappingMemoryEntry[],
   connectorAId?: string,
   connectorBId?: string,
   minHits = MIN_HITS_FOR_CHANNEL_WEIGHTS,
+  now = Date.now(),
 ): ChannelMultipliers {
   const relevant = entries.filter(e =>
     (!connectorAId || e.connectorAId === connectorAId) &&
@@ -242,38 +249,23 @@ export function computeSignalWeights(
   const totals: Record<SignalChannel, number> = { lexical: 0, value: 0, structural: 0, businessType: 0, ontology: 0 };
   let totalHits = 0;
 
-  const now = Date.now();
-  const MS_PER_DAY = 1000 * 60 * 60 * 24;
-  const HALF_LIFE_DAYS = 90; // La confianza se reduce a la mitad cada 90 días
-
   for (const entry of relevant) {
-    let decayFactor = 1.0;
-    if (entry.lastAcceptedAt) {
-      const ageMs = now - new Date(entry.lastAcceptedAt).getTime();
-      const ageDays = Math.max(0, ageMs / MS_PER_DAY);
-      decayFactor = Math.pow(0.5, ageDays / HALF_LIFE_DAYS);
-    }
-
+    const decay = computeDecayFactor(entry.lastAcceptedAt, now);
     for (const ch of ALL_CHANNELS) {
-      const hits = entry.channelHits?.[ch] ?? 0;
-      const decayedHits = hits * decayFactor;
-      totals[ch] += decayedHits;
-      totalHits += decayedHits;
+      const weighted = (entry.channelHits?.[ch] ?? 0) * decay;
+      totals[ch] += weighted;
+      totalHits += weighted;
     }
   }
 
   if (totalHits < minHits) return { ...DEFAULT_CHANNEL_MULTIPLIERS };
 
-  const avgShare = 1 / ALL_CHANNELS.length; // 0.20 con 5 canales
+  const avgShare = 1 / ALL_CHANNELS.length;
   const result = { ...DEFAULT_CHANNEL_MULTIPLIERS };
 
   for (const ch of ALL_CHANNELS) {
-    const share = totals[ch] / totalHits;
-    // delta > 0: canal más frecuente que el promedio → boost (max +0.20)
-    // delta < 0: canal menos frecuente → reducción (max -0.15 antes del clamp)
-    const delta = share - avgShare;
-    const mult = 1.0 + delta * 1.0; // escala 1:1, el clamp protege los extremos
-    result[ch] = Math.max(0.80, Math.min(1.20, mult));
+    const delta = totals[ch] / totalHits - avgShare;
+    result[ch] = Math.max(0.80, Math.min(1.20, 1.0 + delta));
   }
 
   return result;

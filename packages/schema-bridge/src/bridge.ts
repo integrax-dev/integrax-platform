@@ -140,11 +140,15 @@ export class SchemaBridge {
           rejectionMinSamples: this.memoryMinSamples,
         })]
       : [];
-    const weights = computeSignalWeights(scopedMemory);
+    const channelMultipliers = computeSignalWeights(
+      scopedMemory,
+      request.connectorAId,
+      request.connectorBId,
+    );
 
     const similarity = new SimilarityEngine({
       ...this.similarityConfig,
-      channelMultipliers: weights,
+      channelMultipliers,
       decisionPolicy: {
         ...(this.similarityConfig.decisionPolicy ?? {}),
         autoAcceptThreshold: Math.max(0.85, options.renameSimilarityThreshold + 0.15),

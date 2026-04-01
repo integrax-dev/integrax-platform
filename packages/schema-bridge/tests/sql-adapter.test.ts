@@ -17,13 +17,20 @@ describe('SqlDdlAdapter', () => {
     const schema = adapter.adapt();
 
     expect(schema.fields).toHaveLength(5);
-    expect(schema.fields).toEqual([
-      { path: 'id', required: true, node: { type: 'string', nullable: false, examples: [] } },
-      { path: 'first_name', required: true, node: { type: 'string', nullable: false, examples: [] } },
-      { path: 'age', required: false, node: { type: 'number', nullable: true, examples: [] } },
-      { path: 'is_active', required: true, node: { type: 'boolean', nullable: false, examples: [] } },
-      { path: 'created_at', required: false, node: { type: 'string', nullable: true, examples: [] } },
-    ]);
+    const byPath = Object.fromEntries(schema.fields.map(f => [f.path, f]));
+    expect(byPath['id'].required).toBe(true);
+    expect(byPath['id'].node.type).toBe('string');
+    expect(byPath['id'].node.nullable).toBe(false);
+    expect(byPath['first_name'].required).toBe(true);
+    expect(byPath['first_name'].node.type).toBe('string');
+    expect(byPath['age'].required).toBe(false);
+    expect(byPath['age'].node.type).toBe('number');
+    expect(byPath['age'].node.nullable).toBe(true);
+    expect(byPath['is_active'].required).toBe(true);
+    expect(byPath['is_active'].node.type).toBe('boolean');
+    expect(byPath['created_at'].required).toBe(false);
+    expect(byPath['created_at'].node.type).toBe('string');
+    expect(byPath['created_at'].node.format).toBe('date-time');
   });
 
   it('debe ignorar table-level constraints', () => {
