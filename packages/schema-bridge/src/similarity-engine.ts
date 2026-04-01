@@ -18,6 +18,7 @@ import {
 import { defaultOntologyProviders } from './ontology-registry.js';
 import { SimilarityDecisionPolicy } from './similarity-decision-policy.js';
 import type {
+  ChannelMultipliers,
   FieldDiff,
   OntologyProvider,
   SchemaNode,
@@ -636,6 +637,25 @@ function topTwoScores(values: number[]): [number, number] {
   return [best, second];
 }
 
+/**
+ * Aplica los multiplicadores por canal al breakdown de evidencia.
+ * `sufficiency` no se amplifica — es calidad del dato, no señal de similitud.
+ * Todos los valores resultantes quedan clampeados en [0, 1].
+ */
+function applyChannelMultipliers(
+  breakdown: SimilarityEvidenceBreakdown,
+  mults: ChannelMultipliers,
+): SimilarityEvidenceBreakdown {
+  return {
+    lexical: clamp01(breakdown.lexical * mults.lexical),
+    value: clamp01(breakdown.value * mults.value),
+    structural: clamp01(breakdown.structural * mults.structural),
+    businessType: clamp01(breakdown.businessType * mults.businessType),
+    ontology: clamp01(breakdown.ontology * mults.ontology),
+    sufficiency: breakdown.sufficiency,
+  };
+}
+
 function buildScore(
   pathA: string,
   pathB: string,
@@ -643,6 +663,7 @@ function buildScore(
   nodeB: SchemaNode | null,
   weights: Map<string, number>,
   ontologyProviders: OntologyProvider[],
+  channelMultipliers?: ChannelMultipliers,
 ): SimilarityScore {
   const lexical = lexicalEvidence(pathA, pathB);
   const value = valueSimilarity(nodeA, nodeB, weights);
@@ -651,7 +672,7 @@ function buildScore(
   const structural = structuralSimilarity(pathA, pathB);
   const sufficiency = evidenceSufficiency(nodeA, nodeB);
 
-  const evidenceBreakdown: SimilarityEvidenceBreakdown = {
+  const rawBreakdown: SimilarityEvidenceBreakdown = {
     lexical: lexical.lexical,
     value,
     structural,
@@ -659,6 +680,10 @@ function buildScore(
     ontology,
     sufficiency,
   };
+
+  const evidenceBreakdown = channelMultipliers
+    ? applyChannelMultipliers(rawBreakdown, channelMultipliers)
+    : rawBreakdown;
 
   return {
     levenshtein: lexical.levenshtein,
@@ -675,6 +700,7 @@ export class SimilarityEngine {
   private readonly weights: Map<string, number>;
   private readonly ontologyProviders: OntologyProvider[];
   private readonly decisionPolicy: SimilarityDecisionPolicy;
+  private readonly channelMultipliers: ChannelMultipliers | undefined;
 
   constructor(config: SimilarityEngineConfig = {}) {
     this.weights = new Map(Object.entries({
@@ -686,6 +712,7 @@ export class SimilarityEngine {
       ...(config.ontologyProviders ?? []),
     ];
     this.decisionPolicy = new SimilarityDecisionPolicy(config.decisionPolicy);
+    this.channelMultipliers = config.channelMultipliers;
   }
 
   findRenameCandidates(
@@ -748,6 +775,7 @@ export class SimilarityEngine {
             addedDiff.nodeB,
             this.weights,
             this.ontologyProviders,
+            this.channelMultipliers,
           ),
           diffA: removedDiff,
           diffB: addedDiff,
@@ -812,7 +840,7 @@ export class SimilarityEngine {
   }
 
   score(nameA: string, nameB: string): SimilarityScore {
-    const score = buildScore(nameA, nameB, null, null, this.weights, this.ontologyProviders);
+    const score = buildScore(nameA, nameB, null, null, this.weights, this.ontologyProviders, this.channelMultipliers);
     return this.decisionPolicy.annotate(score);
   }
 }

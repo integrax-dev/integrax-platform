@@ -88,6 +88,21 @@ export interface OntologyProvider {
   match(context: OntologyMatchContext): OntologyMatch | null;
 }
 
+/**
+ * Los 5 canales de evidencia que contribuyen al score de similitud.
+ * Se usa para trackear qué canal fue dominante en los mappings aceptados
+ * y derivar multiplicadores adaptativos por par de conectores.
+ */
+export type SignalChannel = 'lexical' | 'value' | 'structural' | 'businessType' | 'ontology';
+
+/**
+ * Multiplicadores por canal de evidencia. Valores en [0.80, 1.20].
+ * Un canal con multiplier > 1.0 recibe más peso en el scoring;
+ * un canal con multiplier < 1.0 recibe menos peso.
+ * Se derivan desde el historial de feedback via `computeSignalWeights`.
+ */
+export type ChannelMultipliers = Record<SignalChannel, number>;
+
 export interface MappingMemoryEntry {
   sourcePath: string;
   targetPath: string;
@@ -98,6 +113,12 @@ export interface MappingMemoryEntry {
   rejectedCount: number;
   averageConfidence: number;
   lastAcceptedAt?: string;
+  /**
+   * Conteo de veces que cada canal fue el dominante en un mapping aceptado.
+   * Alimenta `computeSignalWeights` para derivar multiplicadores adaptativos.
+   * Solo se incrementa en aceptaciones con evidenceBreakdown disponible.
+   */
+  channelHits?: Partial<Record<SignalChannel, number>>;
 }
 
 // ─── Diff ────────────────────────────────────────────────────────────────────
@@ -387,6 +408,13 @@ export interface SimilarityEngineConfig {
   businessTypeWeights?: BusinessTypeWeightMap;
   ontologyProviders?: OntologyProvider[];
   decisionPolicy?: SimilarityDecisionPolicyConfig;
+  /**
+   * Multiplicadores por canal de evidencia derivados del historial de feedback.
+   * Amplifica canales históricamente confiables y reduce los poco informativos.
+   * Generado por `computeSignalWeights(entries, connectorAId, connectorBId)`.
+   * Si no se provee, todos los canales tienen peso 1.0 (comportamiento actual).
+   */
+  channelMultipliers?: ChannelMultipliers;
 }
 
 export interface ConflictResolverConfig {

@@ -27,7 +27,13 @@ export {
   detectBusinessFormat,
 } from './business-type-registry.js';
 export { defaultOntologyProviders } from './ontology-registry.js';
-export { createMappingMemoryOntologyProvider, updateMemoryEntry } from './mapping-memory-provider.js';
+export {
+  createMappingMemoryOntologyProvider,
+  updateMemoryEntry,
+  computeSignalWeights,
+  DEFAULT_CHANNEL_MULTIPLIERS,
+  MIN_HITS_FOR_CHANNEL_WEIGHTS,
+} from './mapping-memory-provider.js';
 export { SchemaInferrer, createSchemaInferrer } from './schema-inferrer.js';
 export { SchemaDiffer, createSchemaDiffer } from './schema-differ.js';
 export { SimilarityEngine, createSimilarityEngine, normalizeName } from './similarity-engine.js';
@@ -90,6 +96,8 @@ export type {
   SchemaBridgeConfig,
   SimilarityMatchRule,
   MatchExplanation,
+  SignalChannel,
+  ChannelMultipliers,
 } from './types.js';
 
 export { CompareSchemasRequestSchema, CompareOptionsSchema } from './types.js';

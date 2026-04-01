@@ -1,9 +1,37 @@
 import type {
+  ChannelMultipliers,
   MappingMemoryEntry,
   OntologyMatch,
   OntologyMatchContext,
   OntologyProvider,
+  SignalChannel,
+  SimilarityEvidenceBreakdown,
 } from './types.js';
+
+const ALL_CHANNELS: SignalChannel[] = ['lexical', 'value', 'structural', 'businessType', 'ontology'];
+
+export const DEFAULT_CHANNEL_MULTIPLIERS: ChannelMultipliers = {
+  lexical: 1.0,
+  value: 1.0,
+  structural: 1.0,
+  businessType: 1.0,
+  ontology: 1.0,
+};
+
+function dominantChannel(breakdown: SimilarityEvidenceBreakdown): SignalChannel {
+  let best: SignalChannel = 'lexical';
+  let bestScore = breakdown.lexical;
+  const candidates: [SignalChannel, number][] = [
+    ['value', breakdown.value],
+    ['structural', breakdown.structural],
+    ['businessType', breakdown.businessType],
+    ['ontology', breakdown.ontology],
+  ];
+  for (const [ch, score] of candidates) {
+    if (score > bestScore) { best = ch; bestScore = score; }
+  }
+  return best;
+}
 
 function normalizeToken(value: string): string {
   if (/^[A-Z0-9_]+$/.test(value)) {
@@ -112,6 +140,7 @@ export function updateMemoryEntry(
   confidence: number,
   connectorAId?: string,
   connectorBId?: string,
+  breakdown?: SimilarityEvidenceBreakdown,
 ): MappingMemoryEntry[] {
   const srcNorm = normalizePath(sourcePath);
   const tgtNorm = normalizePath(targetPath);
@@ -123,6 +152,14 @@ export function updateMemoryEntry(
     e.connectorBId === connectorBId,
   );
 
+  // Cuando se acepta un mapping con breakdown disponible, registrar el canal dominante.
+  const updatedChannelHits = (existing: MappingMemoryEntry | undefined): Partial<Record<SignalChannel, number>> | undefined => {
+    if (!accepted || !breakdown) return existing?.channelHits;
+    const ch = dominantChannel(breakdown);
+    const prev = existing?.channelHits ?? {};
+    return { ...prev, [ch]: (prev[ch] ?? 0) + 1 };
+  };
+
   if (existing) {
     const prevTotal = existing.acceptedCount + existing.rejectedCount;
     const updated: MappingMemoryEntry = {
@@ -132,6 +169,7 @@ export function updateMemoryEntry(
       // Media ponderada acumulada: preserva el historial completo.
       averageConfidence: (existing.averageConfidence * prevTotal + confidence) / (prevTotal + 1),
       lastAcceptedAt: accepted ? new Date().toISOString() : existing.lastAcceptedAt,
+      channelHits: updatedChannelHits(existing),
     };
     return entries.map(e => (e === existing ? updated : e));
   }
@@ -145,6 +183,7 @@ export function updateMemoryEntry(
     rejectedCount: accepted ? 0 : 1,
     averageConfidence: confidence,
     lastAcceptedAt: accepted ? new Date().toISOString() : undefined,
+    channelHits: updatedChannelHits(undefined),
   };
   return [...entries, newEntry];
 }
@@ -160,6 +199,73 @@ export function updateMemoryEntry(
  *    Con 3 aceptaciones hay corroboración mínima y el score llega a ≈ 0.87.
  */
 export const MIN_FEEDBACK_FOR_AUTO_ACCEPT = 3;
+
+/**
+ * Número mínimo de channel hits totales para derivar multiplicadores adaptativos.
+ * Por debajo de este umbral se devuelven los multiplicadores por defecto (1.0 en todos).
+ * Evita que 1-2 aceptaciones sesguen los pesos hacia un canal particular.
+ * Default: 5.
+ */
+export const MIN_HITS_FOR_CHANNEL_WEIGHTS = 5;
+
+/**
+ * Deriva multiplicadores por canal de evidencia a partir del historial de feedback.
+ *
+ * Algoritmo:
+ *   1. Filtra entradas por par de conectores (si se proveen) con al menos 1 aceptación.
+ *   2. Suma los `channelHits` de todas las entradas relevantes.
+ *   3. Calcula la participación (share) de cada canal sobre el total de hits.
+ *   4. Un canal con share > 20% (avg de 5 canales) recibe un boost proporcional,
+ *      hasta +0.20 puntos. Un canal subrepresentado recibe una reducción de hasta -0.15.
+ *   5. Clampea el resultado en [0.80, 1.20] para evitar amplificaciones extremas.
+ *
+ * Los multiplicadores se pasan a `SimilarityEngine` vía `config.channelMultipliers`.
+ *
+ * @param entries - Entradas de memoria a analizar.
+ * @param connectorAId - Opcional: filtrar por conector origen.
+ * @param connectorBId - Opcional: filtrar por conector destino.
+ * @param minHits - Umbral mínimo de hits totales para derivar pesos (default: 5).
+ */
+export function computeSignalWeights(
+  entries: MappingMemoryEntry[],
+  connectorAId?: string,
+  connectorBId?: string,
+  minHits = MIN_HITS_FOR_CHANNEL_WEIGHTS,
+): ChannelMultipliers {
+  const relevant = entries.filter(e =>
+    (!connectorAId || e.connectorAId === connectorAId) &&
+    (!connectorBId || e.connectorBId === connectorBId) &&
+    e.acceptedCount >= 1 &&
+    e.channelHits != null,
+  );
+
+  const totals: Record<SignalChannel, number> = { lexical: 0, value: 0, structural: 0, businessType: 0, ontology: 0 };
+  let totalHits = 0;
+
+  for (const entry of relevant) {
+    for (const ch of ALL_CHANNELS) {
+      const hits = entry.channelHits?.[ch] ?? 0;
+      totals[ch] += hits;
+      totalHits += hits;
+    }
+  }
+
+  if (totalHits < minHits) return { ...DEFAULT_CHANNEL_MULTIPLIERS };
+
+  const avgShare = 1 / ALL_CHANNELS.length; // 0.20 con 5 canales
+  const result = { ...DEFAULT_CHANNEL_MULTIPLIERS };
+
+  for (const ch of ALL_CHANNELS) {
+    const share = totals[ch] / totalHits;
+    // delta > 0: canal más frecuente que el promedio → boost (max +0.20)
+    // delta < 0: canal menos frecuente → reducción (max -0.15 antes del clamp)
+    const delta = share - avgShare;
+    const mult = 1.0 + delta * 1.0; // escala 1:1, el clamp protege los extremos
+    result[ch] = Math.max(0.80, Math.min(1.20, mult));
+  }
+
+  return result;
+}
 
 export interface MappingMemoryProviderOptions {
   /** Custom provider ID (default: 'mapping-memory') */
