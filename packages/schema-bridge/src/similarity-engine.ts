@@ -186,10 +186,10 @@ function normalizeValueForMatching(value: unknown): string {
     // Usa parseFloat para eliminar ceros finales: "15000,00" → "15000" (no "15000.00").
     // Esto permite matching con valores numéricos JS: 15000.0 → String(15000) = "15000".
     // Solo aplica cuando: toda la parte entera son dígitos, hay una coma,
-    // y la parte decimal tiene 1-4 dígitos.
-    // No aplica a "AR,US" porque "AR" no es puramente numérico.
-    if (/^-?\d+,\d{1,4}$/.test(s)) {
-      return String(parseFloat(s.replace(',', '.'))).toLowerCase();
+    // y la parte decimal tiene 1-4 dígitos. Permite separadores de miles de punto (LatAm).
+    const withoutDots = s.replace(/\./g, '');
+    if (/^-?\d+,\d{1,4}$/.test(withoutDots)) {
+      return String(parseFloat(withoutDots.replace(',', '.'))).toLowerCase();
     }
 
     // Decimal dot trailing zeros: "1500.50" → "1500.5", "15000.00" → "15000"
@@ -484,11 +484,20 @@ function structuralSimilarity(pathA: string, pathB: string): number {
         ? 0.72
         : 0.4;
 
+  const rootMismatchPenalty =
+    contextA.ancestors.length > 0 &&
+    contextB.ancestors.length > 0 &&
+    contextA.ancestors[0] !== contextB.ancestors[0] &&
+    contextA.ancestors.length === contextB.ancestors.length &&
+    contextA.depth === contextB.depth &&
+    lineageOverlap === 0
+      ? 0.35 : 1.0;
+
   return clamp01(
     Math.max(
       0.40 * lineageOverlap + 0.25 * orderedLineage + 0.20 * arrayOverlap + 0.15 * arrayDepthAlignment,
       0.55 * flattenTolerance + 0.45 * Math.max(lineageOverlap, orderedLineage),
-    )
+    ) * rootMismatchPenalty
   );
 }
 
@@ -695,6 +704,15 @@ export class SimilarityEngine {
       }
       for (const candidate of addedByPrimaryType.get(typeA) ?? []) {
         candidates.set(candidate.pathB!, candidate);
+      }
+      if (typeA === 'string') {
+        for (const candidate of addedByDepthBucket.get(bucketKey('number', removedDiff.pathA!)) ?? []) {
+          candidates.set(candidate.pathB!, candidate);
+        }
+      } else if (typeA === 'number') {
+        for (const candidate of addedByDepthBucket.get(bucketKey('string', removedDiff.pathA!)) ?? []) {
+          candidates.set(candidate.pathB!, candidate);
+        }
       }
       if (typeA !== 'unknown') {
         for (const candidate of addedByPrimaryType.get('unknown') ?? []) {

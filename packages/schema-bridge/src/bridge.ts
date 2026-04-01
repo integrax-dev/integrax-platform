@@ -142,6 +142,11 @@ export class SchemaBridge {
       : [];
     const similarity = new SimilarityEngine({
       ...this.similarityConfig,
+      decisionPolicy: {
+        ...(this.similarityConfig.decisionPolicy ?? {}),
+        autoAcceptThreshold: Math.max(0.85, options.renameSimilarityThreshold + 0.15),
+        reviewThreshold: options.renameSimilarityThreshold,
+      },
       ontologyProviders: [...this.baseOntologyProviders, ...memoryProviders],
     });
 

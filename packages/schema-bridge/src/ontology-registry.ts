@@ -4,6 +4,8 @@ import type {
   OntologyProvider,
 } from './types.js';
 
+import { DictionaryOntologyProvider } from './dictionary-ontology.js';
+
 function normalizeToken(value: string): string {
   if (/^[A-Z0-9_]+$/.test(value)) {
     return value.toLowerCase().replace(/__+/g, '_').replace(/^_|_$/g, '');
@@ -97,6 +99,7 @@ function genericSynonymProvider(context: OntologyMatchContext): OntologyMatch | 
 }
 
 export const defaultOntologyProviders: OntologyProvider[] = [
+  new DictionaryOntologyProvider(),
   {
     id: 'generic-synonyms',
     match: genericSynonymProvider,
