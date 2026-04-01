@@ -7,6 +7,7 @@ export interface MappingMemoryEntry {
   rejectedCount: number;
   averageConfidence: number;
   lastAcceptedAt?: string;
+  channelHits?: Partial<Record<string, number>>;
 }
 
 export interface GetMemoryInput {
@@ -35,6 +36,9 @@ export async function runGetMemory(input: GetMemoryInput): Promise<MappingMemory
   }
 
   const payload = await res.json() as { success: boolean; data: MappingMemoryEntry[] };
+  if (!Array.isArray(payload?.data)) {
+    throw new Error('getMemory invalid payload: data must be an array');
+  }
   return payload.data;
 }
 

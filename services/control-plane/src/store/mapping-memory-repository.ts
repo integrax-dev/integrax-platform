@@ -15,7 +15,7 @@
  *   estados obsoletos hasta el siguiente TTL — aceptable para este caso de uso.
  */
 
-import type { MappingMemoryEntry } from '@integrax/schema-bridge';
+import type { MappingMemoryEntry, SimilarityEvidenceBreakdown } from '@integrax/schema-bridge';
 import { pool } from './db.js';
 import { MemoryCacheAdapter } from './cache-adapter.js';
 import type { ICacheAdapter } from './cache-adapter.js';
@@ -54,6 +54,7 @@ interface MemoryRow {
   rejected_count: number;
   average_confidence: number;
   last_accepted_at: Date | null;
+  channel_hits: Record<string, number> | null;
 }
 
 function rowToEntry(row: MemoryRow): MappingMemoryEntry {
@@ -66,6 +67,7 @@ function rowToEntry(row: MemoryRow): MappingMemoryEntry {
     rejectedCount: Number(row.rejected_count),
     averageConfidence: Number(row.average_confidence),
     lastAcceptedAt: row.last_accepted_at ? row.last_accepted_at.toISOString() : undefined,
+    channelHits: row.channel_hits ?? undefined,
   };
 }
 
@@ -90,7 +92,8 @@ export async function loadMappingMemory(
     `SELECT source_connector_id, target_connector_id,
             source_path, target_path,
             accepted_count, rejected_count,
-            average_confidence, last_accepted_at
+            average_confidence, last_accepted_at,
+            channel_hits
      FROM schema_mapping_memory
      WHERE tenant_id = $1
        AND source_connector_id = $2
@@ -152,6 +155,28 @@ export async function pruneMemory(
  * ponderada acumulada directamente en SQL, evitando race conditions.
  * Invalida la cache del par afectado.
  */
+/**
+ * Determina el canal dominante de un breakdown de evidencia.
+ * Espejo exacto de `dominantChannel` en mapping-memory-provider.ts
+ * para no importar desde el paquete schema-bridge (evita dep circular).
+ */
+function dominantChannelFromBreakdown(
+  b: SimilarityEvidenceBreakdown,
+): string {
+  const scores: [string, number][] = [
+    ['lexical', b.lexical],
+    ['value', b.value],
+    ['structural', b.structural],
+    ['businessType', b.businessType],
+    ['ontology', b.ontology],
+  ];
+  let best = scores[0];
+  for (const candidate of scores) {
+    if (candidate[1] > best[1]) best = candidate;
+  }
+  return best[0];
+}
+
 export async function upsertEntry(
   tenantId: string,
   connectorAId: string,
@@ -160,18 +185,27 @@ export async function upsertEntry(
   targetPath: string,
   accepted: boolean,
   confidence: number,
+  breakdown?: SimilarityEvidenceBreakdown,
 ): Promise<void> {
   const acceptedDelta = accepted ? 1 : 0;
   const rejectedDelta = accepted ? 0 : 1;
   const lastAcceptedAt = accepted ? new Date() : null;
+
+  // Si hay breakdown y fue aceptado, derivar el canal dominante para channel_hits.
+  // El merge se hace atómicamente en SQL usando jsonb_build_object + coalesce.
+  const dominantCh = accepted && breakdown ? dominantChannelFromBreakdown(breakdown) : null;
 
   await pool.query(
     `INSERT INTO schema_mapping_memory
        (tenant_id, source_connector_id, target_connector_id,
         source_path, target_path,
         accepted_count, rejected_count, average_confidence,
-        last_accepted_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+        last_accepted_at, updated_at, channel_hits)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(),
+       CASE WHEN $10::text IS NOT NULL
+         THEN jsonb_build_object($10::text, 1)
+         ELSE '{}'::jsonb
+       END)
      ON CONFLICT (tenant_id, source_connector_id, target_connector_id, source_path, target_path)
      DO UPDATE SET
        accepted_count    = schema_mapping_memory.accepted_count + $6,
@@ -186,12 +220,23 @@ export async function upsertEntry(
          WHEN $9 IS NOT NULL THEN $9
          ELSE schema_mapping_memory.last_accepted_at
        END,
-       updated_at        = NOW()`,
+       updated_at        = NOW(),
+       -- Merge atómico del canal dominante en channel_hits.
+       -- Si el canal ya existe, incrementa; si no, lo crea con 1.
+       channel_hits = CASE WHEN $10::text IS NOT NULL
+         THEN schema_mapping_memory.channel_hits ||
+              jsonb_build_object(
+                $10::text,
+                COALESCE((schema_mapping_memory.channel_hits->>$10::text)::int, 0) + 1
+              )
+         ELSE schema_mapping_memory.channel_hits
+       END`,
     [
       tenantId, connectorAId, connectorBId,
       sourcePath, targetPath,
       acceptedDelta, rejectedDelta, confidence,
       lastAcceptedAt,
+      dominantCh,
     ],
   );
 

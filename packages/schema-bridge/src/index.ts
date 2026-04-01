@@ -31,8 +31,10 @@ export {
   createMappingMemoryOntologyProvider,
   updateMemoryEntry,
   computeSignalWeights,
+  computeDecayFactor,
   DEFAULT_CHANNEL_MULTIPLIERS,
   MIN_HITS_FOR_CHANNEL_WEIGHTS,
+  DECAY_HALF_LIFE_DAYS,
 } from './mapping-memory-provider.js';
 export { SchemaInferrer, createSchemaInferrer } from './schema-inferrer.js';
 export { SchemaDiffer, createSchemaDiffer } from './schema-differ.js';
@@ -44,6 +46,8 @@ export { MappingGenerator, createMappingGenerator } from './mapping-generator.js
 export { ChangeReporter, createChangeReporter } from './change-reporter.js';
 export { ClientUpdater, createClientUpdater } from './client-updater.js';
 export { TypeResolver, createTypeResolver } from './type-resolver.js';
+export { SqlDdlAdapter, createSqlDdlAdapter } from './adapters/sql-ddl-adapter.js';
+export type { SchemaAdapter } from './adapters/sql-ddl-adapter.js';
 
 export type {
   // Schemas inferidos

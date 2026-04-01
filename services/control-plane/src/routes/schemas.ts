@@ -245,6 +245,15 @@ router.get(
 
 // ─── Schema: feedback body ────────────────────────────────────────────────────
 
+const evidenceBreakdownSchema = z.object({
+  lexical: z.number().min(0).max(1),
+  value: z.number().min(0).max(1),
+  structural: z.number().min(0).max(1),
+  businessType: z.number().min(0).max(1),
+  ontology: z.number().min(0).max(1),
+  sufficiency: z.number().min(0).max(1),
+}).optional();
+
 const feedbackBodySchema = z.object({
   sourcePath: z.string().min(1),
   targetPath: z.string().min(1),
@@ -254,6 +263,13 @@ const feedbackBodySchema = z.object({
    * Si no se provee, se usa 0.80 como valor neutral.
    */
   confidence: z.number().min(0).max(1).default(0.80),
+  /**
+   * Breakdown de evidencia por canal en el momento de la sugerencia.
+   * Cuando se provee, se guarda en channel_hits para alimentar
+   * los pesos dinámicos de señal (computeSignalWeights).
+   * Opcional: se puede omitir para feedback manual sin contexto de scoring.
+   */
+  breakdown: evidenceBreakdownSchema,
 });
 
 /**
@@ -276,7 +292,7 @@ router.post(
     try {
       const { reportId } = req.params;
       const tenantId = req.tenantId!;
-      const { sourcePath, targetPath, accepted, confidence } = req.body as z.infer<typeof feedbackBodySchema>;
+      const { sourcePath, targetPath, accepted, confidence, breakdown } = req.body as z.infer<typeof feedbackBodySchema>;
 
       // Resolver el par de conectores desde el reporte para scopear el feedback.
       const reportResult = await pool.query<{
@@ -304,6 +320,7 @@ router.post(
         targetPath,
         accepted,
         confidence,
+        breakdown,
       );
 
       res.json({

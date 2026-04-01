@@ -1,5 +1,14 @@
 import type { PieceAuthContext } from '@integrax/connector-sdk';
 
+export interface EvidenceBreakdown {
+  lexical: number;
+  value: number;
+  structural: number;
+  businessType: number;
+  ontology: number;
+  sufficiency: number;
+}
+
 export interface RecordFeedbackInput {
   controlPlaneUrl: string;
   apiKey: string;
@@ -8,6 +17,8 @@ export interface RecordFeedbackInput {
   targetPath: string;
   accepted: boolean;
   confidence: number;
+  /** Breakdown de evidencia del mapping sugerido — alimenta pesos dinámicos de señal. */
+  breakdown?: EvidenceBreakdown;
 }
 
 export async function runRecordFeedback(input: RecordFeedbackInput): Promise<{ accepted: boolean }> {
@@ -24,6 +35,7 @@ export async function runRecordFeedback(input: RecordFeedbackInput): Promise<{ a
         targetPath: input.targetPath,
         accepted: input.accepted,
         confidence: input.confidence,
+        ...(input.breakdown ? { breakdown: input.breakdown } : {}),
       }),
     },
   );
@@ -50,6 +62,11 @@ export async function buildRecordFeedbackPieceAction() {
       targetPath: Property.ShortText({ displayName: 'Target Path', required: true }),
       accepted: Property.Checkbox({ displayName: 'Accepted', required: true }),
       confidence: Property.Number({ displayName: 'Confidence (0-1)', required: true }),
+      breakdown_json: Property.LongText({
+        displayName: 'Evidence Breakdown (JSON)',
+        description: 'JSON con los scores por canal (lexical, value, structural, businessType, ontology, sufficiency). Opcional — alimenta los pesos dinámicos de señal.',
+        required: false,
+      }),
     },
     async run(ctx) {
       const auth = ctx.auth as unknown as PieceAuthContext;
@@ -61,6 +78,10 @@ export async function buildRecordFeedbackPieceAction() {
         targetPath: ctx.propsValue.targetPath,
         accepted: ctx.propsValue.accepted,
         confidence: ctx.propsValue.confidence,
+        // breakdown se pasa como JSON string desde el action prop, parseado aquí.
+        breakdown: ctx.propsValue.breakdown_json
+          ? JSON.parse(ctx.propsValue.breakdown_json as string) as EvidenceBreakdown
+          : undefined,
       });
     },
   });

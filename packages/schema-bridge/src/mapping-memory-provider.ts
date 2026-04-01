@@ -209,28 +209,63 @@ export const MIN_FEEDBACK_FOR_AUTO_ACCEPT = 3;
 export const MIN_HITS_FOR_CHANNEL_WEIGHTS = 5;
 
 /**
+ * Vida media del decay de confianza histórica (días).
+ * Un feedback con exactamente DECAY_HALF_LIFE_DAYS de antigüedad tiene peso 0.5.
+ * Feedback de hoy tiene peso 1.0; feedback de hace 180 días tiene peso ≈ 0.25.
+ * Default: 90 días.
+ */
+export const DECAY_HALF_LIFE_DAYS = 90;
+
+/**
+ * Factor de decay temporal para un entry basado en su `lastAcceptedAt`.
+ *
+ * Usa una función de decaimiento exponencial (EMA):
+ *   decayFactor = 0.5 ^ (ageDays / halfLifeDays)
+ *
+ * Entradas sin `lastAcceptedAt` reciben decay neutro (1.0) — su relevancia
+ * se preserva para no penalizar datos legacy sin timestamp.
+ *
+ * @internal
+ */
+export function computeDecayFactor(
+  lastAcceptedAt: string | undefined,
+  now = Date.now(),
+  halfLifeDays = DECAY_HALF_LIFE_DAYS,
+): number {
+  if (!lastAcceptedAt) return 1.0;
+  const ageMs = now - new Date(lastAcceptedAt).getTime();
+  if (ageMs <= 0) return 1.0;
+  const ageDays = ageMs / (1000 * 60 * 60 * 24);
+  return Math.pow(0.5, ageDays / halfLifeDays);
+}
+
+/**
  * Deriva multiplicadores por canal de evidencia a partir del historial de feedback.
  *
  * Algoritmo:
  *   1. Filtra entradas por par de conectores (si se proveen) con al menos 1 aceptación.
- *   2. Suma los `channelHits` de todas las entradas relevantes.
- *   3. Calcula la participación (share) de cada canal sobre el total de hits.
- *   4. Un canal con share > 20% (avg de 5 canales) recibe un boost proporcional,
- *      hasta +0.20 puntos. Un canal subrepresentado recibe una reducción de hasta -0.15.
- *   5. Clampea el resultado en [0.80, 1.20] para evitar amplificaciones extremas.
+ *   2. Para cada entry, aplica un decay exponencial basado en `lastAcceptedAt`
+ *      (vida media = DECAY_HALF_LIFE_DAYS = 90 días). Feedback reciente pesa más.
+ *   3. Suma los `channelHits` ponderados por el decayFactor.
+ *   4. Calcula la participación (share) de cada canal sobre el total ponderado.
+ *   5. Un canal con share > 20% (avg de 5 canales) recibe boost hasta +0.20.
+ *      Un canal subrepresentado recibe reducción hasta -0.20 (antes del clamp).
+ *   6. Clampea el resultado en [0.80, 1.20] para evitar amplificaciones extremas.
  *
  * Los multiplicadores se pasan a `SimilarityEngine` vía `config.channelMultipliers`.
  *
  * @param entries - Entradas de memoria a analizar.
  * @param connectorAId - Opcional: filtrar por conector origen.
  * @param connectorBId - Opcional: filtrar por conector destino.
- * @param minHits - Umbral mínimo de hits totales para derivar pesos (default: 5).
+ * @param minHits - Umbral mínimo de hits ponderados totales para derivar pesos (default: 5).
+ * @param now - Timestamp de referencia para el decay (default: Date.now()); inyectable en tests.
  */
 export function computeSignalWeights(
   entries: MappingMemoryEntry[],
   connectorAId?: string,
   connectorBId?: string,
   minHits = MIN_HITS_FOR_CHANNEL_WEIGHTS,
+  now = Date.now(),
 ): ChannelMultipliers {
   const relevant = entries.filter(e =>
     (!connectorAId || e.connectorAId === connectorAId) &&
@@ -243,10 +278,11 @@ export function computeSignalWeights(
   let totalHits = 0;
 
   for (const entry of relevant) {
+    const decay = computeDecayFactor(entry.lastAcceptedAt, now);
     for (const ch of ALL_CHANNELS) {
-      const hits = entry.channelHits?.[ch] ?? 0;
-      totals[ch] += hits;
-      totalHits += hits;
+      const weighted = (entry.channelHits?.[ch] ?? 0) * decay;
+      totals[ch] += weighted;
+      totalHits += weighted;
     }
   }
 
@@ -258,7 +294,7 @@ export function computeSignalWeights(
   for (const ch of ALL_CHANNELS) {
     const share = totals[ch] / totalHits;
     // delta > 0: canal más frecuente que el promedio → boost (max +0.20)
-    // delta < 0: canal menos frecuente → reducción (max -0.15 antes del clamp)
+    // delta < 0: canal menos frecuente → reducción (max -0.20 antes del clamp)
     const delta = share - avgShare;
     const mult = 1.0 + delta * 1.0; // escala 1:1, el clamp protege los extremos
     result[ch] = Math.max(0.80, Math.min(1.20, mult));

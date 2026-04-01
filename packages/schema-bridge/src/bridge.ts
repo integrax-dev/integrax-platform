@@ -26,7 +26,7 @@ import { ConflictResolver } from './conflict-resolver.js';
 import { MappingGenerator } from './mapping-generator.js';
 import { ChangeReporter } from './change-reporter.js';
 import { ClientUpdater } from './client-updater.js';
-import { createMappingMemoryOntologyProvider, updateMemoryEntry } from './mapping-memory-provider.js';
+import { createMappingMemoryOntologyProvider, updateMemoryEntry, computeSignalWeights } from './mapping-memory-provider.js';
 import { runLlmEscalations } from './llm-escalation.js';
 import type { OntologyProvider } from './types.js';
 
@@ -140,6 +140,15 @@ export class SchemaBridge {
           rejectionMinSamples: this.memoryMinSamples,
         })]
       : [];
+
+    // Derivar multiplicadores adaptativos por canal desde el historial de feedback.
+    // Solo usa entradas scoped al par de conectores actual para no mezclar dominios.
+    const channelMultipliers = computeSignalWeights(
+      scopedMemory,
+      request.connectorAId,
+      request.connectorBId,
+    );
+
     const similarity = new SimilarityEngine({
       ...this.similarityConfig,
       decisionPolicy: {
@@ -148,6 +157,7 @@ export class SchemaBridge {
         reviewThreshold: options.renameSimilarityThreshold,
       },
       ontologyProviders: [...this.baseOntologyProviders, ...memoryProviders],
+      channelMultipliers,
     });
 
     const removed = rawDiffs.filter(d => d.kind === 'field_removed');
