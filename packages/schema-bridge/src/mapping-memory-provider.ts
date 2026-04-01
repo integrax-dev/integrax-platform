@@ -35,6 +35,24 @@ function leaf(path: string): string {
 export const REJECTION_VETO_RATIO = 0.70;
 export const REJECTION_MIN_SAMPLES = 3;
 
+/**
+ * Mínimo de feedbacks totales (accepted + rejected) para que la memoria emita señal.
+ * Con 1 solo feedback el score puede verse inflado por el experienceBoost y por una
+ * averageConfidence arbitraria. Por debajo de este umbral el provider devuelve null
+ * — como si la entrada no existiera — para no contaminar el scoring con ruido.
+ * Default: 2.
+ */
+export const MIN_ACTIVATION_SAMPLES = 2;
+
+/**
+ * Máximo de penalización por rechazo sobre el score base de aceptaciones.
+ * Evita que un solo rechazo (operator error, dato raro) baje drásticamente el score.
+ * Requiere al menos MIN_REJECTION_WEIGHT_SAMPLES rechazos para aplicar penalización completa.
+ * Default: 0.15 (15 puntos porcentuales máximo con 1 solo reject).
+ */
+export const REJECTION_CONTAMINATION_CAP = 0.15;
+export const MIN_REJECTION_WEIGHT_SAMPLES = 2;
+
 function isVetoed(
   entry: MappingMemoryEntry,
   vetoRatio = REJECTION_VETO_RATIO,
@@ -45,18 +63,38 @@ function isVetoed(
   return entry.rejectedCount / total >= vetoRatio;
 }
 
-function confidenceScore(entry: MappingMemoryEntry): number {
+function confidenceScore(
+  entry: MappingMemoryEntry,
+  contaminationCap = REJECTION_CONTAMINATION_CAP,
+  minRejectionSamples = MIN_REJECTION_WEIGHT_SAMPLES,
+): number {
   const total = entry.acceptedCount + entry.rejectedCount;
   const acceptanceRatio = total === 0 ? 0 : entry.acceptedCount / total;
   // log10(10) === 1, dividir por eso es un no-op — se mantiene implícito por claridad.
   // Satura en 10 muestras: log10(11) ≈ 1.04, recortado a 1 por Math.min.
   const experienceBoost = Math.min(1, Math.log10(total + 1));
-  return Math.max(
-    0.55,
+
+  const rawScore = Math.min(
+    0.99,
     // Los pesos suman 0.99 (no 1.0) intencionalmente — el score nunca puede llegar a 1.0,
     // preservando un margen que indica "validado por humano pero aún probabilístico".
-    Math.min(0.99, entry.averageConfidence * 0.60 + acceptanceRatio * 0.25 + experienceBoost * 0.14),
+    entry.averageConfidence * 0.60 + acceptanceRatio * 0.25 + experienceBoost * 0.14,
   );
+
+  // Contamination cap: un único rechazo no puede penalizar más de contaminationCap puntos.
+  // Con 1 solo reject el ratio acceptance cae a 0.5 (50%), lo que podría bajar el score
+  // drásticamente aunque todos los demás indicadores sean fuertes. Limitamos la caída
+  // hasta que haya al menos minRejectionSamples rechazos que confirmen el patrón negativo.
+  const scoreSinReject = Math.min(
+    0.99,
+    entry.averageConfidence * 0.60 + 1.0 * 0.25 + experienceBoost * 0.14,
+  );
+  const needsCap = entry.rejectedCount > 0 && entry.rejectedCount < minRejectionSamples;
+  const cappedScore = needsCap
+    ? Math.max(rawScore, scoreSinReject - contaminationCap)
+    : rawScore;
+
+  return Math.max(0.55, cappedScore);
 }
 
 /**
@@ -142,6 +180,19 @@ export interface MappingMemoryProviderOptions {
    * Default: MIN_FEEDBACK_FOR_AUTO_ACCEPT = 3.
    */
   minFeedbackForAutoAccept?: number;
+  /**
+   * Mínimo de feedbacks totales (accepted + rejected) para que la entrada emita señal.
+   * Con menos feedbacks que este umbral el provider devuelve null — la entrada existe
+   * en memoria pero es demasiado ruidosa para influir en el scoring.
+   * Default: MIN_ACTIVATION_SAMPLES = 2.
+   */
+  minActivationSamples?: number;
+  /**
+   * Máximo de penalización que un único rechazo puede aplicar sobre el score.
+   * Protege contra operadores que rechazan por error o datos atípicos.
+   * Default: REJECTION_CONTAMINATION_CAP = 0.15.
+   */
+  rejectionContaminationCap?: number;
 }
 
 export function createMappingMemoryOntologyProvider(
@@ -152,6 +203,8 @@ export function createMappingMemoryOntologyProvider(
   const vetoRatio = options.rejectionVetoRatio ?? REJECTION_VETO_RATIO;
   const minSamples = options.rejectionMinSamples ?? REJECTION_MIN_SAMPLES;
   const minFeedback = options.minFeedbackForAutoAccept ?? MIN_FEEDBACK_FOR_AUTO_ACCEPT;
+  const minActivation = options.minActivationSamples ?? MIN_ACTIVATION_SAMPLES;
+  const contaminationCap = options.rejectionContaminationCap ?? REJECTION_CONTAMINATION_CAP;
 
   const byPathPair = new Map<string, MappingMemoryEntry>();
   const byLeafPair = new Map<string, MappingMemoryEntry>();
@@ -182,7 +235,10 @@ export function createMappingMemoryOntologyProvider(
       const directEntry = byPathPair.get(`${sourcePath}=>${targetPath}`);
       if (directEntry) {
         if (isVetoed(directEntry, vetoRatio, minSamples)) return null;
-        const rawScore = confidenceScore(directEntry);
+        // Si hay menos feedbacks totales que el mínimo de activación, la señal es ruido.
+        const totalDirect = directEntry.acceptedCount + directEntry.rejectedCount;
+        if (totalDirect < minActivation) return null;
+        const rawScore = confidenceScore(directEntry, contaminationCap);
         // Recortar a 0.82 si no hay suficiente feedback para autoridad de auto-accept.
         // La Regla 0 requiere ontology ≥ 0.85 — por debajo del umbral la señal
         // contribuye a otras reglas pero no puede auto-aceptar sola.
@@ -196,8 +252,11 @@ export function createMappingMemoryOntologyProvider(
 
       const leafEntry = byLeafPair.get(`${leaf(sourcePath)}=>${leaf(targetPath)}`);
       if (!leafEntry || isVetoed(leafEntry, vetoRatio, minSamples)) return null;
+      // Mismo check de activación para leaf.
+      const totalLeaf = leafEntry.acceptedCount + leafEntry.rejectedCount;
+      if (totalLeaf < minActivation) return null;
 
-      const rawLeafScore = Math.max(0.82, confidenceScore(leafEntry) - 0.08);
+      const rawLeafScore = Math.max(0.82, confidenceScore(leafEntry, contaminationCap) - 0.08);
       const leafScore = leafEntry.acceptedCount >= minFeedback ? rawLeafScore : Math.min(rawLeafScore, 0.82);
       return {
         score: leafScore,
