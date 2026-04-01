@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@integrax/connector-email": "workspace:*",
+    "@integrax/schema-bridge": "workspace:*",
     "@integrax/connector-mercadopago": "workspace:*",
     "@integrax/connector-whatsapp": "workspace:*",
     "@temporalio/activity": "^1.9.0",

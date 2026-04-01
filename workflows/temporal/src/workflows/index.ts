@@ -23,3 +23,6 @@ export type {
 
 export { multiTenantWorkflow } from './multiTenantWorkflow.js';
 export type { MultiTenantWorkflowInput, MultiTenantWorkflowOutput } from './multiTenantWorkflow.js';
+
+export { schemaDiffWorkflow } from './schema-diff-workflow.js';
+export type { SchemaDiffWorkflowInput } from './schema-diff-workflow.js';

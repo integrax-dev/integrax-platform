@@ -1,24 +1,24 @@
 /**
- * Audit Logging Middleware
+ * Middleware de logging de auditoría
  */
 
 import { Request, Response, NextFunction } from 'express';
 import { ulid } from 'ulid';
 import { AuditEntry } from '../types.js';
 
-// In-memory audit log (replace with database in production)
+// Log de auditoría en memoria (reemplazar por base de datos en producción)
 const auditLog: AuditEntry[] = [];
 
 /**
- * Create audit middleware for an action
+ * Crea el middleware de auditoría para una acción
  */
 export function audit(action: string) {
   return (req: Request, res: Response, next: NextFunction) => {
-    // Store original res.json to capture response
+    // Guardar el res.json original para capturar la respuesta
     const originalJson = res.json.bind(res);
 
     res.json = (body: any) => {
-      // Log audit entry
+      // Registrar la entrada de auditoría
       const entry: AuditEntry = {
         id: `aud_${ulid()}`,
         tenantId: req.tenantId || null,
@@ -40,7 +40,7 @@ export function audit(action: string) {
 
       auditLog.push(entry);
 
-      // Keep only last 10000 entries in memory
+      // Conservar solo las últimas 10.000 entradas en memoria
       if (auditLog.length > 10000) {
         auditLog.splice(0, auditLog.length - 10000);
       }
@@ -53,7 +53,7 @@ export function audit(action: string) {
 }
 
 /**
- * Mask sensitive data in request body for audit
+ * Enmascara datos sensibles del body del request para auditoría
  */
 function maskSensitiveData<T extends object>(obj: T): T {
   if (!obj || typeof obj !== 'object') return obj;
@@ -89,7 +89,7 @@ function maskSensitiveData<T extends object>(obj: T): T {
 }
 
 /**
- * Get audit logs (for admin API)
+ * Obtiene los logs de auditoría (para la API de admin)
  */
 export function getAuditLogs(options: {
   tenantId?: string;
@@ -118,7 +118,7 @@ export function getAuditLogs(options: {
     filtered = filtered.filter((e) => e.createdAt <= options.endDate!);
   }
 
-  // Sort by date descending
+  // Ordenar por fecha descendente
   filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
   const total = filtered.length;

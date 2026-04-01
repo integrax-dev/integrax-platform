@@ -9,13 +9,13 @@ const logger = createLogger('main');
 async function main() {
   logger.info('Starting IntegraX Worker...');
 
-  // Initialize audit logger
+  // Inicializar el logger de auditoría
   const auditLogger = await createAuditLogger();
 
-  // Create and start worker
+  // Crear e iniciar el worker
   const worker = await createWorker(auditLogger);
 
-  // Setup graceful shutdown
+  // Configurar el apagado gradual
   gracefulShutdown([worker], auditLogger);
 
   logger.info('IntegraX Worker started successfully');

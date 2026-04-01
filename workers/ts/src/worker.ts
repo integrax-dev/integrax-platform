@@ -5,8 +5,30 @@ import { createLogger } from './logger.js';
 import { processOrderPaid } from './handlers/order-paid.js';
 import { processInvoiceIssued } from './handlers/invoice-issued.js';
 import type { AuditLogger } from './audit.js';
+import { SchemaMismatchError } from '@integrax/connector-sdk';
+import { TemporalClientService } from '@integrax/temporal-workflows';
 
 const logger = createLogger('worker');
+
+// Cliente Temporal lazy — solo se inicializa si TEMPORAL_ADDRESS está configurado.
+// Lock basado en Promise: los jobs concurrentes comparten la misma Promise de init
+// en vez de crear múltiples clientes (lo que filtraría conexiones).
+let _temporalClientPromise: Promise<TemporalClientService | null> | null = null;
+
+function getTemporalClient(): Promise<TemporalClientService | null> {
+  if (!process.env.TEMPORAL_ADDRESS) return Promise.resolve(null);
+  if (!_temporalClientPromise) {
+    _temporalClientPromise = (async () => {
+      const c = new TemporalClientService();
+      await c.connect();
+      return c;
+    })().catch(err => {
+      _temporalClientPromise = null; // permite reintentar si Temporal estaba caído
+      throw err;
+    });
+  }
+  return _temporalClientPromise;
+}
 
 export interface TaskPayload {
   eventType: string;
@@ -121,6 +143,36 @@ export async function createWorker(auditLogger: AuditLogger): Promise<Worker> {
           error: errorMessage,
           durationMs,
         }, 'Task failed');
+
+        // Si un conector detectó un schema mismatch, disparar un workflow de schema diff
+        // en Temporal para que la plataforma detecte y aprenda el delta automáticamente.
+        if (error instanceof SchemaMismatchError) {
+          const mismatch: SchemaMismatchError = error;
+          const temporal = await getTemporalClient().catch(() => null);
+          if (temporal) {
+            // ID determinístico: Temporal rechaza duplicados con WorkflowExecutionAlreadyStarted,
+            // así que un retry de BullMQ del mismo SchemaMismatchError no crea un segundo workflow.
+            const workflowId = `schemaDiff-${tenantId}-${mismatch.expectedSchemaId}`;
+            await temporal.startSchemaDiff(
+              tenantId,
+              {
+                sourceSchemaId: `actual-${mismatch.expectedSchemaId}`,
+                targetSchemaId: mismatch.expectedSchemaId,
+                samplesA: mismatch.sourcePayload && typeof mismatch.sourcePayload === 'object' && !Array.isArray(mismatch.sourcePayload)
+                  ? [mismatch.sourcePayload as Record<string, unknown>]
+                  : [],
+                tenantId,
+                options: { useSampleReservoir: true },
+              },
+              workflowId,
+            ).catch((diffErr: unknown) => {
+              logger.warn({ diffErr: String(diffErr), workflowId }, 'Failed to start schema diff workflow');
+            });
+            logger.info({ workflowId, expectedSchemaId: mismatch.expectedSchemaId }, 'Schema diff triggered from SchemaMismatchError');
+          } else {
+            logger.warn({ expectedSchemaId: mismatch.expectedSchemaId }, 'TEMPORAL_ADDRESS not set — schema diff not triggered');
+          }
+        }
 
         await auditLogger.log({
           tenantId,
