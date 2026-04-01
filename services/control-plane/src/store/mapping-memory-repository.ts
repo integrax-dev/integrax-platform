@@ -54,6 +54,7 @@ interface MemoryRow {
   rejected_count: number;
   average_confidence: number;
   last_accepted_at: Date | null;
+  channel_hits: Record<string, number> | null;
 }
 
 function rowToEntry(row: MemoryRow): MappingMemoryEntry {
@@ -66,6 +67,8 @@ function rowToEntry(row: MemoryRow): MappingMemoryEntry {
     rejectedCount: Number(row.rejected_count),
     averageConfidence: Number(row.average_confidence),
     lastAcceptedAt: row.last_accepted_at ? row.last_accepted_at.toISOString() : undefined,
+    // @ts-ignore - channelHits is present in local workspace package but might not be compiled yet for Control Plane
+    channelHits: row.channel_hits ?? undefined,
   };
 }
 
@@ -90,7 +93,8 @@ export async function loadMappingMemory(
     `SELECT source_connector_id, target_connector_id,
             source_path, target_path,
             accepted_count, rejected_count,
-            average_confidence, last_accepted_at
+            average_confidence, last_accepted_at,
+            channel_hits
      FROM schema_mapping_memory
      WHERE tenant_id = $1
        AND source_connector_id = $2
@@ -160,18 +164,37 @@ export async function upsertEntry(
   targetPath: string,
   accepted: boolean,
   confidence: number,
+  breakdown?: import('@integrax/schema-bridge').SimilarityEvidenceBreakdown,
 ): Promise<void> {
   const acceptedDelta = accepted ? 1 : 0;
   const rejectedDelta = accepted ? 0 : 1;
   const lastAcceptedAt = accepted ? new Date() : null;
+
+  let dominantChannel: string | null = null;
+  if (accepted && breakdown) {
+    let best = 'lexical';
+    let bestScore = breakdown.lexical;
+    const candidates = [
+      ['value', breakdown.value],
+      ['structural', breakdown.structural],
+      ['businessType', breakdown.businessType],
+      ['ontology', breakdown.ontology],
+    ] as const;
+    for (const [ch, score] of candidates) {
+      if (score > bestScore) { best = ch; bestScore = score; }
+    }
+    dominantChannel = best;
+  }
+
+  const initialChannelHits = dominantChannel ? { [dominantChannel]: 1 } : {};
 
   await pool.query(
     `INSERT INTO schema_mapping_memory
        (tenant_id, source_connector_id, target_connector_id,
         source_path, target_path,
         accepted_count, rejected_count, average_confidence,
-        last_accepted_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+        last_accepted_at, updated_at, channel_hits)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), $10)
      ON CONFLICT (tenant_id, source_connector_id, target_connector_id, source_path, target_path)
      DO UPDATE SET
        accepted_count    = schema_mapping_memory.accepted_count + $6,
@@ -186,12 +209,23 @@ export async function upsertEntry(
          WHEN $9 IS NOT NULL THEN $9
          ELSE schema_mapping_memory.last_accepted_at
        END,
+       channel_hits = CASE
+         WHEN $11::text IS NOT NULL THEN
+           COALESCE(schema_mapping_memory.channel_hits, '{}'::jsonb) ||
+           jsonb_build_object(
+             $11::text,
+             COALESCE((schema_mapping_memory.channel_hits->>($11::text))::int, 0) + 1
+           )
+         ELSE schema_mapping_memory.channel_hits
+       END,
        updated_at        = NOW()`,
     [
       tenantId, connectorAId, connectorBId,
       sourcePath, targetPath,
       acceptedDelta, rejectedDelta, confidence,
       lastAcceptedAt,
+      JSON.stringify(initialChannelHits),
+      dominantChannel,
     ],
   );
 

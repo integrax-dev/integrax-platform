@@ -26,7 +26,7 @@ import { ConflictResolver } from './conflict-resolver.js';
 import { MappingGenerator } from './mapping-generator.js';
 import { ChangeReporter } from './change-reporter.js';
 import { ClientUpdater } from './client-updater.js';
-import { createMappingMemoryOntologyProvider, updateMemoryEntry } from './mapping-memory-provider.js';
+import { createMappingMemoryOntologyProvider, updateMemoryEntry, computeSignalWeights } from './mapping-memory-provider.js';
 import { runLlmEscalations } from './llm-escalation.js';
 import type { OntologyProvider } from './types.js';
 
@@ -101,13 +101,13 @@ export class SchemaBridge {
       id,
       connectorA: request.connectorAId,
       connectorB: request.connectorBId,
-      samplesA: request.samplesA.length,
-      samplesB: request.samplesB.length,
+      samplesA: request.samplesA?.length ?? 0,
+      samplesB: request.samplesB?.length ?? 0,
     }, 'Iniciando comparación de schemas');
 
     // ── 1. Inferir schemas ─────────────────────────────────────────────────────
-    const schemaA = this.inferrer.infer(request.samplesA);
-    const schemaB = this.inferrer.infer(request.samplesB);
+    const schemaA = request.schemaA ?? this.inferrer.infer(request.samplesA ?? []);
+    const schemaB = request.schemaB ?? this.inferrer.infer(request.samplesB ?? []);
 
     this.logger.info({
       fieldsA: schemaA.fields.length,
@@ -140,8 +140,11 @@ export class SchemaBridge {
           rejectionMinSamples: this.memoryMinSamples,
         })]
       : [];
+    const weights = computeSignalWeights(scopedMemory);
+
     const similarity = new SimilarityEngine({
       ...this.similarityConfig,
+      channelMultipliers: weights,
       decisionPolicy: {
         ...(this.similarityConfig.decisionPolicy ?? {}),
         autoAcceptThreshold: Math.max(0.85, options.renameSimilarityThreshold + 0.15),
@@ -241,9 +244,10 @@ export class SchemaBridge {
     confidence: number,
     connectorAId?: string,
     connectorBId?: string,
+    breakdown?: import('./types.js').SimilarityEvidenceBreakdown,
   ): void {
     this.memoryEntries = updateMemoryEntry(
-      this.memoryEntries, pathA, pathB, accepted, confidence, connectorAId, connectorBId,
+      this.memoryEntries, pathA, pathB, accepted, confidence, connectorAId, connectorBId, breakdown,
     );
   }
 

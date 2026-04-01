@@ -242,11 +242,23 @@ export function computeSignalWeights(
   const totals: Record<SignalChannel, number> = { lexical: 0, value: 0, structural: 0, businessType: 0, ontology: 0 };
   let totalHits = 0;
 
+  const now = Date.now();
+  const MS_PER_DAY = 1000 * 60 * 60 * 24;
+  const HALF_LIFE_DAYS = 90; // La confianza se reduce a la mitad cada 90 días
+
   for (const entry of relevant) {
+    let decayFactor = 1.0;
+    if (entry.lastAcceptedAt) {
+      const ageMs = now - new Date(entry.lastAcceptedAt).getTime();
+      const ageDays = Math.max(0, ageMs / MS_PER_DAY);
+      decayFactor = Math.pow(0.5, ageDays / HALF_LIFE_DAYS);
+    }
+
     for (const ch of ALL_CHANNELS) {
       const hits = entry.channelHits?.[ch] ?? 0;
-      totals[ch] += hits;
-      totalHits += hits;
+      const decayedHits = hits * decayFactor;
+      totals[ch] += decayedHits;
+      totalHits += decayedHits;
     }
   }
 

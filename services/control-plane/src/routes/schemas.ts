@@ -254,6 +254,14 @@ const feedbackBodySchema = z.object({
    * Si no se provee, se usa 0.80 como valor neutral.
    */
   confidence: z.number().min(0).max(1).default(0.80),
+  breakdown: z.object({
+    lexical: z.number(),
+    value: z.number(),
+    structural: z.number(),
+    businessType: z.number(),
+    ontology: z.number(),
+    sufficiency: z.number(),
+  }).passthrough().optional(),
 });
 
 /**
@@ -276,7 +284,7 @@ router.post(
     try {
       const { reportId } = req.params;
       const tenantId = req.tenantId!;
-      const { sourcePath, targetPath, accepted, confidence } = req.body as z.infer<typeof feedbackBodySchema>;
+      const { sourcePath, targetPath, accepted, confidence, breakdown } = req.body as z.infer<typeof feedbackBodySchema>;
 
       // Resolver el par de conectores desde el reporte para scopear el feedback.
       const reportResult = await pool.query<{
@@ -304,6 +312,7 @@ router.post(
         targetPath,
         accepted,
         confidence,
+        breakdown as import('@integrax/schema-bridge').SimilarityEvidenceBreakdown | undefined,
       );
 
       res.json({
@@ -314,6 +323,7 @@ router.post(
           targetPath,
           accepted,
           confidence,
+          breakdown,
           connectorAId: source_connector_id,
           connectorBId: target_connector_id,
         },

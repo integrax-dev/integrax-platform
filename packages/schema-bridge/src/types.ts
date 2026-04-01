@@ -436,13 +436,21 @@ export const CompareSchemasRequestSchema = z.object({
   connectorAId: z.string().min(1),
   connectorBId: z.string().min(1),
   /** Muestras de datos del Sistema A (JSON objects) */
-  samplesA: z.array(z.record(z.unknown())).min(1).max(2000),
+  samplesA: z.array(z.record(z.unknown())).max(2000).optional(),
   /** Muestras de datos del Sistema B (JSON objects) */
-  samplesB: z.array(z.record(z.unknown())).min(1).max(2000),
+  samplesB: z.array(z.record(z.unknown())).max(2000).optional(),
+  
+  /** Schema explícito (bypassa la inferencia desde samples) */
+  schemaA: z.custom<InferredJsonSchema>().optional(),
+  schemaB: z.custom<InferredJsonSchema>().optional(),
+
   tenantId: z.string().optional(),
   options: CompareOptionsSchema.optional(),
   mappingMemory: z.array(z.custom<MappingMemoryEntry>()).optional(),
-});
+}).refine(
+  data => (data.samplesA != null || data.schemaA != null) && (data.samplesB != null || data.schemaB != null),
+  { message: "Must provide either 'samples' or 'schema' for both sides." }
+);
 
 export type CompareSchemasRequest = z.infer<typeof CompareSchemasRequestSchema>;
 
