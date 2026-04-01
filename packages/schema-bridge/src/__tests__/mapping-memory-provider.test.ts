@@ -11,6 +11,8 @@ import {
   createMappingMemoryOntologyProvider,
   REJECTION_VETO_RATIO,
   REJECTION_MIN_SAMPLES,
+  MIN_ACTIVATION_SAMPLES,
+  REJECTION_CONTAMINATION_CAP,
 } from '../mapping-memory-provider.js';
 import type { MappingMemoryEntry } from '../types.js';
 
@@ -209,7 +211,96 @@ describe('createMappingMemoryOntologyProvider', () => {
   });
 });
 
-// ─── REJECTION_VETO_RATIO / REJECTION_MIN_SAMPLES constantes ─────────────────
+// ─── minActivationSamples ─────────────────────────────────────────────────────
+
+describe('minActivationSamples', () => {
+  it('devuelve null si el total de feedbacks es menor al umbral de activación (default=2)', () => {
+    // 1 solo accepted — por debajo del umbral
+    const provider = createMappingMemoryOntologyProvider([
+      makeEntry('amount', 'monto', 1, 0, 0.90),
+    ]);
+    expect(provider.match(makeContext('amount', 'monto'))).toBeNull();
+  });
+
+  it('emite señal cuando total >= minActivationSamples', () => {
+    // 2 feedbacks — exactamente en el umbral
+    const provider = createMappingMemoryOntologyProvider([
+      makeEntry('amount', 'monto', 2, 0, 0.90),
+    ]);
+    expect(provider.match(makeContext('amount', 'monto'))).not.toBeNull();
+  });
+
+  it('respeta minActivationSamples custom', () => {
+    // Con minActivationSamples=5, una entrada con 3 feedbacks no emite señal
+    const provider = createMappingMemoryOntologyProvider(
+      [makeEntry('id', 'identifier', 3, 0, 0.90)],
+      { minActivationSamples: 5 },
+    );
+    expect(provider.match(makeContext('id', 'identifier'))).toBeNull();
+  });
+
+  it('aplica minActivationSamples también al fallback de leaf', () => {
+    const provider = createMappingMemoryOntologyProvider([
+      makeEntry('email', 'correo', 1, 0, 0.90), // solo 1 feedback — bajo umbral
+    ]);
+    // Leaf fallback: customer.email → client.correo — no debe emitir señal
+    expect(provider.match(makeContext('customer.email', 'client.correo'))).toBeNull();
+  });
+});
+
+// ─── Contamination cap ────────────────────────────────────────────────────────
+
+describe('contamination cap (un solo reject no contamina demasiado)', () => {
+  it('un único rechazo no baja el score más del cap (0.15)', () => {
+    // Entrada con 5 aceptaciones y 1 rechazo — el rechazo no debería contaminar mucho
+    const entryConReject = makeEntry('price', 'precio', 5, 1, 0.90);
+    // Entrada de referencia solo con aceptaciones
+    const entrySinReject = makeEntry('price', 'precio', 5, 0, 0.90);
+
+    const providerConReject = createMappingMemoryOntologyProvider([entryConReject]);
+    const providerSinReject = createMappingMemoryOntologyProvider([entrySinReject]);
+
+    const scoreConReject = providerConReject.match(makeContext('price', 'precio'))!.score;
+    const scoreSinReject = providerSinReject.match(makeContext('price', 'precio'))!.score;
+
+    // La diferencia no debe superar el cap
+    expect(scoreSinReject - scoreConReject).toBeLessThanOrEqual(REJECTION_CONTAMINATION_CAP + 0.001);
+  });
+
+  it('con 2+ rechazos la penalización completa se aplica', () => {
+    // 4 aceptaciones, 2 rechazos — penalización completa permitida
+    const entryDosReject = makeEntry('total', 'importe', 4, 2, 0.90);
+    const entrySinReject = makeEntry('total', 'importe', 4, 0, 0.90);
+
+    const pConReject = createMappingMemoryOntologyProvider([entryDosReject]);
+    const pSinReject = createMappingMemoryOntologyProvider([entrySinReject]);
+
+    const scoreConReject = pConReject.match(makeContext('total', 'importe'))!.score;
+    const scoreSinReject = pSinReject.match(makeContext('total', 'importe'))!.score;
+
+    // Con 2 rechazos la diferencia puede superar el cap
+    expect(scoreSinReject - scoreConReject).toBeGreaterThan(0);
+  });
+
+  it('respeta rejectionContaminationCap custom', () => {
+    // Cap muy pequeño (0.05) — un reject no puede bajar más de 5 puntos
+    const entry = makeEntry('name', 'nombre', 5, 1, 0.90);
+    const providerCap005 = createMappingMemoryOntologyProvider(
+      [entry],
+      { rejectionContaminationCap: 0.05 },
+    );
+    const providerSinReject = createMappingMemoryOntologyProvider([
+      makeEntry('name', 'nombre', 5, 0, 0.90),
+    ]);
+
+    const score = providerCap005.match(makeContext('name', 'nombre'))!.score;
+    const scoreRef = providerSinReject.match(makeContext('name', 'nombre'))!.score;
+
+    expect(scoreRef - score).toBeLessThanOrEqual(0.05 + 0.001);
+  });
+});
+
+// ─── Constantes exportadas ────────────────────────────────────────────────────
 
 describe('constantes exportadas', () => {
   it('REJECTION_VETO_RATIO es 0.70', () => {
@@ -218,5 +309,13 @@ describe('constantes exportadas', () => {
 
   it('REJECTION_MIN_SAMPLES es 3', () => {
     expect(REJECTION_MIN_SAMPLES).toBe(3);
+  });
+
+  it('MIN_ACTIVATION_SAMPLES es 2', () => {
+    expect(MIN_ACTIVATION_SAMPLES).toBe(2);
+  });
+
+  it('REJECTION_CONTAMINATION_CAP es 0.15', () => {
+    expect(REJECTION_CONTAMINATION_CAP).toBe(0.15);
   });
 });

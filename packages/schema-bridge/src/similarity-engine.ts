@@ -484,13 +484,30 @@ function structuralSimilarity(pathA: string, pathB: string): number {
         ? 0.72
         : 0.4;
 
+  // Penalización por desajuste de dominio raíz: evita que customer.id auto-acepte con
+  // supplier.id por puro solapamiento estructural.
+  //
+  // Solo aplica cuando el primer ancestro de AMBOS paths pertenece a un conjunto de
+  // dominios de negocio conocidos y DISTINTOS (ej: customer vs supplier, buyer vs seller).
+  // Esto evita falsos positivos donde el contenedor simplemente está renombrado
+  // (orders→salesOrders, items→lines) que es un rename válido, no una colisión de dominio.
+  const BUSINESS_DOMAIN_ROOTS = new Set([
+    'customer', 'client', 'buyer', 'consumer',
+    'supplier', 'vendor', 'seller', 'provider',
+    'employee', 'staff', 'user', 'account',
+    'shipper', 'recipient', 'payer', 'payee',
+  ]);
+  const rootA = contextA.ancestors[0] ?? '';
+  const rootB = contextB.ancestors[0] ?? '';
   const rootMismatchPenalty =
     contextA.ancestors.length > 0 &&
     contextB.ancestors.length > 0 &&
-    contextA.ancestors[0] !== contextB.ancestors[0] &&
+    rootA !== rootB &&
     contextA.ancestors.length === contextB.ancestors.length &&
     contextA.depth === contextB.depth &&
-    lineageOverlap === 0
+    lineageOverlap === 0 &&
+    BUSINESS_DOMAIN_ROOTS.has(rootA) &&
+    BUSINESS_DOMAIN_ROOTS.has(rootB)
       ? 0.35 : 1.0;
 
   return clamp01(
