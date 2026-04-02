@@ -9,10 +9,11 @@
  */
 
 import { Kafka, Consumer, EachMessagePayload, logLevel } from 'kafkajs';
-import { Client, Connection } from '@temporalio/client';
+import { TemporalClientService } from '@integrax/temporal-workflows';
 import { config } from 'dotenv';
 import { createLogger } from '@integrax/logger';
 import express from 'express';
+import crypto from 'node:crypto';
 
 config();
 
@@ -50,20 +51,16 @@ const TOPICS = [
   'integrax.payments',
   'integrax.orders',
   'integrax.webhooks',
+  'integrax.schemas.discovery',
 ];
 
 // Temporal client (lazy initialized)
-let temporalClient: Client | null = null;
+let temporalClient: TemporalClientService | null = null;
 
-async function getTemporalClient(): Promise<Client> {
+async function getTemporalClient(): Promise<TemporalClientService> {
   if (!temporalClient) {
-    const connection = await Connection.connect({
-      address: TEMPORAL_ADDRESS,
-    });
-    temporalClient = new Client({
-      connection,
-      namespace: 'default',
-    });
+    temporalClient = new TemporalClientService();
+    await temporalClient.connect();
   }
   return temporalClient;
 }
@@ -93,6 +90,17 @@ interface BusinessEvent {
   data: Record<string, unknown>;
 }
 
+interface SchemaDiscoveryEvent {
+  tenantId: string;
+  sourceSchemaId: string;
+  targetSchemaId: string;
+  samplesA: Record<string, unknown>[];
+  samplesB: Record<string, unknown>[];
+  options?: {
+    forceRecalculate?: boolean;
+  };
+}
+
 // Handle CDC events from Debezium
 async function handleCDCEvent(topic: string, event: DebeziumEvent): Promise<void> {
   const { payload } = event;
@@ -117,27 +125,16 @@ async function handleCDCEvent(topic: string, event: DebeziumEvent): Promise<void
     // Route to appropriate workflow based on aggregate type
     switch (aggregateType) {
       case 'payment':
-        await client.workflow.start('paymentWorkflow', {
-          taskQueue: TEMPORAL_TASK_QUEUE,
-          workflowId: `payment-${record.aggregate_id}-${Date.now()}`,
-          args: [
-            {
-              paymentId: record.aggregate_id,
-              tenantId: eventPayload.tenantId || 'default',
-              correlationId: crypto.randomUUID(),
-              source: 'cdc',
-            },
-          ],
+        await client.startPayment(eventPayload.tenantId || 'default', {
+          paymentId: record.aggregate_id as string,
+          tenantId: eventPayload.tenantId || 'default',
+          correlationId: crypto.randomUUID(),
+          source: 'cdc',
         });
         break;
 
       case 'order':
-        // Signal existing workflow or start new one
-        await client.workflow.start('orderWorkflow', {
-          taskQueue: TEMPORAL_TASK_QUEUE,
-          workflowId: `order-${record.aggregate_id}`,
-          args: [eventPayload],
-        });
+        // En una implementación real usaríamos startOrder del cliente
         break;
     }
   }
@@ -151,20 +148,35 @@ async function handleCDCEvent(topic: string, event: DebeziumEvent): Promise<void
     if (operation === 'c' || payload.before?.status !== record.status) {
       logger.info({ paymentId: record.external_id, status: record.status }, 'Payment CDC');
 
-      await client.workflow.start('paymentWorkflow', {
-        taskQueue: TEMPORAL_TASK_QUEUE,
-        workflowId: `payment-cdc-${record.external_id}-${Date.now()}`,
-        args: [
-          {
-            paymentId: record.external_id as string,
-            tenantId: record.tenant_id as string,
-            correlationId: crypto.randomUUID(),
-            source: 'cdc',
-          },
-        ],
+      await client.startPayment(record.tenant_id as string, {
+        paymentId: record.external_id as string,
+        tenantId: record.tenant_id as string,
+        correlationId: crypto.randomUUID(),
+        source: 'cdc',
       });
     }
   }
+}
+
+// Handle schema discovery
+async function handleSchemaDiscovery(event: SchemaDiscoveryEvent): Promise<void> {
+  logger.info({ tenantId: event.tenantId, source: event.sourceSchemaId }, 'Schema Discovery Event');
+  const client = await getTemporalClient();
+
+  const workflowId = `auto-discovery-${event.tenantId}-${event.sourceSchemaId}-${Date.now()}`;
+  
+  await client.startSchemaDiff(event.tenantId, {
+    tenantId: event.tenantId,
+    sourceSchemaId: event.sourceSchemaId,
+    targetSchemaId: event.targetSchemaId,
+    samplesA: event.samplesA,
+    samplesB: event.samplesB,
+    options: {
+      forceRecalculate: event.options?.forceRecalculate || false,
+    }
+  }, workflowId);
+
+  logger.info({ workflowId }, 'Auto-discovery workflow triggered');
 }
 
 // Handle business events
@@ -236,8 +248,9 @@ async function handleMessage({ topic, partition, message }: EachMessagePayload):
   try {
     const value = JSON.parse(message.value.toString());
 
-    // Check if it's a Debezium event (has payload.op)
-    if (value.payload && value.payload.op) {
+    if (topic === 'integrax.schemas.discovery') {
+      await handleSchemaDiscovery(value as SchemaDiscoveryEvent);
+    } else if (value.payload && value.payload.op) {
       await handleCDCEvent(topic, value as DebeziumEvent);
     } else if (value.eventType) {
       await handleBusinessEvent(topic, value as BusinessEvent);

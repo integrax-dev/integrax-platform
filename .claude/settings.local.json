@@ -44,7 +44,27 @@
       "Bash(pnpm --filter @integrax/temporal-workflows --filter @integrax/llm-orchestrator --filter @integrax/connector-learning --filter @integrax/connector-sdk test)",
       "Bash(pnpm run dev)",
       "Bash(START_SERVER=true pnpm run dev:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+<<<<<<< Updated upstream
+      "Bash(git fetch:*)",
+      "Bash(pnpm --filter @integrax/schema-bridge build)",
+      "Bash(pnpm --filter @integrax/control-plane build)",
+      "Bash(pnpm --filter @integrax/schema-bridge test)",
+      "Bash(npx tsx -e \":*)",
+      "Bash(pnpm --filter @integrax/schema-bridge test -- --reporter=verbose)",
+      "Bash(pnpm --filter @integrax/schema-bridge test -- --reporter=verbose --run tests/diag2.test.ts)",
+      "Bash(pnpm --filter @integrax/control-plane test)",
+      "Bash(grep -r \"pool\\\\|worker\\\\|SIGABRT\\\\|134\" c:Userslsperintegrax-platform --include=*.ts --include=*.json)",
+      "Bash(grep -r \"pool\\\\|default.*pool\" c:Userslsperintegrax-platformnode_modulesvitest --include=*.md)",
+      "WebSearch",
+      "Bash(xargs grep:*)"
+=======
+      "Bash(for f:*)",
+      "Bash(do echo:*)",
+      "Read(//c/Users/lsper/integrax-platform/**)",
+      "Bash(done)",
+      "Bash(pnpm --filter @integrax/schema-bridge build)"
+>>>>>>> Stashed changes
     ]
   }
 }
