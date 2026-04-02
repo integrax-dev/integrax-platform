@@ -10,6 +10,8 @@ const navItems = [
   { path: '/events', label: 'Eventos', icon: '📨' },
   { path: '/audit', label: 'Auditoría', icon: '📋' },
   { path: '/incidents', label: 'Incidentes', icon: '🚨' },
+  { path: '/schema-diffs', label: 'Schema Diffs', icon: '🔀' },
+  { path: '/mapping-memory', label: 'Mapping Memory', icon: '🧠' },
   { path: '/settings', label: 'Configuración', icon: '⚙️' },
 ];
 

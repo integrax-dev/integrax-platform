@@ -1,0 +1,2382 @@
+
+ RUN  v1.6.1 /Volumes/Lucas/Proyectos Data/IntregraxApp/integrax-platform/packages/schema-bridge
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 1: SAP plano vs Coupa
+[schema-bridge] {
+  id: 'br_01KN7VTXEV19G870WHD15N30TR',
+  connectorA: 'smoke-1-a',
+  connectorB: 'smoke-1-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 5,
+  fieldsB: 5,
+  fingerprintA: 'c54cb04d422dc57f4133b7b5785ae4f8',
+  fingerprintB: 'c17970e10cce1a8b6a162321d9e848ea'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 5, renameCandidates: 5 } Diff complete
+[schema-bridge] {
+  id: 'br_01KN7VTXEV19G870WHD15N30TR',
+  durationMs: 10,
+  breaking: 0,
+  nonBreaking: 5,
+  coverage: 0
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 2: SAP IDoc profundo con segmentos y arrays
+[schema-bridge] {
+  id: 'br_01KN7VTXF9VWTGEDEHBXY7W1WQ',
+  connectorA: 'smoke-2-a',
+  connectorB: 'smoke-2-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 5,
+  fieldsB: 5,
+  fingerprintA: '3c54e6a3633c357ae66edaa8231867da',
+  fingerprintB: '123bd648768e242a5b1f0b2739c38984'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 5, renameCandidates: 5 } Diff complete
+[schema-bridge] {
+  pathA: 'IDOC.E1BPADDR1[*].CITY',
+  pathB: 'addresses[*].city',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXF9VWTGEDEHBXY7W1WQ',
+  durationMs: 1,
+  breaking: 0,
+  nonBreaking: 5,
+  coverage: 20
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 3: Upgrade ERP con renames simultáneos en nested arrays
+[schema-bridge] {
+  id: 'br_01KN7VTXFB4MH2ABK3ECAH7XH7',
+  connectorA: 'smoke-3-a',
+  connectorB: 'smoke-3-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 7,
+  fieldsB: 7,
+  fingerprintA: 'b80125352576d6f6663fb6ba6064a825',
+  fingerprintB: 'b2e06911c4eec6712c72736e56d2bbea'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 7, renameCandidates: 7 } Diff complete
+[schema-bridge] {
+  pathA: 'orders[*].buyer_email',
+  pathB: 'salesOrders[*].primaryContact.emailAddress',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXFB4MH2ABK3ECAH7XH7',
+  durationMs: 2,
+  breaking: 0,
+  nonBreaking: 7,
+  coverage: 14
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 4: Stripe customer object — https://docs.stripe.com/api/customers/object
+[schema-bridge] {
+  id: 'br_01KN7VTXFEC8RY7VZGA7J9HEYT',
+  connectorA: 'smoke-4-a',
+  connectorB: 'smoke-4-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 4,
+  fieldsB: 4,
+  fingerprintA: 'a2a0a6bdc42c2f07844d725092906939',
+  fingerprintB: '76dbb62addb433f5ece5eb1b8cc9d1ca'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 4, renameCandidates: 4 } Diff complete
+[schema-bridge] {
+  id: 'br_01KN7VTXFEC8RY7VZGA7J9HEYT',
+  durationMs: 0,
+  breaking: 0,
+  nonBreaking: 4,
+  coverage: 0
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 5: Shopify order — https://shopify.dev/docs/api/admin-rest/latest/resources/order
+[schema-bridge] {
+  id: 'br_01KN7VTXFEK5DKAA7YBKJC8RY4',
+  connectorA: 'smoke-5-a',
+  connectorB: 'smoke-5-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 4,
+  fieldsB: 4,
+  fingerprintA: '53c87f0af979fa7e815cf0912d492618',
+  fingerprintB: '8c0e5c61d26c429d8d657ae0065fcd95'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 4, renameCandidates: 4 } Diff complete
+[schema-bridge] {
+  pathA: 'buyer_mail',
+  pathB: 'email',
+  confidence: 0.86,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXFEK5DKAA7YBKJC8RY4',
+  durationMs: 1,
+  breaking: 0,
+  nonBreaking: 4,
+  coverage: 25
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 6: HubSpot CRM contacts — https://developers.hubspot.com
+[schema-bridge] {
+  id: 'br_01KN7VTXFFVW98P37AHTVCYRCG',
+  connectorA: 'smoke-6-a',
+  connectorB: 'smoke-6-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: '29c6d8f54556cffa95e3b074977f44ad',
+  fingerprintB: '449d8cdb1dab660b46bf86737c0c675e'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 3, renameCandidates: 3 } Diff complete
+[schema-bridge] {
+  pathA: 'lead_mail',
+  pathB: 'properties.email',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'mobile_phone',
+  pathB: 'properties.phone',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXFFVW98P37AHTVCYRCG',
+  durationMs: 1,
+  breaking: 0,
+  nonBreaking: 3,
+  coverage: 67
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 7: Salesforce Account — https://developer.salesforce.com
+[schema-bridge] {
+  id: 'br_01KN7VTXFGSNNF5GQ56Y0CK0VC',
+  connectorA: 'smoke-7-a',
+  connectorB: 'smoke-7-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 4,
+  fieldsB: 4,
+  fingerprintA: 'e0ce7c0771243f8f055edbe58ac5a63d',
+  fingerprintB: '250757424d4b9e88c5b1018b59efe0c9'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 4, renameCandidates: 4 } Diff complete
+[schema-bridge] {
+  pathA: 'main_phone',
+  pathB: 'Phone',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXFGSNNF5GQ56Y0CK0VC',
+  durationMs: 0,
+  breaking: 0,
+  nonBreaking: 4,
+  coverage: 25
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 8: Dataverse contact — https://learn.microsoft.com/power-apps/developer/data-platform
+[schema-bridge] {
+  id: 'br_01KN7VTXFG53YNYS7PKMZKXEYH',
+  connectorA: 'smoke-8-a',
+  connectorB: 'smoke-8-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 4,
+  fieldsB: 4,
+  fingerprintA: '85b33796482b716b841111712dd1b7a9',
+  fingerprintB: '175cbbf4fbb14305fb2d47af9027fa19'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 4, renameCandidates: 4 } Diff complete
+[schema-bridge] {
+  id: 'br_01KN7VTXFG53YNYS7PKMZKXEYH',
+  durationMs: 1,
+  breaking: 0,
+  nonBreaking: 4,
+  coverage: 0
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 9: QuickBooks invoice — https://developer.intuit.com
+[schema-bridge] {
+  id: 'br_01KN7VTXFHZW6Q3QW477J8F0T1',
+  connectorA: 'smoke-9-a',
+  connectorB: 'smoke-9-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 4,
+  fieldsB: 4,
+  fingerprintA: '6beec826869f88d2f1d5791383a37fc3',
+  fingerprintB: 'e76f60f0a72b6e8c103feb67790804be'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 4, renameCandidates: 4 } Diff complete
+[schema-bridge] {
+  id: 'br_01KN7VTXFHZW6Q3QW477J8F0T1',
+  durationMs: 1,
+  breaking: 0,
+  nonBreaking: 4,
+  coverage: 0
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 10: Xero invoices — https://developer.xero.com
+[schema-bridge] {
+  id: 'br_01KN7VTXFJE166Y20J5TWA2C9R',
+  connectorA: 'smoke-10-a',
+  connectorB: 'smoke-10-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 4,
+  fieldsB: 4,
+  fingerprintA: '856d5ab9ce69a826db55b7cc4e1f4e71',
+  fingerprintB: 'b0b2da4c346529beb74a72b2953373f1'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 4, renameCandidates: 4 } Diff complete
+[schema-bridge] {
+  pathA: 'contact_mail',
+  pathB: 'Contact.EmailAddress',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXFJE166Y20J5TWA2C9R',
+  durationMs: 1,
+  breaking: 0,
+  nonBreaking: 4,
+  coverage: 25
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 11: Zoho CRM — https://www.zoho.com/crm/developer/docs/api/v6/
+[schema-bridge] {
+  id: 'br_01KN7VTXFKQWMCEJ5QKKVRD3GK',
+  connectorA: 'smoke-11-a',
+  connectorB: 'smoke-11-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: 'b21a25b9cfaa054a441c748fd071f180',
+  fingerprintB: '06f6c86a705535918ac1034203425a40'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 3, renameCandidates: 3 } Diff complete
+[schema-bridge] {
+  pathA: 'lead_email',
+  pathB: 'Email',
+  confidence: 0.86,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'office_phone',
+  pathB: 'Phone',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'mailing_city',
+  pathB: 'Mailing_City',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXFKQWMCEJ5QKKVRD3GK',
+  durationMs: 0,
+  breaking: 0,
+  nonBreaking: 3,
+  coverage: 100
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 12: Freshdesk contacts — https://developers.freshdesk.com/api/#contacts
+[schema-bridge] {
+  id: 'br_01KN7VTXFKWBTXBMK3PCFABQRB',
+  connectorA: 'smoke-12-a',
+  connectorB: 'smoke-12-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: '1a0eb85df8b73c8098eb6285fb4135e6',
+  fingerprintB: 'ce813d5d6957c48663e3cdebec7c0c66'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 3, renameCandidates: 3 } Diff complete
+[schema-bridge] {
+  pathA: 'support_email',
+  pathB: 'email',
+  confidence: 0.86,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'cell_phone',
+  pathB: 'mobile',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXFKWBTXBMK3PCFABQRB',
+  durationMs: 1,
+  breaking: 0,
+  nonBreaking: 3,
+  coverage: 67
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 13: Mailchimp list members — https://mailchimp.com/developer/marketing/api/list-members/
+[schema-bridge] {
+  id: 'br_01KN7VTXFM5ZR25GTB4XMA99JP',
+  connectorA: 'smoke-13-a',
+  connectorB: 'smoke-13-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: '453d7954e8c687ac7d5593e53223ac1d',
+  fingerprintB: '62ae06aa98b66bbc19121cc2cd3a10e4'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 3, renameCandidates: 3 } Diff complete
+[schema-bridge] {
+  pathA: 'subscriber_email',
+  pathB: 'email_address',
+  confidence: 0.86,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'given_name',
+  pathB: 'merge_fields.FNAME',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'family_name',
+  pathB: 'merge_fields.LNAME',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXFM5ZR25GTB4XMA99JP',
+  durationMs: 0,
+  breaking: 0,
+  nonBreaking: 3,
+  coverage: 100
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 14: BigCommerce orders — https://developer.bigcommerce.com/docs/rest-management/orders
+[schema-bridge] {
+  id: 'br_01KN7VTXFMTS73BS9PD3QEYPQQ',
+  connectorA: 'smoke-14-a',
+  connectorB: 'smoke-14-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 4,
+  fieldsB: 4,
+  fingerprintA: 'c6703376f573245b5ebea4a63ea96995',
+  fingerprintB: '9d43815691c047e07ac7f0b4279b4468'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 4, renameCandidates: 4 } Diff complete
+[schema-bridge] {
+  pathA: 'buyer_mail',
+  pathB: 'billing_address.email',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXFMTS73BS9PD3QEYPQQ',
+  durationMs: 1,
+  breaking: 0,
+  nonBreaking: 4,
+  coverage: 25
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 15: Square orders — https://developer.squareup.com/reference/square/orders-api
+[schema-bridge] {
+  id: 'br_01KN7VTXFNPHACG1JJNS3WWWT2',
+  connectorA: 'smoke-15-a',
+  connectorB: 'smoke-15-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: 'f9cd585075d939a0ebc49c853571ebc7',
+  fingerprintB: '251b895ca69a2f1bd5df4053ee40c89f'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 3, renameCandidates: 3 } Diff complete
+[schema-bridge] {
+  pathA: 'order_rows[*].qty_value',
+  pathB: 'line_items[*].quantity',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXFNPHACG1JJNS3WWWT2',
+  durationMs: 0,
+  breaking: 0,
+  nonBreaking: 3,
+  coverage: 33
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 16: SendGrid contacts — https://www.twilio.com/docs/sendgrid/api-reference/contacts
+[schema-bridge] {
+  id: 'br_01KN7VTXFPN6YPBMD8REFG5A00',
+  connectorA: 'smoke-16-a',
+  connectorB: 'smoke-16-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 4,
+  fieldsB: 4,
+  fingerprintA: 'd2492fca151db31a9a5abb2663c83bf2',
+  fingerprintB: 'b5a69582bb4689ed2d23bd1cbb7b6996'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 4, renameCandidates: 4 } Diff complete
+[schema-bridge] {
+  pathA: 'family_name',
+  pathB: 'last_name',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'given_name',
+  pathB: 'first_name',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXFPN6YPBMD8REFG5A00',
+  durationMs: 0,
+  breaking: 0,
+  nonBreaking: 4,
+  coverage: 50
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 17: Marketo lead — https://experienceleague.adobe.com/en/docs/marketo-developer
+[schema-bridge] {
+  id: 'br_01KN7VTXFPW2HXVNTX4Q7D3K74',
+  connectorA: 'smoke-17-a',
+  connectorB: 'smoke-17-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: '1c22c3c2d568fb146b8200db81e2b364',
+  fingerprintB: 'ba43d83a10f92bed0a83c8b6e95de646'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 3, renameCandidates: 3 } Diff complete
+[schema-bridge] {
+  pathA: 'work_mail',
+  pathB: 'email',
+  confidence: 0.86,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'mobile_phone',
+  pathB: 'phone',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXFPW2HXVNTX4Q7D3K74',
+  durationMs: 1,
+  breaking: 0,
+  nonBreaking: 3,
+  coverage: 67
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 18: Notion user — https://developers.notion.com/reference/user
+[schema-bridge] {
+  id: 'br_01KN7VTXFQX6ZKP9RMPQ5VSFX0',
+  connectorA: 'smoke-18-a',
+  connectorB: 'smoke-18-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 2,
+  fieldsB: 2,
+  fingerprintA: '6014972a8d4d1c80db75c8d4c0b10b62',
+  fingerprintB: '962c081b0c39b811031456d4ed0716ca'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 2, renameCandidates: 2 } Diff complete
+[schema-bridge] {
+  pathA: 'profile_mail',
+  pathB: 'person.email',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXFQX6ZKP9RMPQ5VSFX0',
+  durationMs: 0,
+  breaking: 0,
+  nonBreaking: 2,
+  coverage: 50
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 19: GitLab users — https://docs.gitlab.com/api/users/
+[schema-bridge] {
+  id: 'br_01KN7VTXFR3BK4G361DHD1MG6A',
+  connectorA: 'smoke-19-a',
+  connectorB: 'smoke-19-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: '9f7378a8ea4536bcc1da73f1dffea2e4',
+  fingerprintB: '21050805286fe3336c7c593dfb74bf7d'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 3, renameCandidates: 3 } Diff complete
+[schema-bridge] {
+  pathA: 'user_handle',
+  pathB: 'username',
+  confidence: 0.86,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXFR3BK4G361DHD1MG6A',
+  durationMs: 1,
+  breaking: 0,
+  nonBreaking: 3,
+  coverage: 33
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 20: Slack user — https://api.slack.com/types/user
+[schema-bridge] {
+  id: 'br_01KN7VTXFT74ES95XCPTRQPWRK',
+  connectorA: 'smoke-20-a',
+  connectorB: 'smoke-20-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: '921a77b57368e436ee88c446bbfb1fc5',
+  fingerprintB: '35bc1965bad2acdf5e91767ef7a7454d'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 3, renameCandidates: 3 } Diff complete
+[schema-bridge] {
+  pathA: 'nick_name',
+  pathB: 'name',
+  confidence: 0.86,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'work_mail',
+  pathB: 'profile.email',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXFT74ES95XCPTRQPWRK',
+  durationMs: 0,
+  breaking: 0,
+  nonBreaking: 3,
+  coverage: 67
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 21: Asana users — https://developers.asana.com/reference/users
+[schema-bridge] {
+  id: 'br_01KN7VTXFTY0SFFJJTWN6A2G0M',
+  connectorA: 'smoke-21-a',
+  connectorB: 'smoke-21-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 2,
+  fieldsB: 2,
+  fingerprintA: '4fad6fbeca0c92bc177109186cb0bdcd',
+  fingerprintB: '5e476963a215b52a86f4955254a864c5'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 2, renameCandidates: 2 } Diff complete
+[schema-bridge] {
+  pathA: 'workspace_mail',
+  pathB: 'email',
+  confidence: 0.86,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXFTY0SFFJJTWN6A2G0M',
+  durationMs: 0,
+  breaking: 0,
+  nonBreaking: 2,
+  coverage: 50
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 22: Intercom contacts — https://developers.intercom.com
+[schema-bridge] {
+  id: 'br_01KN7VTXFV9EZE8BQ2AYK4TM9K',
+  connectorA: 'smoke-22-a',
+  connectorB: 'smoke-22-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: 'dbc458eabe36848c52e8c85e7dcf06e5',
+  fingerprintB: 'c3d3062bf20aa3e7a071c367837af024'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 3, renameCandidates: 3 } Diff complete
+[schema-bridge] {
+  pathA: 'work_mail',
+  pathB: 'email',
+  confidence: 0.86,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'mobile_phone',
+  pathB: 'phone',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXFV9EZE8BQ2AYK4TM9K',
+  durationMs: 0,
+  breaking: 0,
+  nonBreaking: 3,
+  coverage: 67
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 23: Microsoft Graph user — https://learn.microsoft.com/en-us/graph/api/resources/user
+[schema-bridge] {
+  id: 'br_01KN7VTXFVS66WXZC06HP2TB09',
+  connectorA: 'smoke-23-a',
+  connectorB: 'smoke-23-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 4,
+  fieldsB: 4,
+  fingerprintA: 'd7ee5637aa412bc9fc99f757630f058c',
+  fingerprintB: '45f4f29a3ea745ffd4aadaab664f08a6'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 4, renameCandidates: 4 } Diff complete
+[schema-bridge] {
+  pathA: 'mobile',
+  pathB: 'mobilePhone',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXFVS66WXZC06HP2TB09',
+  durationMs: 1,
+  breaking: 0,
+  nonBreaking: 4,
+  coverage: 25
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 24: FreshBooks contacts — https://developers.freshbooks.com/api/contacts
+[schema-bridge] {
+  id: 'br_01KN7VTXFW88M2PF8G4AVS9V9Y',
+  connectorA: 'smoke-24-a',
+  connectorB: 'smoke-24-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 2,
+  fieldsB: 2,
+  fingerprintA: '6664420352b5a89a01099f7aaea9bb7b',
+  fingerprintB: '399d079a684973218b1514f86cd32259'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 2, renameCandidates: 2 } Diff complete
+[schema-bridge] {
+  pathA: 'client_mail',
+  pathB: 'email',
+  confidence: 0.86,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXFW88M2PF8G4AVS9V9Y',
+  durationMs: 0,
+  breaking: 0,
+  nonBreaking: 2,
+  coverage: 50
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 25: Jira Cloud users — https://developer.atlassian.com/cloud/jira
+[schema-bridge] {
+  id: 'br_01KN7VTXFWX6NRJ8KEYQKK25GT',
+  connectorA: 'smoke-25-a',
+  connectorB: 'smoke-25-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: '408847b6cf5577b1dcd0b59b9f4f60d5',
+  fingerprintB: 'e66bdc32d613afbb2d7c751abc592559'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 3, renameCandidates: 3 } Diff complete
+[schema-bridge] {
+  pathA: 'account_ref',
+  pathB: 'accountId',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXFWX6NRJ8KEYQKK25GT',
+  durationMs: 0,
+  breaking: 0,
+  nonBreaking: 3,
+  coverage: 33
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 26: Okta users — https://developer.okta.com/docs/api/openapi/okta-management
+[schema-bridge] {
+  id: 'br_01KN7VTXFX5SQDTEC2172NV04R',
+  connectorA: 'smoke-26-a',
+  connectorB: 'smoke-26-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: 'fd52e67069552686c3b65fb1266cf004',
+  fingerprintB: '4085ad8fe323555fa3b34cf7f3eade30'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 3, renameCandidates: 3 } Diff complete
+[schema-bridge] {
+  pathA: 'mobile_phone',
+  pathB: 'profile.mobilePhone',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'login_name',
+  pathB: 'profile.login',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXFX5SQDTEC2172NV04R',
+  durationMs: 0,
+  breaking: 0,
+  nonBreaking: 3,
+  coverage: 67
+} Comparison complete
+
+stdout | tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 27: Google Merchant product — https://developers.google.com/merchant/api
+[schema-bridge] {
+  id: 'br_01KN7VTXFX9ZRT8SBHY709FHZG',
+  connectorA: 'smoke-27-a',
+  connectorB: 'smoke-27-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: 'ea6cc905b62fc108db13561a4eff8098',
+  fingerprintB: 'd48082d6b84613256db8a7ae16aa4871'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 3, renameCandidates: 3 } Diff complete
+[schema-bridge] {
+  id: 'br_01KN7VTXFX9ZRT8SBHY709FHZG',
+  durationMs: 0,
+  breaking: 0,
+  nonBreaking: 3,
+  coverage: 0
+} Comparison complete
+
+ ❯ tests/integration/smoke.test.ts  (27 tests | 25 failed) 35ms
+   ❯ tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 1: SAP plano vs Coupa
+     → Missing mappings: BUKRS → companyCode, LIFNR → supplierNumber, NAME1 → supplierName, ORT01 → city, WAERS → currencyCode: expected [ [ 'BUKRS', 'companyCode' ], …(4) ] to have a length of +0 but got 5
+   ❯ tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 2: SAP IDoc profundo con segmentos y arrays
+     → Missing mappings: IDOC.E1BPADDR1[*].POST_CODE → addresses[*].postalCode, IDOC.E1BPADDR1[*].STREET → addresses[*].streetLine, IDOC.E1BPMATERIAL[*].MATNR → items[*].productCode, IDOC.E1BPMATERIAL[*].MAKTX → items[*].description: expected [ [ …(2) ], [ …(2) ], [ …(2) ], …(1) ] to have a length of +0 but got 4
+   ❯ tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 3: Upgrade ERP con renames simultáneos en nested arrays
+     → Missing mappings: orders[*].order_uuid → salesOrders[*].orderId, orders[*].currency → salesOrders[*].currencyCode, orders[*].ship_to → salesOrders[*].destination.latLon, orders[*].items[*].line_code → salesOrders[*].lines[*].sku, orders[*].items[*].sub_items[*].component_id → salesOrders[*].lines[*].components[*].id, orders[*].items[*].sub_items[*].component_desc → salesOrders[*].lines[*].components[*].description: expected [ …(6) ] to have a length of +0 but got 6
+   ❯ tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 4: Stripe customer object — https://docs.stripe.com/api/customers/object
+     → Missing mappings: cust_id → id, mail_addr → email, home_city → address.city, default_ccy → currency: expected [ [ 'cust_id', 'id' ], …(3) ] to have a length of +0 but got 4
+   ❯ tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 5: Shopify order — https://shopify.dev/docs/api/admin-rest/latest/resources/order
+     → Missing mappings: legacy_order_no → name, ship_ccy → currency, rows[*].sku_code → line_items[*].sku: expected [ [ 'legacy_order_no', 'name' ], …(2) ] to have a length of +0 but got 3
+   ❯ tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 6: HubSpot CRM contacts — https://developers.hubspot.com
+     → Missing mappings: corp_name → properties.company: expected [ [ 'corp_name', …(1) ] ] to have a length of +0 but got 1
+   ❯ tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 7: Salesforce Account — https://developer.salesforce.com
+     → Missing mappings: account_name → Name, invoice_city → BillingCity, site_url → Website: expected [ [ 'account_name', 'Name' ], …(2) ] to have a length of +0 but got 3
+   ❯ tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 8: Dataverse contact — https://learn.microsoft.com/power-apps/developer/data-platform
+     → Missing mappings: full_name → fullname, work_mail → emailaddress1, office_phone → telephone1, town_name → address1_city: expected [ [ 'full_name', 'fullname' ], …(3) ] to have a length of +0 but got 4
+   ❯ tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 9: QuickBooks invoice — https://developer.intuit.com
+     → Missing mappings: invoice_no → DocNumber, invoice_mail → BillEmail.Address, fx_code → CurrencyRef.value, rows[*].item_code → Line[*].SalesItemLineDetail.ItemRef.value: expected [ [ 'invoice_no', 'DocNumber' ], …(3) ] to have a length of +0 but got 4
+   ❯ tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 10: Xero invoices — https://developer.xero.com
+     → Missing mappings: invoice_ref → InvoiceNumber, fx_code → CurrencyCode, detail_lines[*].sku → LineItems[*].ItemCode: expected [ …(3) ] to have a length of +0 but got 3
+   ❯ tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 12: Freshdesk contacts — https://developers.freshdesk.com/api/#contacts
+     → Missing mappings: org_name → company_name: expected [ [ 'org_name', 'company_name' ] ] to have a length of +0 but got 1
+   ❯ tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 14: BigCommerce orders — https://developer.bigcommerce.com/docs/rest-management/orders
+     → Missing mappings: store_ccy → currency_code, ship_city → shipping_addresses[*].city, order_rows[*].sku_code → products[*].sku: expected [ …(3) ] to have a length of +0 but got 3
+   ❯ tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 15: Square orders — https://developer.squareup.com/reference/square/orders-api
+     → Missing mappings: ticket_ccy → line_items[*].base_price_money.currency, order_rows[*].catalog_code → line_items[*].catalog_object_id: expected [ [ 'ticket_ccy', …(1) ], [ …(2) ] ] to have a length of +0 but got 2
+   ❯ tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 16: SendGrid contacts — https://www.twilio.com/docs/sendgrid/api-reference/contacts
+     → Missing mappings: email_addr → email, phone_e164 → phone_number: expected [ [ 'email_addr', 'email' ], …(1) ] to have a length of +0 but got 2
+   ❯ tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 17: Marketo lead — https://experienceleague.adobe.com/en/docs/marketo-developer
+     → Missing mappings: company_name → company: expected [ [ 'company_name', 'company' ] ] to have a length of +0 but got 1
+   ❯ tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 18: Notion user — https://developers.notion.com/reference/user
+     → Missing mappings: display_label → name: expected [ [ 'display_label', 'name' ] ] to have a length of +0 but got 1
+   ❯ tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 19: GitLab users — https://docs.gitlab.com/api/users/
+     → Missing mappings: full_name → name, profile_link → web_url: expected [ [ 'full_name', 'name' ], …(1) ] to have a length of +0 but got 2
+   ❯ tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 20: Slack user — https://api.slack.com/types/user
+     → Missing mappings: display_label → profile.display_name: expected [ [ 'display_label', …(1) ] ] to have a length of +0 but got 1
+   ❯ tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 21: Asana users — https://developers.asana.com/reference/users
+     → Missing mappings: full_name → name: expected [ [ 'full_name', 'name' ] ] to have a length of +0 but got 1
+   ❯ tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 22: Intercom contacts — https://developers.intercom.com
+     → Missing mappings: external_contact_id → external_id: expected [ [ 'external_contact_id', …(1) ] ] to have a length of +0 but got 1
+   ❯ tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 23: Microsoft Graph user — https://learn.microsoft.com/en-us/graph/api/resources/user
+     → Missing mappings: display_label → displayName, principal_mail → userPrincipalName, office_city → city: expected [ …(3) ] to have a length of +0 but got 3
+   ❯ tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 24: FreshBooks contacts — https://developers.freshbooks.com/api/contacts
+     → Missing mappings: client_name → organization: expected [ [ 'client_name', 'organization' ] ] to have a length of +0 but got 1
+   ❯ tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 25: Jira Cloud users — https://developer.atlassian.com/cloud/jira
+     → Missing mappings: display_label → displayName, mail_box → emailAddress: expected [ …(2) ] to have a length of +0 but got 2
+   ❯ tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 26: Okta users — https://developer.okta.com/docs/api/openapi/okta-management
+     → Missing mappings: display_label → profile.displayName: expected [ [ 'display_label', …(1) ] ] to have a length of +0 but got 1
+   ❯ tests/integration/smoke.test.ts > Smoke tests — 27 real-world API rename scenarios > Scenario 27: Google Merchant product — https://developers.google.com/merchant/api
+     → Missing mappings: product_name → title, item_code → offerId, product_link → link: expected [ [ 'product_name', 'title' ], …(2) ] to have a length of +0 but got 3
+stdout | tests/integration/feedback-loop.test.ts > SchemaBridge full feedback loop (SAP ↔ Oracle EBS) > pre-seeded memory improves coverage; vetoed memory snapshot excludes pair from provider
+[schema-bridge] {
+  id: 'br_01KN7VTXGB2KP89B3KMQV8P9Z9',
+  connectorA: 'sap-abap',
+  connectorB: 'oracle-ebs',
+  samplesA: 10,
+  samplesB: 10
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 4,
+  fieldsB: 4,
+  fingerprintA: 'ebd66a0ea9cf9f65bde4fee39f632e66',
+  fingerprintB: 'e3ae31347fd987bad936e463ad883e22'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 7, renameCandidates: 1 } Diff complete
+[schema-bridge] {
+  pathA: 'NETWR',
+  pathB: 'net_amount',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'creation_date',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'currency_code',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'org_id',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXGB2KP89B3KMQV8P9Z9',
+  durationMs: 2,
+  breaking: 3,
+  nonBreaking: 1,
+  coverage: 57
+} Comparison complete
+[schema-bridge] {
+  id: 'br_01KN7VTXGD18734ZPCGCQXT39E',
+  connectorA: 'sap-abap',
+  connectorB: 'oracle-ebs',
+  samplesA: 10,
+  samplesB: 10
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 4,
+  fieldsB: 4,
+  fingerprintA: 'ebd66a0ea9cf9f65bde4fee39f632e66',
+  fingerprintB: 'e3ae31347fd987bad936e463ad883e22'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 8, renameCandidates: 0 } Diff complete
+[schema-bridge] {
+  pathA: null,
+  pathB: 'creation_date',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'currency_code',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'net_amount',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'org_id',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXGD18734ZPCGCQXT39E',
+  durationMs: 1,
+  breaking: 4,
+  nonBreaking: 0,
+  coverage: 50
+} Comparison complete
+
+stdout | tests/integration/feedback-loop.test.ts > SchemaBridge full feedback loop (SAP ↔ Oracle EBS) > mappings carry decisionReason for all auto-resolved fields
+[schema-bridge] {
+  id: 'br_01KN7VTXGE9PX0N1MJACQH1JKX',
+  connectorA: 'sap-abap',
+  connectorB: 'oracle-ebs',
+  samplesA: 10,
+  samplesB: 10
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 4,
+  fieldsB: 4,
+  fingerprintA: 'ebd66a0ea9cf9f65bde4fee39f632e66',
+  fingerprintB: 'e3ae31347fd987bad936e463ad883e22'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 8, renameCandidates: 0 } Diff complete
+[schema-bridge] {
+  pathA: null,
+  pathB: 'creation_date',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'currency_code',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'net_amount',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'org_id',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXGE9PX0N1MJACQH1JKX',
+  durationMs: 1,
+  breaking: 4,
+  nonBreaking: 0,
+  coverage: 50
+} Comparison complete
+
+stdout | tests/integration/feedback-loop.test.ts > SchemaBridge full feedback loop (SAP ↔ Oracle EBS) > accepted memory entry raises the ontology score for the pair on the next compare
+[schema-bridge] {
+  id: 'br_01KN7VTXGFCHPVTQ7GZGEMWS3W',
+  connectorA: 'sap-abap',
+  connectorB: 'oracle-ebs',
+  samplesA: 10,
+  samplesB: 10
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 4,
+  fieldsB: 4,
+  fingerprintA: 'ebd66a0ea9cf9f65bde4fee39f632e66',
+  fingerprintB: 'e3ae31347fd987bad936e463ad883e22'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 8, renameCandidates: 0 } Diff complete
+[schema-bridge] {
+  pathA: null,
+  pathB: 'creation_date',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'currency_code',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'net_amount',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'org_id',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXGFCHPVTQ7GZGEMWS3W',
+  durationMs: 0,
+  breaking: 4,
+  nonBreaking: 0,
+  coverage: 50
+} Comparison complete
+
+ ✓ tests/integration/feedback-loop.test.ts  (12 tests) 5ms
+stdout | tests/integration/latam.test.ts > MercadoPago → custom billing system (LatAm) > maps payment fields — IDs, amounts (decimal comma), currencies, status
+[schema-bridge] {
+  id: 'br_01KN7VTXGSFBJMG1MFTT3PJVJN',
+  connectorA: 'mercadopago',
+  connectorB: 'billing-latam',
+  samplesA: 5,
+  samplesB: 5
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 4,
+  fieldsB: 4,
+  fingerprintA: '72f46ce1db895c3f35b94272e682afed',
+  fingerprintB: 'e0e054e439836de24ff9ab03be068f64'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 4, renameCandidates: 4 } Diff complete
+[schema-bridge] {
+  pathA: 'id',
+  pathB: 'payment_id',
+  confidence: 0.96,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'moneda',
+  pathB: 'currency',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'estado',
+  pathB: 'status',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'monto',
+  pathB: 'amount',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXGSFBJMG1MFTT3PJVJN',
+  durationMs: 1,
+  breaking: 0,
+  nonBreaking: 4,
+  coverage: 100
+} Comparison complete
+
+stdout | tests/integration/latam.test.ts > AFIP WSFE → invoice system (high-entropy fields only) > maps invoice numbers and CUIT (highest-entropy AFIP identifiers)
+[schema-bridge] {
+  id: 'br_01KN7VTXGT72RBMD280J8RH6VM',
+  connectorA: 'afip-wsfe',
+  connectorB: 'invoice-system',
+  samplesA: 5,
+  samplesB: 5
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 2,
+  fieldsB: 2,
+  fingerprintA: 'e0f7dbac6d61fa99ed7c60351d9bd3b0',
+  fingerprintB: '8c6fab0d303cf5efa62a32eaaf2bb7bd'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 2, renameCandidates: 2 } Diff complete
+[schema-bridge] {
+  pathA: 'nro_comprobante',
+  pathB: 'invoice_number',
+  confidence: 0.96,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'cuit_receptor',
+  pathB: 'tax_id',
+  confidence: 0.92,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXGT72RBMD280J8RH6VM',
+  durationMs: 1,
+  breaking: 0,
+  nonBreaking: 2,
+  coverage: 100
+} Comparison complete
+
+stdout | tests/integration/latam.test.ts > Tango ERP → Contabilium (Argentine ERP migration) > maps client/customer fields between two Argentine ERPs
+[schema-bridge] {
+  id: 'br_01KN7VTXGVNWDZC2GJ1BXWP1Q5',
+  connectorA: 'tango',
+  connectorB: 'contabilium',
+  samplesA: 5,
+  samplesB: 5
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 4,
+  fieldsB: 4,
+  fingerprintA: '7cb3b61a09abc133034ed77cfdf04fe4',
+  fingerprintB: 'c9e49b6fb8c2ef244851f5d9f0b7d26e'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 4, renameCandidates: 4 } Diff complete
+[schema-bridge] {
+  pathA: 'email_contacto',
+  pathB: 'mail',
+  confidence: 0.96,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'cod_cliente',
+  pathB: 'cliente_id',
+  confidence: 0.96,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'cuit',
+  pathB: 'numero_cuit',
+  confidence: 0.92,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXGVNWDZC2GJ1BXWP1Q5',
+  durationMs: 0,
+  breaking: 0,
+  nonBreaking: 4,
+  coverage: 75
+} Comparison complete
+
+stdout | tests/integration/latam.test.ts > Oracle EBS LatAm → SAP S/4HANA (price data with decimal comma) > maps PO lines: PO numbers, vendor IDs, string amounts and currencies
+[schema-bridge] {
+  id: 'br_01KN7VTXGWCRV8JY7SVX23WPX4',
+  connectorA: 'oracle-ebs',
+  connectorB: 'sap-s4',
+  samplesA: 5,
+  samplesB: 5
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 4,
+  fieldsB: 4,
+  fingerprintA: '690b737ab833935a3f730cadce5c7968',
+  fingerprintB: 'cc5431ccbfc586a39ef0ed10513b8910'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 4, renameCandidates: 4 } Diff complete
+[schema-bridge] {
+  pathA: 'vendor_id',
+  pathB: 'LIFNR',
+  confidence: 0.96,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'po_number',
+  pathB: 'EBELN',
+  confidence: 0.96,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXGWCRV8JY7SVX23WPX4',
+  durationMs: 1,
+  breaking: 0,
+  nonBreaking: 4,
+  coverage: 50
+} Comparison complete
+
+ ❯ tests/integration/latam.test.ts  (6 tests | 4 failed) 5ms
+   ❯ tests/integration/latam.test.ts > Tango ERP → Contabilium (Argentine ERP migration) > maps client/customer fields between two Argentine ERPs
+     → expected false to be true // Object.is equality
+   ❯ tests/integration/latam.test.ts > Oracle EBS LatAm → SAP S/4HANA (price data with decimal comma) > maps PO lines: PO numbers, vendor IDs, string amounts and currencies
+     → expected false to be true // Object.is equality
+   ❯ tests/integration/latam.test.ts > Multi-currency LatAm system (ARS, BRL, MXN, CLP, COP) > maps currency, amount, and country fields across 5 LatAm currencies
+     → expected false to be true // Object.is equality
+   ❯ tests/integration/latam.test.ts > Softland (Chilean ERP) → QuickBooks (accounting migration) > maps invoice fields with RUT (Chilean tax ID) and decimal comma amounts
+     → expected false to be true // Object.is equality
+stdout | tests/integration/latam.test.ts > Multi-currency LatAm system (ARS, BRL, MXN, CLP, COP) > maps currency, amount, and country fields across 5 LatAm currencies
+[schema-bridge] {
+  id: 'br_01KN7VTXGXK26D4VRNHSQYRW81',
+  connectorA: 'latam-source',
+  connectorB: 'latam-target',
+  samplesA: 5,
+  samplesB: 5
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 4,
+  fieldsB: 4,
+  fingerprintA: 'c808904ec402a3238d7748992bd4fb91',
+  fingerprintB: '345d89fc3b2f62aef1dc9de2499f3732'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 4, renameCandidates: 4 } Diff complete
+[schema-bridge] {
+  pathA: 'moneda',
+  pathB: 'currency',
+  confidence: 0.86,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'monto',
+  pathB: 'amount',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXGXK26D4VRNHSQYRW81',
+  durationMs: 1,
+  breaking: 0,
+  nonBreaking: 4,
+  coverage: 50
+} Comparison complete
+
+stdout | tests/integration/latam.test.ts > Softland (Chilean ERP) → QuickBooks (accounting migration) > maps invoice fields with RUT (Chilean tax ID) and decimal comma amounts
+[schema-bridge] {
+  id: 'br_01KN7VTXGYWNK411YX12Z4V47M',
+  connectorA: 'softland',
+  connectorB: 'quickbooks',
+  samplesA: 5,
+  samplesB: 5
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: 'a7876a99c77490c3baa2bcdebf0104f9',
+  fingerprintB: 'c1c4630608ee71e08d1fd41b58cb51ca'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 3, renameCandidates: 3 } Diff complete
+[schema-bridge] {
+  pathA: 'rut_cliente',
+  pathB: 'CustomerRef',
+  confidence: 0.96,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXGYWNK411YX12Z4V47M',
+  durationMs: 0,
+  breaking: 0,
+  nonBreaking: 3,
+  coverage: 33
+} Comparison complete
+
+ ✓ src/__tests__/signal-weights.test.ts  (24 tests) 2ms
+ ✓ src/__tests__/mapping-memory-provider.test.ts  (27 tests) 1ms
+stdout | tests/unit/mapping-memory.test.ts > SchemaBridge.recordFeedback() + getMemorySnapshot() > snapshot from one instance seeds a new instance correctly
+[schema-bridge] {
+  id: 'br_01KN7VTXHNGE85TYH3MZWABWEN',
+  connectorA: 'erp',
+  connectorB: 'crm',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 2,
+  fieldsB: 2,
+  fingerprintA: 'f72292cb5ca14c03bc7c14884f61ab44',
+  fingerprintB: '8206427e3b94e88601962280aa9a4ed9'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 2, renameCandidates: 2 } Diff complete
+[schema-bridge] {
+  id: 'br_01KN7VTXHNGE85TYH3MZWABWEN',
+  durationMs: 1,
+  breaking: 0,
+  nonBreaking: 2,
+  coverage: 0
+} Comparison complete
+
+ ❯ tests/unit/mapping-memory.test.ts  (24 tests | 1 failed) 3ms
+   ❯ tests/unit/mapping-memory.test.ts > SchemaBridge.recordFeedback() + getMemorySnapshot() > snapshot from one instance seeds a new instance correctly
+     → expected undefined not to be undefined
+ ✓ tests/parametrized/avro-types.test.ts  (57 tests) 2ms
+ ✓ src/__tests__/bridge.test.ts  (16 tests) 3ms
+ ✓ tests/unit/normalization.test.ts  (68 tests) 1ms
+stdout | tests/integration/adversarial.test.ts > Adversarial — Sparse Data > does not auto-accept fields with mostly-null values
+[schema-bridge] {
+  id: 'br_01KN7VTXJWWYX8ZPKJD95ZA0V6',
+  connectorA: 'sparse-a',
+  connectorB: 'sparse-b',
+  samplesA: 50,
+  samplesB: 50
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: '44018bb560e27434977c876ae78e0abd',
+  fingerprintB: '232a52dc3c6b6d7caf40b295afada0fd'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 6, renameCandidates: 0 } Diff complete
+[schema-bridge] {
+  pathA: null,
+  pathB: 'comment',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'customerId',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'remarks',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXJWWYX8ZPKJD95ZA0V6',
+  durationMs: 2,
+  breaking: 3,
+  nonBreaking: 0,
+  coverage: 50
+} Comparison complete
+
+stdout | tests/integration/adversarial.test.ts > Adversarial — Placeholder Swamping > auto-accepts the real match but NOT the placeholder fields
+[schema-bridge] {
+  id: 'br_01KN7VTXJYR475C8HJAM6SZVPN',
+  connectorA: 'placeholder-a',
+  connectorB: 'placeholder-b',
+  samplesA: 50,
+  samplesB: 50
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: '50c8e72c463fce27ca4aac11c98ed58c',
+  fingerprintB: 'cb704364ba1bc24b76b9a5b3cf3d7029'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 5, renameCandidates: 1 } Diff complete
+[schema-bridge] {
+  pathA: 'order_ref',
+  pathB: 'orderId',
+  confidence: 0.96,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'freeText',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'internalNote',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXJYR475C8HJAM6SZVPN',
+  durationMs: 2,
+  breaking: 2,
+  nonBreaking: 1,
+  coverage: 60
+} Comparison complete
+
+stdout | tests/integration/adversarial.test.ts > Adversarial — Zero-Overlap Windows > does not auto-accept IDs from disjoint value ranges
+[schema-bridge] {
+  id: 'br_01KN7VTXK0VNSN906QZWGHWF06',
+  connectorA: 'zero-overlap-a',
+  connectorB: 'zero-overlap-b',
+  samplesA: 50,
+  samplesB: 50
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 2,
+  fieldsB: 2,
+  fingerprintA: '4786817a5c04a9a70f403c23aa5b2c20',
+  fingerprintB: 'a5619f23e17e8cf0fff02ab898926fe2'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 4, renameCandidates: 0 } Diff complete
+[schema-bridge] {
+  pathA: null,
+  pathB: 'customerId',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'tenantId',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXK0VNSN906QZWGHWF06',
+  durationMs: 0,
+  breaking: 2,
+  nonBreaking: 0,
+  coverage: 50
+} Comparison complete
+
+stdout | tests/integration/adversarial.test.ts > Adversarial — Multiple High-Entropy IDs (no cross-matches) > correctly maps each UUID to its counterpart
+[schema-bridge] {
+  id: 'br_01KN7VTXK0X3V0TB64369C8QW6',
+  connectorA: 'uuid-a',
+  connectorB: 'uuid-b',
+  samplesA: 5,
+  samplesB: 5
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: '5e49b47e2326dcf53124f38ea3a8b2b3',
+  fingerprintB: 'db45c5ea4692cd98e798e59d498e1a79'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 3, renameCandidates: 3 } Diff complete
+[schema-bridge] {
+  pathA: 'tenant_uuid',
+  pathB: 'tenantId',
+  confidence: 0.96,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'buyer_uuid',
+  pathB: 'buyerId',
+  confidence: 0.96,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'seller_uuid',
+  pathB: 'sellerId',
+  confidence: 0.96,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXK0X3V0TB64369C8QW6',
+  durationMs: 1,
+  breaking: 0,
+  nonBreaking: 3,
+  coverage: 100
+} Comparison complete
+
+stdout | tests/integration/adversarial.test.ts > Adversarial — Multiple High-Entropy IDs (no cross-matches) > does NOT cross-map buyer → seller or buyer → tenant
+[schema-bridge] {
+  id: 'br_01KN7VTXK1R7C30460TDVHBBM4',
+  connectorA: 'uuid-a',
+  connectorB: 'uuid-b',
+  samplesA: 5,
+  samplesB: 5
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: '5e49b47e2326dcf53124f38ea3a8b2b3',
+  fingerprintB: 'db45c5ea4692cd98e798e59d498e1a79'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 3, renameCandidates: 3 } Diff complete
+[schema-bridge] {
+  pathA: 'tenant_uuid',
+  pathB: 'tenantId',
+  confidence: 0.96,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'buyer_uuid',
+  pathB: 'buyerId',
+  confidence: 0.96,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'seller_uuid',
+  pathB: 'sellerId',
+  confidence: 0.96,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXK1R7C30460TDVHBBM4',
+  durationMs: 0,
+  breaking: 0,
+  nonBreaking: 3,
+  coverage: 100
+} Comparison complete
+
+stdout | tests/integration/adversarial.test.ts > Adversarial — Flattened vs Nested (correct mapping, not false match) > maps sku_code → sku and component_code → id correctly
+[schema-bridge] {
+  id: 'br_01KN7VTXK17TBES4KHVGM218PC',
+  connectorA: 'flat-a',
+  connectorB: 'nested-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: 'a982ff768539b452405cd96111f67ad9',
+  fingerprintB: 'a37d12134312577cd269aec651e67fe2'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 3, renameCandidates: 3 } Diff complete
+[schema-bridge] {
+  id: 'br_01KN7VTXK17TBES4KHVGM218PC',
+  durationMs: 1,
+  breaking: 0,
+  nonBreaking: 3,
+  coverage: 0
+} Comparison complete
+
+stdout | tests/integration/adversarial.test.ts > Adversarial — Flattened vs Nested (correct mapping, not false match) > does NOT cross-map sku_code → description
+[schema-bridge] {
+  id: 'br_01KN7VTXK3RHXQRJAASVY89N9C',
+  connectorA: 'flat-a',
+  connectorB: 'nested-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: 'a982ff768539b452405cd96111f67ad9',
+  fingerprintB: 'a37d12134312577cd269aec651e67fe2'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 3, renameCandidates: 3 } Diff complete
+[schema-bridge] {
+  id: 'br_01KN7VTXK3RHXQRJAASVY89N9C',
+  durationMs: 0,
+  breaking: 0,
+  nonBreaking: 3,
+  coverage: 0
+} Comparison complete
+
+ ❯ tests/integration/adversarial.test.ts  (9 tests | 1 failed) 8ms
+   ❯ tests/integration/adversarial.test.ts > Adversarial — Flattened vs Nested (correct mapping, not false match) > maps sku_code → sku and component_code → id correctly
+     → expected false to be true // Object.is equality
+stdout | tests/integration/adversarial.test.ts > Adversarial — Mixed-Type Noise (boolean vs integer flag) > does NOT auto-accept quality_flag → confidenceFlag (different types, low value overlap)
+[schema-bridge] {
+  id: 'br_01KN7VTXK3W29KQQ7TRQQ4YWGB',
+  connectorA: 'mixed-a',
+  connectorB: 'mixed-b',
+  samplesA: 5,
+  samplesB: 5
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: '608ef8fd7cda7259e6c82d4d32ad3a91',
+  fingerprintB: '4677d3ce0032a5b632b3f6113bff90ea'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 6, renameCandidates: 0 } Diff complete
+[schema-bridge] {
+  pathA: null,
+  pathB: 'amount',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'confidenceFlag',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'status',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXK3W29KQQ7TRQQ4YWGB',
+  durationMs: 1,
+  breaking: 3,
+  nonBreaking: 0,
+  coverage: 50
+} Comparison complete
+
+stdout | tests/integration/adversarial.test.ts > Adversarial — Low-Entropy Collisions > auto-accepts record_id but NOT lifecycle_status or support_comment
+[schema-bridge] {
+  id: 'br_01KN7VTXK4RGEVRT1CTRDG39SP',
+  connectorA: 'low-entropy-a',
+  connectorB: 'low-entropy-b',
+  samplesA: 20,
+  samplesB: 20
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: 'c84a00032bdf5a75aa006680c622cfa2',
+  fingerprintB: 'c8919f735f74c31814f5f3b1e83bed2e'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 5, renameCandidates: 1 } Diff complete
+[schema-bridge] {
+  pathA: 'record_id',
+  pathB: 'recordId',
+  confidence: 0.96,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'note',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'state',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXK4RGEVRT1CTRDG39SP',
+  durationMs: 0,
+  breaking: 2,
+  nonBreaking: 1,
+  coverage: 60
+} Comparison complete
+
+stdout | tests/integration/breaking-changes.test.ts > Breaking: field_removed > detects removal of a required field with breakingScore 1.0
+[schema-bridge] {
+  id: 'br_01KN7VTXKBVTGSNKBVSP8CVVE5',
+  connectorA: 'v1',
+  connectorB: 'v2',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 2,
+  fingerprintA: '494496c02cc26482df47491c7f97c704',
+  fingerprintB: '43b596860695019fefe0ef15eee727ca'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 1, renameCandidates: 0 } Diff complete
+[schema-bridge] {
+  id: 'br_01KN7VTXKBVTGSNKBVSP8CVVE5',
+  durationMs: 0,
+  breaking: 1,
+  nonBreaking: 0,
+  coverage: 0
+} Comparison complete
+
+stdout | tests/integration/breaking-changes.test.ts > Breaking: field_removed > reports multiple removed fields correctly
+[schema-bridge] {
+  id: 'br_01KN7VTXKCE0X0QTKZP4K1V3JB',
+  connectorA: 'v1',
+  connectorB: 'v2',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 4,
+  fieldsB: 2,
+  fingerprintA: '600b7f6be2600deab8437be0c9559045',
+  fingerprintB: 'd9a6db4023740ea21ce3a1a3e2f79bb9'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 2, renameCandidates: 0 } Diff complete
+[schema-bridge] {
+  id: 'br_01KN7VTXKCE0X0QTKZP4K1V3JB',
+  durationMs: 0,
+  breaking: 2,
+  nonBreaking: 0,
+  coverage: 0
+} Comparison complete
+
+stdout | tests/integration/breaking-changes.test.ts > Breaking: field_removed > does NOT flag field_added as breaking (score 0.0)
+[schema-bridge] {
+  id: 'br_01KN7VTXKCPDSMHSZ1YGQ7TY79',
+  connectorA: 'v1',
+  connectorB: 'v2',
+  samplesA: 1,
+  samplesB: 1
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 2,
+  fieldsB: 3,
+  fingerprintA: '43b596860695019fefe0ef15eee727ca',
+  fingerprintB: '6980b2ecb6cd63ac55a5d5b13aad15af'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 1, renameCandidates: 0 } Diff complete
+[schema-bridge] {
+  pathA: null,
+  pathB: 'new_field',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXKCPDSMHSZ1YGQ7TY79',
+  durationMs: 0,
+  breaking: 0,
+  nonBreaking: 0,
+  coverage: 100
+} Comparison complete
+
+stdout | tests/integration/breaking-changes.test.ts > Breaking: type_changed > string → number is coercible (0.3) — can break at runtime
+[schema-bridge] {
+  id: 'br_01KN7VTXKC6V1RH147CRYWM3EG',
+  connectorA: 'v1',
+  connectorB: 'v2',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 2,
+  fieldsB: 2,
+  fingerprintA: '0808beca698b806324b7430e531697ee',
+  fingerprintB: '6c5ca83c6ab2d778550b62c7731b155e'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 1, renameCandidates: 0 } Diff complete
+[schema-bridge] {
+  pathA: 'amount',
+  pathB: 'amount',
+  confidence: 0.85,
+  decisionReason: 'deterministic:type_widening'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXKC6V1RH147CRYWM3EG',
+  durationMs: 0,
+  breaking: 0,
+  nonBreaking: 1,
+  coverage: 100
+} Comparison complete
+
+ ✓ tests/integration/breaking-changes.test.ts  (8 tests) 2ms
+stdout | tests/integration/breaking-changes.test.ts > Breaking: type_changed > string field replaced by nested object — reports field_removed (breaking)
+[schema-bridge] {
+  id: 'br_01KN7VTXKC87Q5V6CYWS87EBZK',
+  connectorA: 'v1',
+  connectorB: 'v2',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 1,
+  fieldsB: 2,
+  fingerprintA: '2a0b341a42dedbd9334d7cd1ed061fa9',
+  fingerprintB: '4e36dda83cff037489c07937e8b9bee2'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 3, renameCandidates: 0 } Diff complete
+[schema-bridge] {
+  pathA: null,
+  pathB: 'address.city',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'address.street',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXKC87Q5V6CYWS87EBZK',
+  durationMs: 1,
+  breaking: 1,
+  nonBreaking: 0,
+  coverage: 67
+} Comparison complete
+
+stdout | tests/integration/breaking-changes.test.ts > Identical schemas — zero diffs > reports no diffs and no breaking changes when schemas are identical
+[schema-bridge] {
+  id: 'br_01KN7VTXKDHKSFB5TPJKZ7CFZ3',
+  connectorA: 'same-v1',
+  connectorB: 'same-v2',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: '13be2cb2585a5ca7d6a6b9e862e5edeb',
+  fingerprintB: '13be2cb2585a5ca7d6a6b9e862e5edeb'
+} Schemas inferred
+[schema-bridge] { id: 'br_01KN7VTXKDHKSFB5TPJKZ7CFZ3' } Identical fingerprints — no differences
+
+stdout | tests/integration/breaking-changes.test.ts > Breaking: schema evolution — real API upgrade > Stripe-like upgrade: nested field removed, new nested field added
+[schema-bridge] {
+  id: 'br_01KN7VTXKDF6S3VSGK0C99KNTT',
+  connectorA: 'stripe-v1',
+  connectorB: 'stripe-v2',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 5,
+  fieldsB: 4,
+  fingerprintA: '656f72625bd2a4545d210b9a38b7b475',
+  fingerprintB: 'ad9a06c2add11b104fafdfd961a4d0af'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 3, renameCandidates: 0 } Diff complete
+[schema-bridge] {
+  pathA: null,
+  pathB: 'billing_details.name',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXKDF6S3VSGK0C99KNTT',
+  durationMs: 0,
+  breaking: 2,
+  nonBreaking: 0,
+  coverage: 33
+} Comparison complete
+
+stdout | tests/integration/breaking-changes.test.ts > Breaking: schema evolution — real API upgrade > breaking diffs sort before non-breaking in report.diffs
+[schema-bridge] {
+  id: 'br_01KN7VTXKD86DZSM0M5Q2KT0FN',
+  connectorA: 'v1',
+  connectorB: 'v2',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: '2d5ff71d76d4d1acc6554c18aa930f34',
+  fingerprintB: '5f09c6245e91de0e9947c8e9c7251e11'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 2, renameCandidates: 0 } Diff complete
+[schema-bridge] {
+  pathA: null,
+  pathB: 'new_field',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXKD86DZSM0M5Q2KT0FN',
+  durationMs: 0,
+  breaking: 1,
+  nonBreaking: 0,
+  coverage: 50
+} Comparison complete
+
+ ❯ tests/unit/similarity-decision-policy.test.ts  (15 tests | 7 failed) 1ms
+   ❯ tests/unit/similarity-decision-policy.test.ts > Rule 1 — Golden path (combined ≥ 0.90, value+structural) > auto-accepts a clear rename with value + structural evidence
+     → expected 'review' to be 'auto_accept' // Object.is equality
+   ❯ tests/unit/similarity-decision-policy.test.ts > Rule 1 — Golden path (combined ≥ 0.90, value+structural) > auto-accepts a clear rename with lexical + structural evidence
+     → expected 'review' to be 'auto_accept' // Object.is equality
+   ❯ tests/unit/similarity-decision-policy.test.ts > Rule 2 — Value-dominant (opaque field names like SAP ABAP codes) > auto-accepts when value+structural are strong even without lexical
+     → expected 'review' to be 'auto_accept' // Object.is equality
+   ❯ tests/unit/similarity-decision-policy.test.ts > Rule 3 — Margin-dominant (overwhelmingly clear winner) > auto-accepts when margin is extremely wide
+     → expected 'review' to be 'auto_accept' // Object.is equality
+   ❯ tests/unit/similarity-decision-policy.test.ts > Rule 3 — Margin-dominant (overwhelmingly clear winner) > auto-accepts with dominant+min margin combination
+     → expected 'review' to be 'auto_accept' // Object.is equality
+   ❯ tests/unit/similarity-decision-policy.test.ts > Rule 4 — Semantic certainty (ontology/businessType anchor) > auto-accepts when domain knowledge confirms the match
+     → expected 'review' to be 'auto_accept' // Object.is equality
+   ❯ tests/unit/similarity-decision-policy.test.ts > Configurable thresholds > stricter autoAcceptThreshold → fewer auto-accepts
+     → expected 'review' to be 'auto_accept' // Object.is equality
+ ✓ tests/unit/schema-differ.test.ts  (17 tests) 1ms
+ ✓ src/__tests__/explain.test.ts  (21 tests) 1ms
+ ✓ tests/parametrized/field-pairs.test.ts  (87 tests) 3ms
+ ✓ tests/avro-adapter.test.ts  (10 tests)
+ ✓ src/__tests__/llm-escalation.test.ts  (7 tests) 1ms
+ ✓ tests/composite-mapper.test.ts  (10 tests) 1ms
+ ✓ tests/drift-detector.test.ts  (7 tests) 1ms
+stdout | tests/similarity-edge-cases.test.ts > Similarity Engine Edge Cases > handles Domain Mismatch Structural Collision (prevent false positives)
+[schema-bridge] {
+  id: 'br_01KN7VTXN54NMVDZQTHXV1T4PK',
+  connectorA: 'sysA',
+  connectorB: 'sysB',
+  samplesA: 1,
+  samplesB: 1
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: 'f7c213fd747b86086b2a58f0e225224b',
+  fingerprintB: '16cc0ad503b323ad04968b195e58ac0b'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 3, renameCandidates: 3 } Diff complete
+[schema-bridge] {
+  id: 'br_01KN7VTXN54NMVDZQTHXV1T4PK',
+  durationMs: 1,
+  breaking: 3,
+  nonBreaking: 0,
+  coverage: 0
+} Comparison complete
+
+stdout | tests/similarity-edge-cases.test.ts > Similarity Engine Edge Cases > handles LatAm Decimal Normalization
+[schema-bridge] {
+  id: 'br_01KN7VTXN63W966VH4TR96PFHF',
+  connectorA: 'sysA',
+  connectorB: 'sysB',
+  samplesA: 1,
+  samplesB: 1
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 2,
+  fieldsB: 2,
+  fingerprintA: 'b14c668f05d6b161796186a43274338e',
+  fingerprintB: '8b454851e8e34ec1ed372a837a5fe6eb'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 3, renameCandidates: 1 } Diff complete
+[schema-bridge] {
+  pathA: null,
+  pathB: 'created_at',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXN63W966VH4TR96PFHF',
+  durationMs: 0,
+  breaking: 2,
+  nonBreaking: 0,
+  coverage: 33
+} Comparison complete
+
+ ✓ tests/similarity-edge-cases.test.ts  (3 tests) 2ms
+stdout | tests/similarity-edge-cases.test.ts > Similarity Engine Edge Cases > handles Semantic Equivalence via Dictionary Ontology
+[schema-bridge] {
+  id: 'br_01KN7VTXN6VV83GKZE4CNN1WJK',
+  connectorA: 'sysA',
+  connectorB: 'sysB',
+  samplesA: 1,
+  samplesB: 1
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 2,
+  fieldsB: 2,
+  fingerprintA: '341e39845fb71548830a8650ff284166',
+  fingerprintB: '10c1f3758e74937a860889b584a73964'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 2, renameCandidates: 2 } Diff complete
+[schema-bridge] {
+  pathA: 'user_cell',
+  pathB: 'mobile_number',
+  confidence: 0.84,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'user_first_name',
+  pathB: 'given_name',
+  confidence: 0.84,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXN6VV83GKZE4CNN1WJK',
+  durationMs: 1,
+  breaking: 0,
+  nonBreaking: 2,
+  coverage: 100
+} Comparison complete
+
+ ✓ tests/confidence-decay.test.ts  (3 tests) 1ms
+stdout | tests/integration/synthetic-scenarios.test.ts > Synthetic Scenario Library - positive mappings > maps mercadopago-billing-latam without LLM escalation
+[schema-bridge] {
+  id: 'br_01KN7VTXNMN6YWRH0Y1WZAZ928',
+  connectorA: 'mercadopago',
+  connectorB: 'billing-latam',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 4,
+  fieldsB: 4,
+  fingerprintA: '72f46ce1db895c3f35b94272e682afed',
+  fingerprintB: 'e0e054e439836de24ff9ab03be068f64'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 4, renameCandidates: 4 } Diff complete
+[schema-bridge] {
+  pathA: 'moneda',
+  pathB: 'currency',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'estado',
+  pathB: 'status',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'monto',
+  pathB: 'amount',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXNMN6YWRH0Y1WZAZ928',
+  durationMs: 1,
+  breaking: 0,
+  nonBreaking: 4,
+  coverage: 75
+} Comparison complete
+
+stdout | tests/integration/synthetic-scenarios.test.ts > Synthetic Scenario Library - positive mappings > maps afip-invoice-system without LLM escalation
+[schema-bridge] {
+  id: 'br_01KN7VTXNNR8MBD50A506RRC30',
+  connectorA: 'afip-wsfe',
+  connectorB: 'invoice-system',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 2,
+  fieldsB: 2,
+  fingerprintA: 'e0f7dbac6d61fa99ed7c60351d9bd3b0',
+  fingerprintB: '8c6fab0d303cf5efa62a32eaaf2bb7bd'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 2, renameCandidates: 2 } Diff complete
+[schema-bridge] {
+  id: 'br_01KN7VTXNNR8MBD50A506RRC30',
+  durationMs: 0,
+  breaking: 0,
+  nonBreaking: 2,
+  coverage: 0
+} Comparison complete
+
+stdout | tests/integration/synthetic-scenarios.test.ts > Synthetic Scenario Library - positive mappings > maps softland-quickbooks without LLM escalation
+[schema-bridge] {
+  id: 'br_01KN7VTXNN3N4MMCPA18D1FSBR',
+  connectorA: 'softland',
+  connectorB: 'quickbooks',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: 'a7876a99c77490c3baa2bcdebf0104f9',
+  fingerprintB: 'c1c4630608ee71e08d1fd41b58cb51ca'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 4, renameCandidates: 2 } Diff complete
+[schema-bridge] {
+  pathA: null,
+  pathB: 'Subtotal',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXNN3N4MMCPA18D1FSBR',
+  durationMs: 1,
+  breaking: 1,
+  nonBreaking: 2,
+  coverage: 25
+} Comparison complete
+
+stdout | tests/integration/synthetic-scenarios.test.ts > Synthetic Scenario Library - positive mappings > maps oracle-ebs-sap-s4 without LLM escalation
+[schema-bridge] {
+  id: 'br_01KN7VTXNPVC058CYWNZCEGV51',
+  connectorA: 'oracle-ebs',
+  connectorB: 'sap-s4',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 4,
+  fieldsB: 4,
+  fingerprintA: '690b737ab833935a3f730cadce5c7968',
+  fingerprintB: 'cc5431ccbfc586a39ef0ed10513b8910'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 5, renameCandidates: 3 } Diff complete
+[schema-bridge] {
+  pathA: null,
+  pathB: 'NETWR',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXNPVC058CYWNZCEGV51',
+  durationMs: 0,
+  breaking: 1,
+  nonBreaking: 3,
+  coverage: 20
+} Comparison complete
+
+stdout | tests/integration/synthetic-scenarios.test.ts > Synthetic Scenario Library - positive mappings > maps flat-vs-nested-components without LLM escalation
+[schema-bridge] {
+  id: 'br_01KN7VTXNPKJ38DFVN34HA3Q3A',
+  connectorA: 'flat-a',
+  connectorB: 'nested-b',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: 'a982ff768539b452405cd96111f67ad9',
+  fingerprintB: 'a37d12134312577cd269aec651e67fe2'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 3, renameCandidates: 3 } Diff complete
+[schema-bridge] {
+  id: 'br_01KN7VTXNPKJ38DFVN34HA3Q3A',
+  durationMs: 1,
+  breaking: 0,
+  nonBreaking: 3,
+  coverage: 0
+} Comparison complete
+
+stdout | tests/integration/synthetic-scenarios.test.ts > Synthetic Scenario Library - positive mappings > maps multi-currency-latam without LLM escalation
+[schema-bridge] {
+  id: 'br_01KN7VTXNQ1A8F5K9Q028HAN9S',
+  connectorA: 'latam-source',
+  connectorB: 'latam-target',
+  samplesA: 3,
+  samplesB: 3
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 4,
+  fieldsB: 4,
+  fingerprintA: 'c808904ec402a3238d7748992bd4fb91',
+  fingerprintB: '345d89fc3b2f62aef1dc9de2499f3732'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 5, renameCandidates: 3 } Diff complete
+[schema-bridge] {
+  pathA: 'moneda',
+  pathB: 'currency',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: 'monto',
+  pathB: 'amount',
+  confidence: 0.82,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'country',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXNQ1A8F5K9Q028HAN9S',
+  durationMs: 0,
+  breaking: 1,
+  nonBreaking: 3,
+  coverage: 60
+} Comparison complete
+
+stdout | tests/integration/synthetic-scenarios.test.ts > Synthetic Scenario Library - adversarial protections > guards sparse-data against false positives
+[schema-bridge] {
+  id: 'br_01KN7VTXNRFMS9Q627TGBYWD5R',
+  connectorA: 'sparse-a',
+  connectorB: 'sparse-b',
+  samplesA: 20,
+  samplesB: 20
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: '44018bb560e27434977c876ae78e0abd',
+  fingerprintB: '232a52dc3c6b6d7caf40b295afada0fd'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 6, renameCandidates: 0 } Diff complete
+[schema-bridge] {
+  pathA: null,
+  pathB: 'comment',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'customerId',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'remarks',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXNRFMS9Q627TGBYWD5R',
+  durationMs: 0,
+  breaking: 3,
+  nonBreaking: 0,
+  coverage: 50
+} Comparison complete
+
+stdout | tests/integration/synthetic-scenarios.test.ts > Synthetic Scenario Library - adversarial protections > guards placeholder-swamping against false positives
+[schema-bridge] {
+  id: 'br_01KN7VTXNRQKMHPDBHX4JGT4TP',
+  connectorA: 'placeholder-a',
+  connectorB: 'placeholder-b',
+  samplesA: 20,
+  samplesB: 20
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: '50c8e72c463fce27ca4aac11c98ed58c',
+  fingerprintB: 'cb704364ba1bc24b76b9a5b3cf3d7029'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 5, renameCandidates: 1 } Diff complete
+[schema-bridge] {
+  pathA: 'order_ref',
+  pathB: 'orderId',
+  confidence: 0.96,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'freeText',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'internalNote',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXNRQKMHPDBHX4JGT4TP',
+  durationMs: 1,
+  breaking: 2,
+  nonBreaking: 1,
+  coverage: 60
+} Comparison complete
+
+stdout | tests/integration/synthetic-scenarios.test.ts > Synthetic Scenario Library - adversarial protections > guards zero-overlap against false positives
+[schema-bridge] {
+  id: 'br_01KN7VTXNSXNVKF69J3NRGAV7K',
+  connectorA: 'zero-overlap-a',
+  connectorB: 'zero-overlap-b',
+  samplesA: 20,
+  samplesB: 20
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 2,
+  fieldsB: 2,
+  fingerprintA: '4786817a5c04a9a70f403c23aa5b2c20',
+  fingerprintB: 'a5619f23e17e8cf0fff02ab898926fe2'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 4, renameCandidates: 0 } Diff complete
+[schema-bridge] {
+  pathA: null,
+  pathB: 'customerId',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'tenantId',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXNSXNVKF69J3NRGAV7K',
+  durationMs: 0,
+  breaking: 2,
+  nonBreaking: 0,
+  coverage: 50
+} Comparison complete
+
+ ❯ tests/integration/synthetic-scenarios.test.ts  (11 tests | 6 failed) 7ms
+   ❯ tests/integration/synthetic-scenarios.test.ts > Synthetic Scenario Library - positive mappings > maps mercadopago-billing-latam without LLM escalation
+     → Expected mapping id -> payment_id in mercadopago-billing-latam: expected false to be true // Object.is equality
+   ❯ tests/integration/synthetic-scenarios.test.ts > Synthetic Scenario Library - positive mappings > maps afip-invoice-system without LLM escalation
+     → Expected mapping nro_comprobante -> invoice_number in afip-invoice-system: expected false to be true // Object.is equality
+   ❯ tests/integration/synthetic-scenarios.test.ts > Synthetic Scenario Library - positive mappings > maps softland-quickbooks without LLM escalation
+     → Expected mapping folio -> DocNumber in softland-quickbooks: expected false to be true // Object.is equality
+   ❯ tests/integration/synthetic-scenarios.test.ts > Synthetic Scenario Library - positive mappings > maps oracle-ebs-sap-s4 without LLM escalation
+     → Expected mapping po_number -> EBELN in oracle-ebs-sap-s4: expected false to be true // Object.is equality
+   ❯ tests/integration/synthetic-scenarios.test.ts > Synthetic Scenario Library - positive mappings > maps flat-vs-nested-components without LLM escalation
+     → Expected mapping order_lines[*].sku_code -> order.lines[*].sku in flat-vs-nested-components: expected false to be true // Object.is equality
+   ❯ tests/integration/synthetic-scenarios.test.ts > Synthetic Scenario Library - positive mappings > maps multi-currency-latam without LLM escalation
+     → Expected mapping txn_ref -> transaction_id in multi-currency-latam: expected false to be true // Object.is equality
+stdout | tests/integration/synthetic-scenarios.test.ts > Synthetic Scenario Library - adversarial protections > guards mixed-type-noise against false positives
+[schema-bridge] {
+  id: 'br_01KN7VTXNSWJFYYV5DRVBNJTW4',
+  connectorA: 'mixed-a',
+  connectorB: 'mixed-b',
+  samplesA: 5,
+  samplesB: 5
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: '608ef8fd7cda7259e6c82d4d32ad3a91',
+  fingerprintB: '4677d3ce0032a5b632b3f6113bff90ea'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 6, renameCandidates: 0 } Diff complete
+[schema-bridge] {
+  pathA: null,
+  pathB: 'amount',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'confidenceFlag',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'status',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXNSWJFYYV5DRVBNJTW4',
+  durationMs: 1,
+  breaking: 3,
+  nonBreaking: 0,
+  coverage: 50
+} Comparison complete
+
+stdout | tests/integration/synthetic-scenarios.test.ts > Synthetic Scenario Library - adversarial protections > guards low-entropy-collision against false positives
+[schema-bridge] {
+  id: 'br_01KN7VTXNT5NW37W0P7NZJ1F9K',
+  connectorA: 'low-entropy-a',
+  connectorB: 'low-entropy-b',
+  samplesA: 20,
+  samplesB: 20
+} Iniciando comparación de schemas
+[schema-bridge] {
+  fieldsA: 3,
+  fieldsB: 3,
+  fingerprintA: 'c84a00032bdf5a75aa006680c622cfa2',
+  fingerprintB: 'c8919f735f74c31814f5f3b1e83bed2e'
+} Schemas inferred
+[schema-bridge] { totalDiffs: 5, renameCandidates: 1 } Diff complete
+[schema-bridge] {
+  pathA: 'record_id',
+  pathB: 'recordId',
+  confidence: 0.96,
+  decisionReason: 'deterministic:rename'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'note',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  pathA: null,
+  pathB: 'state',
+  confidence: 1,
+  decisionReason: 'deterministic:field_added'
+} Field mapping decision
+[schema-bridge] {
+  id: 'br_01KN7VTXNT5NW37W0P7NZJ1F9K',
+  durationMs: 0,
+  breaking: 2,
+  nonBreaking: 1,
+  coverage: 60
+} Comparison complete
+
+ ✓ tests/sql-adapter.test.ts  (8 tests) 1ms
+
+ Test Files  6 failed | 17 passed (23)
+      Tests  44 failed | 433 passed (477)
+   Start at  16:48:29
+   Duration  464ms (transform 135ms, setup 0ms, collect 222ms, tests 87ms, environment 0ms, prepare 30ms)
+

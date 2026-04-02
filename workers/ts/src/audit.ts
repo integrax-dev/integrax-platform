@@ -32,7 +32,7 @@ export async function createAuditLogger(): Promise<AuditLogger> {
     max: 10,
   });
 
-  // Ensure audit table exists
+  // Asegurar que la tabla de auditoría exista
   await pool.query(`
     CREATE TABLE IF NOT EXISTS audit_logs (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -92,7 +92,7 @@ export async function createAuditLogger(): Promise<AuditLogger> {
           error: error instanceof Error ? error.message : String(error),
           entry,
         }, 'Failed to write audit log');
-        // Don't throw - audit logging failure shouldn't break the main flow
+        // No relanzar — un fallo en el log de auditoría no debe romper el flujo principal
       }
     },
 
