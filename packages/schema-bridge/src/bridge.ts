@@ -297,21 +297,38 @@ export class SchemaBridge {
    * Seeds the internal Mapping Memory from a schema adapter.
    * Useful for training the engine with official specs (OpenAPI, SQL DDL, etc.)
    * before live traffic arrives.
+   * antes de que llegue el tráfico real.
    */
-  async seed(adapter: SchemaAdapter, connectorAId?: string, connectorBId?: string): Promise<number> {
+  async seed(
+    adapter: SchemaAdapter, 
+    connectorAId?: string, 
+    connectorBId?: string,
+    customMappings?: Record<string, string>
+  ): Promise<number> {
     const inferred = adapter.adapt();
     let count = 0;
 
     for (const field of inferred.fields) {
-      // In a seed, we record identity for the ontology entry
-      this.recordFeedback(
+      const targetPath = customMappings?.[field.path] ?? field.path;
+      // In a seed, we record identity or custom mapping as Ground Truth
+      this.memoryEntries = updateMemoryEntry(
+        this.memoryEntries,
         field.path,
-        field.path,
+        targetPath,
         true,
         1.0,
         connectorAId,
         connectorBId
       );
+      
+      // Mark precisely the last updated/created entry as Ground Truth
+      const lastEntry = this.memoryEntries.find(e => 
+        e.sourcePath === field.path && 
+        e.targetPath === targetPath && 
+        e.connectorAId === connectorAId && 
+        e.connectorBId === connectorBId
+      );
+      if (lastEntry) lastEntry.isGroundTruth = true;
       count++;
     }
 

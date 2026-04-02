@@ -30,6 +30,8 @@ export interface SchemaNode {
   evidence?: FieldEvidence;
   /** Human-readable description from spec (OpenAPI/SQL) */
   description?: string;
+  /** Identifica si el campo es Clave Primaria (SQL DDL) */
+  primaryKey?: boolean;
 }
 
 export interface SchemaField {
@@ -121,6 +123,11 @@ export interface MappingMemoryEntry {
    * Solo se incrementa en aceptaciones con evidenceBreakdown disponible.
    */
   channelHits?: Partial<Record<SignalChannel, number>>;
+  /** 
+   * Si es true, el motor ignora los umbrales mínimos de muestras/counts 
+   * para activar este mapping (autoridad absoluta del seed/Ground Truth).
+   */
+  isGroundTruth?: boolean;
 }
 
 // ─── Diff ────────────────────────────────────────────────────────────────────

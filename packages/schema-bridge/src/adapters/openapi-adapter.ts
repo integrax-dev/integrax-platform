@@ -40,7 +40,9 @@ export class OpenApiAdapter implements SchemaAdapter {
       .update(JSON.stringify(sortedForHash.map(f => ({ 
         path: f.path, 
         type: f.node.type, 
-        format: f.node.format 
+        format: f.node.format,
+        nullable: f.node.nullable,
+        required: f.required
       }))))
       .digest('hex')
       .slice(0, 32);

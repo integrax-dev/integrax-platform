@@ -86,6 +86,7 @@ function isVetoed(
   vetoRatio = REJECTION_VETO_RATIO,
   minSamples = REJECTION_MIN_SAMPLES,
 ): boolean {
+  if (entry.isGroundTruth) return false;
   const total = entry.acceptedCount + entry.rejectedCount;
   if (total < minSamples) return false;
   return entry.rejectedCount / total >= vetoRatio;
@@ -345,17 +346,16 @@ export function createMappingMemoryOntologyProvider(
       const directEntry = byPathPair.get(`${sourcePath}=>${targetPath}`);
       if (directEntry) {
         if (isVetoed(directEntry, vetoRatio, minSamples)) return null;
-        // Si hay menos feedbacks totales que el mínimo de activación, la señal es ruido.
+        // Si hay menos feedbacks totales que el mínimo de activación, la señal es ruido (excepto si es Ground Truth).
         const totalDirect = directEntry.acceptedCount + directEntry.rejectedCount;
-        if (totalDirect < minActivation) return null;
+        if (!directEntry.isGroundTruth && totalDirect < minActivation) return null;
         const rawScore = confidenceScore(directEntry, contaminationCap);
-        // Recortar a 0.82 si no hay suficiente feedback para autoridad de auto-accept.
-        // La Regla 0 requiere ontology ≥ 0.85 — por debajo del umbral la señal
-        // contribuye a otras reglas pero no puede auto-aceptar sola.
-        const score = directEntry.acceptedCount >= minFeedback ? rawScore : Math.min(rawScore, 0.82);
+        // Recortar a 0.82 si no hay suficiente feedback para autoridad de auto-accept (excepto Ground Truth).
+        const hasAuthority = directEntry.isGroundTruth || directEntry.acceptedCount >= minFeedback;
+        const score = hasAuthority ? (directEntry.isGroundTruth ? 1.0 : rawScore) : Math.min(rawScore, 0.82);
         return {
           score,
-          label: directEntry.acceptedCount >= minFeedback ? 'mapping_memory_path' : 'mapping_memory_path_provisional',
+          label: hasAuthority ? 'mapping_memory_path' : 'mapping_memory_path_provisional',
           reason: `Historical mapping memory for ${sourcePath} -> ${targetPath} (${directEntry.acceptedCount} accepted, ${directEntry.rejectedCount} rejected).`,
         };
       }
@@ -364,13 +364,14 @@ export function createMappingMemoryOntologyProvider(
       if (!leafEntry || isVetoed(leafEntry, vetoRatio, minSamples)) return null;
       // Mismo check de activación para leaf.
       const totalLeaf = leafEntry.acceptedCount + leafEntry.rejectedCount;
-      if (totalLeaf < minActivation) return null;
+      if (!leafEntry.isGroundTruth && totalLeaf < minActivation) return null;
 
       const rawLeafScore = Math.max(0.82, confidenceScore(leafEntry, contaminationCap) - 0.08);
-      const leafScore = leafEntry.acceptedCount >= minFeedback ? rawLeafScore : Math.min(rawLeafScore, 0.82);
+      const hasLeafAuthority = leafEntry.isGroundTruth || leafEntry.acceptedCount >= minFeedback;
+      const leafScore = hasLeafAuthority ? (leafEntry.isGroundTruth ? 1.0 : rawLeafScore) : Math.min(rawLeafScore, 0.82);
       return {
         score: leafScore,
-        label: leafEntry.acceptedCount >= minFeedback ? 'mapping_memory_leaf' : 'mapping_memory_leaf_provisional',
+        label: hasLeafAuthority ? 'mapping_memory_leaf' : 'mapping_memory_leaf_provisional',
         reason: `Historical leaf mapping memory for ${leaf(sourcePath)} -> ${leaf(targetPath)} (${leafEntry.acceptedCount} accepted).`,
       };
     },

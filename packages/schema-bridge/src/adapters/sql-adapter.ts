@@ -78,13 +78,26 @@ export class SqlDdlAdapter implements SchemaAdapter {
       fields.push({
         path: colNameLower,
         required: isNotNull,
-        node: { type, format, nullable: !isNotNull, examples: [] },
+        node: { 
+          type, 
+          format, 
+          nullable: !isNotNull, 
+          examples: [],
+          primaryKey: tablePkCols.has(colNameLower) || upper.includes('PRIMARY KEY')
+        },
       });
     }
 
     const sortedForHash = [...fields].sort((a, b) => a.path.localeCompare(b.path));
     const fp = createHash('md5')
-      .update(JSON.stringify(sortedForHash.map(f => ({ path: f.path, type: f.node.type, format: f.node.format, nullable: f.node.nullable }))))
+      .update(JSON.stringify(sortedForHash.map(f => ({ 
+        path: f.path, 
+        type: f.node.type, 
+        format: f.node.format, 
+        nullable: f.node.nullable,
+        required: f.required,
+        primaryKey: f.node.primaryKey
+      }))))
       .digest('hex')
       .slice(0, 32);
 
