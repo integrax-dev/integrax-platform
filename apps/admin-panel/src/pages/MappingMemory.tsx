@@ -100,10 +100,16 @@ export function MappingMemory() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1 className="page-title">Mapping Memory</h1>
-        <p className="page-subtitle">
-          Memoria acumulada de decisiones de operadores para pares de conectores
-        </p>
+        <div>
+          <h1 className="page-title">Mapping Memory</h1>
+          <p className="page-subtitle">
+            Memoria acumulada de decisiones de operadores para pares de conectores
+          </p>
+        </div>
+        <div className="action-buttons">
+          <a className="btn btn-secondary btn-sm" href="/incidents">Ir a Incidents</a>
+          <a className="btn btn-secondary btn-sm" href="/schema-diffs">Ir a Schema Diffs</a>
+        </div>
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}

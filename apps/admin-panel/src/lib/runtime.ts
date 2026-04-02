@@ -25,6 +25,11 @@ export function getAdminApiBaseUrl(): string {
   return (import.meta.env.VITE_ADMIN_API_BASE_URL ?? '').trim().replace(/\/$/, '');
 }
 
+export function getDefaultTenantId(): string | null {
+  const value = (import.meta.env.VITE_DEFAULT_TENANT_ID ?? '').trim();
+  return value || null;
+}
+
 export function buildAdminApiUrl(path: string): string {
   const base = getAdminApiBaseUrl();
   if (!base) return path;

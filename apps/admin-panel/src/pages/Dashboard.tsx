@@ -24,9 +24,15 @@ type DashboardData = {
     eventsToday: number;
     connectors: number;
     uptime: number;
+    openIncidents: number;
+    avgCoverage: number;
+    mappingFeedbackToday: number;
+    avgConfidence: number;
     tenantsChange: string;
     eventsChange: string;
     connectorsChange: string;
+    incidentsChange: string;
+    coverageChange: string;
   };
 };
 
@@ -55,9 +61,15 @@ const MOCK_DASHBOARD_DATA: DashboardData = {
     eventsToday: 12480,
     connectors: 17,
     uptime: 99.94,
+    openIncidents: 3,
+    avgCoverage: 87.5,
+    mappingFeedbackToday: 14,
+    avgConfidence: 0.92,
     tenantsChange: '+3 este mes',
     eventsChange: '+12% vs ayer',
     connectorsChange: '+2 este mes',
+    incidentsChange: '3 incidentes abiertos',
+    coverageChange: '14 decisiones en 24h',
   },
 };
 
@@ -144,6 +156,23 @@ export function Dashboard() {
           </div>
           <span className="stat-change neutral">Últimos 30 días</span>
         </div>
+        <div className="stat-card">
+          <div className="stat-icon orange">IN</div>
+          <div className="stat-content">
+            <span className="stat-value">{data.stats.openIncidents}</span>
+            <span className="stat-label">Incidentes Abiertos</span>
+          </div>
+          <span className="stat-change negative">{data.stats.incidentsChange}</span>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon green">CV</div>
+          <div className="stat-content">
+            <span className="stat-value">{data.stats.avgCoverage}%</span>
+            <span className="stat-label">Coverage Promedio</span>
+          </div>
+          <span className="stat-change positive">{data.stats.coverageChange}</span>
+        </div>
       </div>
 
       {/* Charts Row */}
@@ -200,6 +229,44 @@ export function Dashboard() {
               </BarChart>
             </ResponsiveContainer>
           </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <h3>Recorrido Demo</h3>
+          <span className="text-secondary">La historia recomendada para mostrar IntegraX en vivo</span>
+        </div>
+        <div className="connector-grid">
+          <a href="/incidents" className="connector-card" style={{ textDecoration: 'none', color: 'inherit' }}>
+            <div className="connector-header">
+              <div className="connector-icon">1</div>
+              <div className="connector-info">
+                <h4>Incidents</h4>
+                <p className="connector-description">Mostrar drift detectado, severidad y estado operativo.</p>
+              </div>
+            </div>
+          </a>
+
+          <a href="/schema-diffs" className="connector-card" style={{ textDecoration: 'none', color: 'inherit' }}>
+            <div className="connector-header">
+              <div className="connector-icon">2</div>
+              <div className="connector-info">
+                <h4>Schema Diffs</h4>
+                <p className="connector-description">Explicar cambios, coverage y mappings sugeridos.</p>
+              </div>
+            </div>
+          </a>
+
+          <a href="/mapping-memory" className="connector-card" style={{ textDecoration: 'none', color: 'inherit' }}>
+            <div className="connector-header">
+              <div className="connector-icon">3</div>
+              <div className="connector-info">
+                <h4>Mapping Memory</h4>
+                <p className="connector-description">Cerrar la historia con feedback persistido y memoria operativa.</p>
+              </div>
+            </div>
+          </a>
         </div>
       </div>
 

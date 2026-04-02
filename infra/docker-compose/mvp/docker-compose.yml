@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # ===========================================
   # Core Services
@@ -20,6 +18,8 @@ services:
       - ./02-schema-versioning.sql:/docker-entrypoint-initdb.d/02-schema-versioning.sql:ro
       - ./03-mapping-memory.sql:/docker-entrypoint-initdb.d/03-mapping-memory.sql:ro
       - ./04-tenants-connectors.sql:/docker-entrypoint-initdb.d/04-tenants-connectors.sql:ro
+      - ./04-drift-incidents.sql:/docker-entrypoint-initdb.d/05-drift-incidents.sql:ro
+      - ./05-learning-loop-events.sql:/docker-entrypoint-initdb.d/06-learning-loop-events.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U integrax"]
       interval: 10s
@@ -55,7 +55,7 @@ services:
       - N8N_HOST=localhost
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
-      - WEBHOOK_URL=http://localhost:5678/
+      - WEBHOOK_URL=http://localhost:${INTEGRAX_N8N_HOST_PORT:-5679}/
       - GENERIC_TIMEZONE=America/Argentina/Buenos_Aires
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres
@@ -68,7 +68,7 @@ services:
       - EXECUTIONS_DATA_SAVE_ON_SUCCESS=all
       - EXECUTIONS_DATA_SAVE_ON_ERROR=all
     ports:
-      - "5678:5678"
+      - "${INTEGRAX_N8N_HOST_PORT:-5679}:5678"
     volumes:
       - n8n_data:/home/node/.n8n
     depends_on:
@@ -142,7 +142,9 @@ services:
   loki:
     image: grafana/loki:latest
     container_name: integrax-loki
-    command: -config.file=/etc/loki/local-config.yaml
+    command:
+      - -config.file=/etc/loki/local-config.yaml
+      - -validation.allow-structured-metadata=false
     volumes:
       - ../../../infra/observability/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
       - loki_data:/loki

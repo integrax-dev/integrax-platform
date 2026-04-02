@@ -14,6 +14,57 @@
   margin-bottom: var(--spacing-xs);
 }
 
+.compact-stats-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.stat-surface {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.stat-surface strong {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.stat-kicker {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.event-detail-cell {
+  max-width: 320px;
+}
+
+.event-detail {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.ok-detail {
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+}
+
+.error-detail {
+  color: var(--color-error);
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.18);
+}
+
 /* Tenant Name Cell */
 .tenant-name {
   display: flex;

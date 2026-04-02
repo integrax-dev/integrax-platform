@@ -8,6 +8,7 @@ import { tenantsRouter } from './routes/tenants.js';
 import { connectorsRouter } from './routes/connectors.js';
 import { workflowsRouter } from './routes/workflows.js';
 import { schemasRouter } from './routes/schemas.js';
+import { incidentsRouter } from './routes/incidents.js';
 import { adminRouter } from './routes/admin.js';
 import { getAuditLogs } from './middleware/audit.js';
 import { requireAuth, requireRole } from './middleware/auth.js';
@@ -48,6 +49,24 @@ function parsePositiveInt(value: string | undefined, fallback: number): number {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
+function parseAllowedOrigins(): Set<string> {
+  return new Set(
+    (process.env.ALLOWED_ORIGINS ?? '')
+      .split(',')
+      .map(value => value.trim())
+      .filter(Boolean),
+  );
+}
+
+function isLoopbackOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    return url.hostname === '127.0.0.1' || url.hostname === 'localhost';
+  } catch {
+    return false;
+  }
+}
+
 if (!process.env.JWT_SECRET) {
   console.error('[Control Plane] FATAL: JWT_SECRET environment variable is not set');
   process.exit(1);
@@ -59,6 +78,25 @@ const logger = createLogger({ service: 'control-plane', version: '0.1.0' });
 // Middleware de seguridad
 app.use(helmet());
 app.use(express.json({ limit: '10mb' }));
+
+const allowedOrigins = parseAllowedOrigins();
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  if (origin && (allowedOrigins.has(origin) || process.env.NODE_ENV !== 'production' && isLoopbackOrigin(origin))) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Vary', 'Origin');
+    res.header('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Tenant-Id');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Credentials', 'true');
+  }
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+
+  next();
+});
 
 // Logging estructurado de requests (omite /health y /ready)
 app.use(requestLogger(logger));
@@ -93,6 +131,7 @@ app.use('/api/tenants', tenantsRouter);
 app.use('/api/connectors', connectorsRouter);
 app.use('/api/workflows', workflowsRouter);
 app.use('/api/schemas', schemasRouter);
+app.use('/api/incidents', incidentsRouter);
 
 // Endpoint de logs de auditoría
 app.get(

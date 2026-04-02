@@ -53,6 +53,9 @@ importers:
       tsx:
         specifier: ^4.6.2
         version: 4.21.0
+      ulid:
+        specifier: ^2.3.0
+        version: 2.4.0
       typescript:
         specifier: ^5.3.0
         version: 5.9.3
@@ -365,6 +368,9 @@ importers:
       '@activepieces/pieces-framework':
         specifier: '>=0.20.0'
         version: 0.26.0
+      '@integrax/connector-sdk':
+        specifier: workspace:*
+        version: link:../../connectors/sdk/typescript
       '@integrax/schema-bridge':
         specifier: workspace:*
         version: link:../schema-bridge
@@ -413,6 +419,25 @@ importers:
         specifier: ^1.6.1
         version: 1.6.1(@types/node@20.19.30)
 
+  services/contract-intelligence:
+    dependencies:
+      zod:
+        specifier: ^3.22.4
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^20.10.0
+        version: 20.19.30
+      tsx:
+        specifier: ^4.6.2
+        version: 4.21.0
+      typescript:
+        specifier: ^5.3.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.1
+        version: 1.6.1(@types/node@20.19.30)
+
   services/connector-watchdog:
     devDependencies:
       '@types/node':
@@ -433,15 +458,24 @@ importers:
       '@integrax/connector-learning':
         specifier: workspace:*
         version: link:../connector-learning
+      '@integrax/contract-intelligence':
+        specifier: workspace:*
+        version: link:../contract-intelligence
       '@integrax/connector-sdk':
         specifier: workspace:*
         version: link:../../connectors/sdk/typescript
+      '@integrax/drift-engine':
+        specifier: workspace:*
+        version: link:../drift-engine
       '@integrax/health':
         specifier: workspace:*
         version: link:../../packages/health
       '@integrax/integration-engine':
         specifier: workspace:*
         version: link:../../packages/integration-engine
+      '@integrax/learning-loop':
+        specifier: workspace:*
+        version: link:../learning-loop
       '@integrax/logger':
         specifier: workspace:*
         version: link:../../packages/logger
@@ -494,6 +528,25 @@ importers:
       '@types/nodemailer':
         specifier: ^6.4.14
         version: 6.4.21
+      typescript:
+        specifier: ^5.3.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.1
+        version: 1.6.1(@types/node@20.19.30)
+
+  services/drift-engine:
+    dependencies:
+      '@integrax/contract-intelligence':
+        specifier: workspace:*
+        version: link:../contract-intelligence
+    devDependencies:
+      '@types/node':
+        specifier: ^20.10.0
+        version: 20.19.30
+      tsx:
+        specifier: ^4.6.2
+        version: 4.21.0
       typescript:
         specifier: ^5.3.0
         version: 5.9.3
@@ -583,6 +636,25 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.0.0
+        version: 1.6.1(@types/node@20.19.30)
+
+  services/learning-loop:
+    dependencies:
+      '@integrax/contract-intelligence':
+        specifier: workspace:*
+        version: link:../contract-intelligence
+    devDependencies:
+      '@types/node':
+        specifier: ^20.10.0
+        version: 20.19.30
+      tsx:
+        specifier: ^4.6.2
+        version: 4.21.0
+      typescript:
+        specifier: ^5.3.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.1
         version: 1.6.1(@types/node@20.19.30)
 
   services/realtime:

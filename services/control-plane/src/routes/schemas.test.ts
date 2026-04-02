@@ -120,7 +120,7 @@ describe('schemas router', () => {
     });
 
     expect(response.status).toBe(500);
-    const payload = await response.json();
+    const payload: any = await response.json();
     expect(payload.success).toBe(false);
     expect(payload.error.code).toBe('WORKFLOW_START_FAILED');
   });
@@ -141,7 +141,7 @@ describe('schemas router', () => {
     });
 
     expect(response.status).toBe(503);
-    const payload = await response.json();
+    const payload: any = await response.json();
     expect(payload.error.code).toBe('TEMPORAL_UNAVAILABLE');
 
     process.env.TEMPORAL_ADDRESS = prev ?? 'localhost:7233';
@@ -159,7 +159,7 @@ describe('schemas router', () => {
     });
 
     const response = await fetch(`${baseUrl}/api/schemas/reports/br_01REPORT`);
-    const payload = await response.json();
+    const payload: any = await response.json();
 
     expect(response.status).toBe(200);
     expect(payload.success).toBe(true);
@@ -177,7 +177,7 @@ describe('schemas router', () => {
 
     const workflowId = 'schemaDiff-tenant-1-123';
     const response = await fetch(`${baseUrl}/api/schemas/status/${workflowId}`);
-    const payload = await response.json();
+    const payload: any = await response.json();
 
     expect(response.status).toBe(200);
     expect(payload.success).toBe(true);
@@ -191,7 +191,7 @@ describe('schemas router', () => {
   it('rechaza con 403 si el workflowId no pertenece al tenant autenticado', async () => {
     const workflowId = 'schemaDiff-otro-tenant-999';
     const response = await fetch(`${baseUrl}/api/schemas/status/${workflowId}`);
-    const payload = await response.json();
+    const payload: any = await response.json();
 
     expect(response.status).toBe(403);
     expect(payload.success).toBe(false);
@@ -212,7 +212,7 @@ describe('schemas router', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-    const payload = await response.json();
+    const payload: any = await response.json();
 
     expect(response.status).toBe(202);
     expect(payload.success).toBe(true);
@@ -222,9 +222,12 @@ describe('schemas router', () => {
 
   it('POST /reports/:id/feedback guarda el feedback y devuelve 200', async () => {
     // Primera query: resolver el reporte
-    queryMock.mockResolvedValueOnce({
-      rows: [{ source_connector_id: 'mercadopago', target_connector_id: 'contabilium' }],
-    });
+    queryMock
+      .mockResolvedValueOnce({
+        rows: [{ source_connector_id: 'mercadopago', target_connector_id: 'contabilium' }],
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
 
     const { upsertEntry } = await import('../store/mapping-memory-repository.js');
 
@@ -238,11 +241,12 @@ describe('schemas router', () => {
         confidence: 0.88,
       }),
     });
-    const payload = await response.json();
+    const payload: any = await response.json();
 
     expect(response.status).toBe(200);
     expect(payload.success).toBe(true);
     expect(payload.data.accepted).toBe(true);
+    expect(payload.data.feedbackRecorded).toBe(true);
     expect(upsertEntry).toHaveBeenCalledWith(
       'tenant-1',
       'mercadopago',
@@ -251,6 +255,34 @@ describe('schemas router', () => {
       'monto_total',
       true,
       0.88,
+      undefined,
+    );
+    expect(queryMock).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('INSERT INTO mapping_feedback_events'),
+      expect.arrayContaining([
+        'tenant-1',
+        'br_01',
+        'mercadopago',
+        'contabilium',
+        'total',
+        'monto_total',
+        true,
+        0.88,
+        'user-1',
+      ]),
+    );
+    expect(queryMock).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining('INSERT INTO confidence_events'),
+      expect.arrayContaining([
+        'tenant-1',
+        'mapping',
+        'mercadopago:contabilium:total:monto_total',
+        0.88,
+        0.93,
+        'operator_accepted_mapping',
+      ]),
     );
   });
 
@@ -275,7 +307,7 @@ describe('schemas router', () => {
     const response = await fetch(
       `${baseUrl}/api/schemas/memory?connectorAId=mercadopago&connectorBId=contabilium`,
     );
-    const payload = await response.json();
+    const payload: any = await response.json();
 
     expect(response.status).toBe(200);
     expect(payload.success).toBe(true);

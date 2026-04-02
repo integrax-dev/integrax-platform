@@ -16,8 +16,10 @@ export { app } from './server.js';
 // Rutas
 export { tenantsRouter } from './routes/tenants.js';
 export { getTenant, saveTenant, listTenants } from './store/tenants.js';
-export { connectorsRouter, CONNECTOR_CATALOG } from './routes/connectors.js';
+export { connectorsRouter } from './routes/connectors.js';
+export { CONNECTOR_CATALOG, getConnectorDefinition, listConnectorCatalog } from './registry/connector-catalog.js';
 export { workflowsRouter } from './routes/workflows.js';
+export { incidentsRouter } from './routes/incidents.js';
 
 // Middleware
 export { requireAuth, requireRole, requireTenant, generateToken, verifyWebhookSignature } from './middleware/auth.js';

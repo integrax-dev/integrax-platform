@@ -13,7 +13,9 @@ import type { Request, Response, NextFunction } from 'express';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-const getTenantMock = vi.fn();
+const { getTenantMock } = vi.hoisted(() => ({
+  getTenantMock: vi.fn(),
+}));
 
 vi.mock('../store/tenants.js', () => ({
   getTenant: getTenantMock,
@@ -45,7 +47,7 @@ function makeRes(): { res: Response; status: ReturnType<typeof vi.fn>; json: Ret
   return { res: { status } as unknown as Response, status, json };
 }
 
-const next: NextFunction = vi.fn();
+const next = vi.fn() as unknown as NextFunction;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -59,7 +61,7 @@ describe('requireAuth — Bearer JWT', () => {
     const req = makeReq();
     const { res, status } = makeRes();
 
-    await requireAuth(req, res, next as NextFunction);
+    await requireAuth(req, res, next);
 
     expect(status).toHaveBeenCalledWith(401);
     expect(next).not.toHaveBeenCalled();
@@ -69,7 +71,7 @@ describe('requireAuth — Bearer JWT', () => {
     const req = makeReq({ headers: { authorization: 'Bearer invalid.token.here' } });
     const { res, status, json } = makeRes();
 
-    await requireAuth(req, res, next as NextFunction);
+    await requireAuth(req, res, next);
 
     expect(status).toHaveBeenCalledWith(401);
     const body = json.mock.calls[0][0];
@@ -84,7 +86,7 @@ describe('requireAuth — API Key', () => {
     const req = makeReq({ headers: { authorization: 'ApiKey ixk_somekey' } });
     const { res, status, json } = makeRes();
 
-    await requireAuth(req, res, next as NextFunction);
+    await requireAuth(req, res, next);
 
     expect(status).toHaveBeenCalledWith(400);
     const body = json.mock.calls[0][0];
@@ -100,7 +102,7 @@ describe('requireAuth — API Key', () => {
     });
     const { res, status, json } = makeRes();
 
-    await requireAuth(req, res, next as NextFunction);
+    await requireAuth(req, res, next);
 
     expect(status).toHaveBeenCalledWith(401);
     const body = json.mock.calls[0][0];
@@ -118,7 +120,7 @@ describe('requireAuth — API Key', () => {
     });
     const { res, status, json } = makeRes();
 
-    await requireAuth(req, res, next as NextFunction);
+    await requireAuth(req, res, next);
 
     expect(status).toHaveBeenCalledWith(401);
     const body = json.mock.calls[0][0];
@@ -136,7 +138,7 @@ describe('requireAuth — API Key', () => {
     });
     const { res, status, json } = makeRes();
 
-    await requireAuth(req, res, next as NextFunction);
+    await requireAuth(req, res, next);
 
     expect(status).toHaveBeenCalledWith(403);
     const body = json.mock.calls[0][0];
@@ -155,7 +157,7 @@ describe('requireAuth — API Key', () => {
     });
     const { res, status, json } = makeRes();
 
-    await requireAuth(req, res, next as NextFunction);
+    await requireAuth(req, res, next);
 
     expect(status).toHaveBeenCalledWith(401);
     const body = json.mock.calls[0][0];
@@ -189,7 +191,7 @@ describe('requireTenant', () => {
     const req = makeReq({ tenantId: 'tenant-1' } as Partial<Request>);
     const { res } = makeRes();
 
-    requireTenant(req, res, next as NextFunction);
+    requireTenant(req, res, next);
 
     expect(next).toHaveBeenCalled();
   });
@@ -198,7 +200,7 @@ describe('requireTenant', () => {
     const req = makeReq({ user: { id: 'u1', email: 'a@b.com', role: 'operator', tenantId: null } });
     const { res, status } = makeRes();
 
-    requireTenant(req, res, next as NextFunction);
+    requireTenant(req, res, next);
 
     expect(status).toHaveBeenCalledWith(400);
     expect(next).not.toHaveBeenCalled();
@@ -211,7 +213,7 @@ describe('requireTenant', () => {
     });
     const { res, status, json } = makeRes();
 
-    requireTenant(req, res, next as NextFunction);
+    requireTenant(req, res, next);
 
     expect(status).toHaveBeenCalledWith(403);
     const body = json.mock.calls[0][0];
@@ -225,7 +227,7 @@ describe('requireTenant', () => {
     });
     const { res } = makeRes();
 
-    requireTenant(req, res, next as NextFunction);
+    requireTenant(req, res, next);
 
     expect(next).toHaveBeenCalled();
     expect(req.tenantId).toBe('tenant-ajeno');
@@ -237,7 +239,7 @@ describe('requireTenant', () => {
     });
     const { res } = makeRes();
 
-    requireTenant(req, res, next as NextFunction);
+    requireTenant(req, res, next);
 
     expect(next).toHaveBeenCalled();
     expect(req.tenantId).toBe('tenant-del-token');

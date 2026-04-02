@@ -1,15 +1,15 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { fetchAdminJson, setTokenGetter } from '../lib/adminApi';
-import { allowDemoFallbacks, appEnv } from '../lib/runtime';
+import { fetchAdminJson, setTenantGetter, setTokenGetter } from '../lib/adminApi';
+import { allowDemoFallbacks, appEnv, getDefaultTenantId } from '../lib/runtime';
 
 interface User {
   id: string;
   email: string;
   name: string;
   role: 'platform_admin' | 'tenant_admin' | 'operator' | 'viewer';
-  tenantId?: string;
+  tenantId?: string | null;
 }
 
 interface AuthState {
@@ -37,6 +37,7 @@ export const useAuthStore = create<AuthState>()(
           });
           set({ user: data.user, token: data.token, isAuthenticated: true });
           setTokenGetter(() => useAuthStore.getState().token);
+          setTenantGetter(() => useAuthStore.getState().user?.tenantId ?? getDefaultTenantId());
         } catch {
           if (!email || !password) {
             set({ user: null, token: null, isAuthenticated: false });
@@ -54,11 +55,14 @@ export const useAuthStore = create<AuthState>()(
             token: 'demo-token',
             isAuthenticated: true,
           });
+          setTokenGetter(() => useAuthStore.getState().token);
+          setTenantGetter(() => useAuthStore.getState().user?.tenantId ?? getDefaultTenantId());
         }
       },
 
       logout: () => {
         setTokenGetter(() => null);
+        setTenantGetter(() => getDefaultTenantId());
         set({
           user: null,
           token: null,
@@ -74,6 +78,7 @@ export const useAuthStore = create<AuthState>()(
           // continue to send Authorization headers without re-logging in.
           setTokenGetter(() => useAuthStore.getState().token);
         }
+        setTenantGetter(() => useAuthStore.getState().user?.tenantId ?? getDefaultTenantId());
       },
     }
   )

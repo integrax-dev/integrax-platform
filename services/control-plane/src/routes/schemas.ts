@@ -9,6 +9,12 @@ import { pool } from '../store/db.js';
 import { loadMappingMemory, upsertEntry } from '../store/mapping-memory-repository.js';
 import { rateLimit } from '../middleware/rate-limit.js';
 import { createLogger } from '@integrax/logger';
+import {
+  createConfidenceEvent,
+  createMappingFeedbackEvent,
+  recordConfidenceEvent,
+  recordMappingFeedbackEvent,
+} from '../../../learning-loop/dist/index.js';
 
 const router: Router = Router();
 const logger = createLogger({ service: 'control-plane:schemas', version: '0.1.0' });
@@ -315,6 +321,37 @@ router.post(
         breakdown as import('@integrax/schema-bridge').SimilarityEvidenceBreakdown | undefined,
       );
 
+      const feedbackEvent = createMappingFeedbackEvent({
+        tenantId,
+        reportId,
+        sourceConnectorId: source_connector_id,
+        targetConnectorId: target_connector_id,
+        sourcePath,
+        targetPath,
+        accepted,
+        confidenceAtDecision: confidence,
+        operatorUserId: req.user?.id,
+      });
+
+      await recordMappingFeedbackEvent(pool, {
+        id: ulid(),
+        ...feedbackEvent,
+      });
+
+      const confidenceEvent = createConfidenceEvent({
+        tenantId,
+        entityType: 'mapping',
+        entityId: `${source_connector_id}:${target_connector_id}:${sourcePath}:${targetPath}`,
+        fromConfidence: confidence,
+        toConfidence: accepted ? Math.min(1, confidence + 0.05) : Math.max(0, confidence - 0.1),
+        reason: accepted ? 'operator_accepted_mapping' : 'operator_rejected_mapping',
+      });
+
+      await recordConfidenceEvent(pool, {
+        id: ulid(),
+        ...confidenceEvent,
+      });
+
       res.json({
         success: true,
         data: {
@@ -326,6 +363,7 @@ router.post(
           breakdown,
           connectorAId: source_connector_id,
           connectorBId: target_connector_id,
+          feedbackRecorded: true,
         },
       });
     } catch (error) {

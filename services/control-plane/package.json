@@ -13,11 +13,14 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@integrax/contract-intelligence": "workspace:*",
     "@integrax/connector-sdk": "workspace:*",
     "@integrax/integration-engine": "workspace:*",
+    "@integrax/drift-engine": "workspace:*",
     "@integrax/schema-bridge": "workspace:*",
     "@integrax/connector-learning": "workspace:*",
     "@integrax/health": "workspace:*",
+    "@integrax/learning-loop": "workspace:*",
     "@integrax/logger": "workspace:*",
     "@integrax/metrics": "workspace:*",
     "@integrax/temporal-workflows": "workspace:*",

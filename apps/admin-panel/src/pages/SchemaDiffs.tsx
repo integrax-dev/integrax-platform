@@ -209,8 +209,14 @@ export function SchemaDiffs() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1 className="page-title">Schema Diffs</h1>
-        <p className="page-subtitle">Reportes de comparación entre esquemas de conectores</p>
+        <div>
+          <h1 className="page-title">Schema Diffs</h1>
+          <p className="page-subtitle">Reportes de comparación entre esquemas de conectores</p>
+        </div>
+        <div className="action-buttons">
+          <a className="btn btn-secondary btn-sm" href="/incidents">Volver a Incidents</a>
+          <a className="btn btn-secondary btn-sm" href="/mapping-memory">Abrir Mapping Memory</a>
+        </div>
       </div>
 
       {error && (

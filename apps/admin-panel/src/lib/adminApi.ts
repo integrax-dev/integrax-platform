@@ -7,14 +7,23 @@ function isLikelyHtml(payload: string): boolean {
 
 // Token getter injected by the auth store to avoid circular imports.
 let _getToken: (() => string | null) | null = null;
+let _getTenantId: (() => string | null) | null = null;
 
 export function setTokenGetter(getter: () => string | null): void {
   _getToken = getter;
 }
 
+export function setTenantGetter(getter: () => string | null): void {
+  _getTenantId = getter;
+}
+
 export async function fetchAdminJson<T>(path: string, init?: RequestInit): Promise<T> {
   const token = _getToken?.();
-  const authHeader: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+  const tenantId = _getTenantId?.();
+  const authHeader: HeadersInit = {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(tenantId ? { 'X-Tenant-Id': tenantId } : {}),
+  };
 
   const response = await fetch(buildAdminApiUrl(path), {
     ...init,
