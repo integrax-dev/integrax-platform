@@ -21,3 +21,9 @@ export * from './idempotency.js';
 
 // Observability
 export * from './observability.js';
+
+// Validation & Schema Diff Trigger
+export * from './validation.js';
+
+// Schema guard wrapper
+export * from './schema-guard.js';

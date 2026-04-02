@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@integrax/logger": "workspace:*",
+    "@integrax/temporal-workflows": "workspace:*",
     "@temporalio/client": "^1.9.0",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
