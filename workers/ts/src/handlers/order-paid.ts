@@ -6,7 +6,7 @@ import { GoogleSheetsConnector } from '@integrax/connector-google-sheets';
 
 const logger = createLogger('handler:order-paid');
 
-// Placeholder for credential management - in production use Vault/secrets manager
+// Placeholder para gestión de credenciales — en producción usar Vault/secrets manager
 const getCredentials = async (tenantId: string, connectorId: string) => {
   // TODO: Implement proper secret management
   return {
@@ -75,13 +75,13 @@ export async function processOrderPaid(
     }
   }
 
-  // 2. Here you would trigger the next step in the workflow:
-  // - Create customer in ERP
-  // - Create invoice draft
-  // - Request CAE from AFIP (if applicable)
-  // - Send notifications
+  // 2. Acá se dispararía el siguiente paso del workflow:
+  // - Crear cliente en el ERP
+  // - Crear borrador de factura
+  // - Solicitar CAE a AFIP (si corresponde)
+  // - Enviar notificaciones
   //
-  // For MVP, we just log and return success
+  // Para MVP, solo logueamos y devolvemos éxito
 
   logger.info({
     orderId: orderPayload.order_id,

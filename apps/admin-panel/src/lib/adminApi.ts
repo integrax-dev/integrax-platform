@@ -5,8 +5,26 @@ function isLikelyHtml(payload: string): boolean {
   return value.startsWith('<!doctype html') || value.startsWith('<html') || value.startsWith('<');
 }
 
+// Token getter injected by the auth store to avoid circular imports.
+let _getToken: (() => string | null) | null = null;
+
+export function setTokenGetter(getter: () => string | null): void {
+  _getToken = getter;
+}
+
 export async function fetchAdminJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(buildAdminApiUrl(path), init);
+  const token = _getToken?.();
+  const authHeader: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+
+  const response = await fetch(buildAdminApiUrl(path), {
+    ...init,
+    headers: { ...authHeader, ...(init?.headers ?? {}) },
+  });
+
+  if (response.status === 401) {
+    window.location.href = '/login';
+    throw new Error('HTTP_401');
+  }
 
   if (!response.ok) {
     throw new Error(`HTTP_${response.status}`);

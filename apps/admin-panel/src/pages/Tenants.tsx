@@ -24,6 +24,11 @@ export function Tenants() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string|null>(null);
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newOwnerName, setNewOwnerName] = useState('');
+  const [newPlan, setNewPlan] = useState('starter');
 
   useEffect(() => {
     let cancelled = false;
@@ -55,6 +60,31 @@ export function Tenants() {
       cancelled = true;
     };
   }, []);
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newName || !newEmail) return;
+    setCreating(true);
+    try {
+      await fetchAdminJson('/api/tenants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName, ownerEmail: newEmail, ownerName: newOwnerName || newName, plan: newPlan }),
+      });
+      setShowModal(false);
+      setNewName('');
+      setNewEmail('');
+      setNewOwnerName('');
+      setNewPlan('starter');
+      // Reload list
+      const data = await fetchAdminJson<{ tenants: Tenant[] }>('/api/admin/tenants');
+      setTenants(data.tenants || []);
+    } catch {
+      // Keep modal open on error so the user can retry
+    } finally {
+      setCreating(false);
+    }
+  };
 
   return (
     <div className="page">
@@ -129,18 +159,41 @@ export function Tenants() {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>Nuevo Tenant</h2>
-            <form className="modal-form">
+            <form className="modal-form" onSubmit={handleCreate}>
               <div className="form-group">
                 <label className="label">Nombre</label>
-                <input className="input" placeholder="Nombre del tenant" />
+                <input
+                  className="input"
+                  placeholder="Nombre del tenant"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="label">Nombre del Owner</label>
+                <input
+                  className="input"
+                  placeholder="Nombre completo"
+                  value={newOwnerName}
+                  onChange={(e) => setNewOwnerName(e.target.value)}
+                  required
+                />
               </div>
               <div className="form-group">
                 <label className="label">Email del Owner</label>
-                <input className="input" type="email" placeholder="admin@empresa.com" />
+                <input
+                  className="input"
+                  type="email"
+                  placeholder="admin@empresa.com"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  required
+                />
               </div>
               <div className="form-group">
                 <label className="label">Plan</label>
-                <select className="input">
+                <select className="input" value={newPlan} onChange={(e) => setNewPlan(e.target.value)}>
                   <option value="free">Free</option>
                   <option value="starter">Starter</option>
                   <option value="professional">Professional</option>
@@ -151,8 +204,8 @@ export function Tenants() {
                 <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
                   Cancelar
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  Crear Tenant
+                <button type="submit" className="btn btn-primary" disabled={creating}>
+                  {creating ? 'Creando...' : 'Crear Tenant'}
                 </button>
               </div>
             </form>
