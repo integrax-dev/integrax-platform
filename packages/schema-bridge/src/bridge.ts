@@ -1,14 +1,14 @@
 /**
- * SchemaBridge — Facade principal
+ * SchemaBridge — Main facade
  *
- * Orquesta el pipeline completo:
- *   1. Inferir esquemas de las muestras
- *   2. Diff estructural
- *   3. Detección de renombrados (similitud)
- *   4. Resolución de conflictos (determinístico → heurístico → LLM)
- *   5. Generación de mappings y código TypeScript
- *   6. Reporte de requerimientos funcionales
- *   7. Notificación a clientes (fire-and-forget)
+ * Orchestrates the full pipeline:
+ *   1. Infer schemas from data samples
+ *   2. Structural diff
+ *   3. Rename detection (similarity)
+ *   4. Conflict resolution (deterministic → heuristic → LLM)
+ *   5. Mapping and TypeScript code generation
+ *   6. Functional requirements report
+ *   7. Client notification (fire-and-forget)
  */
 
 import { ulid } from 'ulid';
@@ -85,10 +85,10 @@ export class SchemaBridge {
   }
 
   /**
-   * Punto de entrada principal. Compara dos sistemas y devuelve el BridgeReport completo.
+   * Main entry point. Compares two systems and returns the full BridgeReport.
    *
-   * La mayor parte del trabajo es determinística y O(n*m) donde n=muestras, m=campos.
-   * Solo los casos 'ambiguous' escalados al LLM consumen tokens.
+   * Most work is deterministic O(n*m) where n=samples, m=fields.
+   * Only 'ambiguous' conflicts escalated to LLM consume tokens.
    */
   async compare(request: CompareSchemasRequest): Promise<BridgeReport> {
     const id = `br_${ulid()}`;
@@ -116,15 +116,15 @@ export class SchemaBridge {
       fieldsB: schemaB.fields.length,
       fingerprintA: schemaA.fingerprint,
       fingerprintB: schemaB.fingerprint,
-    }, 'Schemas inferidos');
+    }, 'Schemas inferred');
 
-    // Optimización: si los fingerprints son idénticos → sin diferencias
+    // Early exit: identical fingerprints mean no differences
     if (schemaA.fingerprint === schemaB.fingerprint) {
-      this.logger.info({ id }, 'Fingerprints idénticos — sin diferencias');
+      this.logger.info({ id }, 'Identical fingerprints — no differences');
       return this.buildEmptyReport(id, request, schemaA, schemaB);
     }
 
-    // ── 2. Diff estructural ────────────────────────────────────────────────────
+    // ── 2. Structural diff ────────────────────────────────────────────────────
     const rawDiffs = this.differ.diff(schemaA, schemaB);
 
     // ── 3. Detectar renombrados ────────────────────────────────────────────────
@@ -165,13 +165,13 @@ export class SchemaBridge {
       removed, added, options.renameSimilarityThreshold,
     );
 
-    // Reemplazar los field_removed/field_added que forman un par rename
+    // Replace paired field_removed/field_added entries with rename_candidate
     const mergedDiffs = this.mergeRenames(rawDiffs, renameCandidates);
 
     this.logger.info({
       totalDiffs: mergedDiffs.length,
       renameCandidates: renameCandidates.length,
-    }, 'Diff completado');
+    }, 'Diff complete');
 
     // ── 4. Resolver conflictos ─────────────────────────────────────────────────
     let resolvedConflicts = this.resolver.resolveAll(mergedDiffs, options);
@@ -193,7 +193,7 @@ export class SchemaBridge {
     const orphanAdded = added.filter(d => d.pathB && !renamedBPaths.has(d.pathB));
     const compositeMappings = detectCompositeMappings(orphanRemoved, orphanAdded);
 
-    // ── 5. Generar mappings y código TypeScript ────────────────────────────────
+    // ── 5. Mapping and TypeScript generation ──────────────────────────────────
     const mappings = this.mapper.generate(resolvedConflicts);
 
     for (const m of mappings) {
@@ -211,7 +211,7 @@ export class SchemaBridge {
       mappings, request.connectorAId, request.connectorBId,
     );
 
-    // ── 6. Reporte de requerimientos ──────────────────────────────────────────
+    // ── 6. Requirements report ────────────────────────────────────────────────
     const requirementsReport = this.reporter.buildReport(resolvedConflicts, mappings);
 
     // ── 6b. Drift detection ───────────────────────────────────────────────────
@@ -250,11 +250,11 @@ export class SchemaBridge {
       breaking: requirementsReport.summary.breakingCount,
       nonBreaking: requirementsReport.summary.nonBreakingCount,
       coverage: requirementsReport.summary.coveragePercent,
-    }, 'Comparación completada');
+    }, 'Comparison complete');
 
-    // ── 7. Notificar clientes (fire-and-forget) ────────────────────────────────
+    // ── 7. Notify clients (fire-and-forget) ───────────────────────────────────
     this.updater.notifySchemaChange(report).catch(err =>
-      this.logger.warn({ err }, 'Error en notificación de clientes (no fatal)')
+      this.logger.warn({ err }, 'Client notification failed (non-fatal)')
     );
 
     return report;
@@ -293,7 +293,7 @@ export class SchemaBridge {
     );
   }
 
-  // ─── Helpers privados ─────────────────────────────────────────────────────
+  // ─── Private helpers ──────────────────────────────────────────────────────
 
   private mergeRenames(diffs: FieldDiff[], candidates: FieldDiff[]): FieldDiff[] {
     if (candidates.length === 0) return diffs;
@@ -307,7 +307,7 @@ export class SchemaBridge {
       return true;
     });
 
-    // Insertar candidates en orden de breakingScore
+    // Re-insert candidates sorted by breakingScore
     return [...filtered, ...candidates].sort((a, b) => b.breakingScore - a.breakingScore);
   }
 

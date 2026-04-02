@@ -35,8 +35,8 @@ vi.mock('../middleware/auth.js', () => ({
         viewer: 3,
       };
       const userPriority = rolePriority[req.user?.role ?? 'viewer'] ?? 99;
-      const minRequired = Math.min(...allowedRoles.map(r => rolePriority[r] ?? 99));
-      if (userPriority <= minRequired) return next();
+      const maxAllowed = Math.max(...allowedRoles.map(r => rolePriority[r] ?? -1));
+      if (userPriority <= maxAllowed) return next();
       return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Insufficient role' } });
     },
   requireTenant: (req: express.Request, _res: express.Response, next: express.NextFunction) => {

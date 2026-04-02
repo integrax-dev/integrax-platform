@@ -13,7 +13,7 @@ import type { Request, Response, NextFunction } from 'express';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-const getTenantMock = vi.fn();
+const { getTenantMock } = vi.hoisted(() => ({ getTenantMock: vi.fn() }));
 
 vi.mock('../store/tenants.js', () => ({
   getTenant: getTenantMock,

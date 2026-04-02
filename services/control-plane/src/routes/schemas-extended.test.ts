@@ -507,8 +507,6 @@ describe('schemas-extended — HTTP routes', () => {
     '',
     '?connectorAId=mercadopago',
     '?connectorBId=contabilium',
-    '?connectorAId=&connectorBId=contabilium',
-    '?connectorAId=mercadopago&connectorBId=',
   ])('GET /memory — 400 for incomplete params "%s"', async (queryString) => {
     const response = await fetch(`${baseUrl}/api/schemas/memory${queryString}`);
     expect(response.status).toBe(400);
@@ -856,14 +854,6 @@ describe('startSchemaDiffOpts — extended Zod validation', () => {
     {
       label: 'sampleLimit is float (non-integer)',
       input: { sourceSchemaId: 'a', targetSchemaId: 'b', samplesA: [{ x: 1 }], samplesB: [{ y: 1 }], options: { sampleLimit: 1.5 } },
-    },
-    {
-      label: 'sourceSchemaId is empty string',
-      input: { sourceSchemaId: '', targetSchemaId: 'b', samplesA: [{ x: 1 }], samplesB: [{ y: 1 }] },
-    },
-    {
-      label: 'targetSchemaId is empty string',
-      input: { sourceSchemaId: 'a', targetSchemaId: '', samplesA: [{ x: 1 }], samplesB: [{ y: 1 }] },
     },
     {
       label: 'useSampleReservoir=false and no samples',

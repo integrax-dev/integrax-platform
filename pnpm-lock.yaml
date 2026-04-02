@@ -337,9 +337,12 @@ importers:
 
   packages/schema-bridge:
     dependencies:
+<<<<<<< Updated upstream
       '@anthropic-ai/sdk':
         specifier: ^0.32.0
         version: 0.32.1
+=======
+>>>>>>> Stashed changes
       '@integrax/logger':
         specifier: workspace:*
         version: link:../logger
@@ -350,6 +353,7 @@ importers:
         specifier: ^3.22.0
         version: 3.25.76
     devDependencies:
+<<<<<<< Updated upstream
       '@types/node':
         specifier: ^20.10.0
         version: 20.19.35
@@ -369,6 +373,11 @@ importers:
         specifier: workspace:*
         version: link:../schema-bridge
     devDependencies:
+=======
+      '@anthropic-ai/sdk':
+        specifier: ^0.32.0
+        version: 0.32.1
+>>>>>>> Stashed changes
       '@types/node':
         specifier: ^20.10.0
         version: 20.19.35

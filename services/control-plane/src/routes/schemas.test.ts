@@ -251,6 +251,7 @@ describe('schemas router', () => {
       'monto_total',
       true,
       0.88,
+      undefined,
     );
   });
 
