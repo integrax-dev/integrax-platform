@@ -36,8 +36,11 @@ export {
   MIN_HITS_FOR_CHANNEL_WEIGHTS,
   DECAY_HALF_LIFE_DAYS,
 } from './mapping-memory-provider.js';
+export { detectCompositeMappings } from './composite-mapper.js';
+export { detectDrift } from './drift-detector.js';
 export { SqlDdlAdapter } from './adapters/sql-adapter.js';
 export type { SchemaAdapter } from './adapters/sql-adapter.js';
+export { AvroSchemaAdapter, createAvroSchemaAdapter } from './adapters/avro-adapter.js';
 export { SchemaInferrer, createSchemaInferrer } from './schema-inferrer.js';
 export { SchemaDiffer, createSchemaDiffer } from './schema-differ.js';
 export { SimilarityEngine, createSimilarityEngine, normalizeName } from './similarity-engine.js';
@@ -102,6 +105,9 @@ export type {
   MatchExplanation,
   SignalChannel,
   ChannelMultipliers,
+  CompositeMapping,
+  CompositeMappingKind,
+  DriftDetail,
 } from './types.js';
 
 export { CompareSchemasRequestSchema, CompareOptionsSchema } from './types.js';

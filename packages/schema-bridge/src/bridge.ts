@@ -28,6 +28,8 @@ import { ChangeReporter } from './change-reporter.js';
 import { ClientUpdater } from './client-updater.js';
 import { createMappingMemoryOntologyProvider, updateMemoryEntry, computeSignalWeights } from './mapping-memory-provider.js';
 import { runLlmEscalations } from './llm-escalation.js';
+import { detectCompositeMappings } from './composite-mapper.js';
+import { detectDrift } from './drift-detector.js';
 import type { OntologyProvider } from './types.js';
 
 export class SchemaBridge {
@@ -184,6 +186,13 @@ export class SchemaBridge {
       );
     }
 
+    // ── 4c. Mappings compuestos — split / merge sobre huérfanos restantes ────────
+    const renamedAPaths = new Set(renameCandidates.map(c => c.pathA!).filter(Boolean));
+    const renamedBPaths = new Set(renameCandidates.map(c => c.pathB!).filter(Boolean));
+    const orphanRemoved = removed.filter(d => d.pathA && !renamedAPaths.has(d.pathA));
+    const orphanAdded = added.filter(d => d.pathB && !renamedBPaths.has(d.pathB));
+    const compositeMappings = detectCompositeMappings(orphanRemoved, orphanAdded);
+
     // ── 5. Generar mappings y código TypeScript ────────────────────────────────
     const mappings = this.mapper.generate(resolvedConflicts);
 
@@ -205,6 +214,19 @@ export class SchemaBridge {
     // ── 6. Reporte de requerimientos ──────────────────────────────────────────
     const requirementsReport = this.reporter.buildReport(resolvedConflicts, mappings);
 
+    // ── 6b. Drift detection ───────────────────────────────────────────────────
+    const typeChangedPaths = mergedDiffs
+      .filter(d => d.kind === 'type_changed')
+      .map(d => d.pathA ?? d.pathB ?? '')
+      .filter(Boolean);
+    const driftDetail = detectDrift(
+      mappings,
+      scopedMemory,
+      orphanRemoved.length,
+      orphanAdded.length,
+      typeChangedPaths,
+    );
+
     const report: BridgeReport = {
       id,
       tenantId: request.tenantId,
@@ -215,8 +237,10 @@ export class SchemaBridge {
       diffs: mergedDiffs,
       mappings,
       resolvedConflicts,
+      ...(compositeMappings.length > 0 ? { compositeMappings } : {}),
       requirementsReport,
       generatedTransformTs,
+      ...(driftDetail ? { driftDetected: true, driftDetail } : {}),
       generatedAt: new Date().toISOString(),
     };
 

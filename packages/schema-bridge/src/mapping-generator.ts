@@ -105,6 +105,22 @@ export class MappingGenerator {
           case 'constant':
             valueExpr = JSON.stringify(transform.constant ?? null);
             break;
+          case 'split': {
+            // split: un campo fuente → N destinos. La función generada asigna null
+            // a cada destino; el operador implementa la lógica real.
+            // Solo se emite para el primer destino del toPaths — los restantes
+            // se manejan via compositeMappings en el report.
+            valueExpr = `null /* split de ${pathA} — implementar lógica de split */`;
+            break;
+          }
+          case 'merge': {
+            // merge: N fuentes → 1 destino. Se emite un objeto con los campos fuente.
+            const fromParts = (transform.fromPaths ?? [pathA]).map(
+              p => `'${p.split('.').pop()}': ${safeAccess(p)}`,
+            ).join(', ');
+            valueExpr = `{ ${fromParts} } /* merge → implementar lógica de combinación */`;
+            break;
+          }
           default:
             throw new Error(`Unhandled transform kind: '${(transform as { kind: string }).kind}'`);
         }

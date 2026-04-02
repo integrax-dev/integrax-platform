@@ -239,6 +239,24 @@ export interface TransformSpec {
   /** Valor constante para campos nuevos sin contraparte */
   constant?: unknown;
   description: string;
+  /**
+   * Para kind='split': los campos destino derivados del campo fuente.
+   * Ejemplo: full_name → ['first_name', 'last_name']
+   */
+  toPaths?: string[];
+  /** Estrategia de split: 'space' (primera palabra / resto) | 'regex' */
+  splitStrategy?: 'space' | 'regex';
+  /** Regex literal (sin delimitadores) para splitStrategy='regex' */
+  splitRegex?: string;
+  /**
+   * Para kind='merge': los campos fuente que se combinan en un campo destino.
+   * Ejemplo: ['amount', 'currency'] → money
+   */
+  fromPaths?: string[];
+  /** Estrategia de merge: 'object' (objeto con keys) | 'concat' (string unido) */
+  mergeStrategy?: 'object' | 'concat';
+  /** Separador para mergeStrategy='concat'. Default: ' ' */
+  mergeSeparator?: string;
 }
 
 /**
@@ -382,10 +400,57 @@ export interface BridgeReport {
   diffs: FieldDiff[];
   mappings: FieldMapping[];
   resolvedConflicts: ResolvedConflict[];
+  /** Mappings compuestos detectados (split / merge). Complementan, no reemplazan, los mappings 1:1. */
+  compositeMappings?: CompositeMapping[];
   requirementsReport: RequirementsReport;
   /** Función TypeScript generada automáticamente para transformar A→B */
   generatedTransformTs: string;
   generatedAt: string;
+  /**
+   * true cuando se detecta drift significativo respecto al baseline de confianza.
+   * Señal de que el schema o la distribución de valores cambió desde la última comparación.
+   */
+  driftDetected?: boolean;
+  /** Detalle del drift detectado (si driftDetected=true). */
+  driftDetail?: DriftDetail;
+}
+
+// ─── Composite mappings ──────────────────────────────────────────────────────
+
+export type CompositeMappingKind = 'split' | 'merge';
+
+/**
+ * Describe un mapping compuesto (1:N o N:1) detectado heurísticamente.
+ * No es auto-aceptado — va a revisión del operador.
+ */
+export interface CompositeMapping {
+  kind: CompositeMappingKind;
+  /** Campo(s) origen */
+  fromPaths: string[];
+  /** Campo(s) destino */
+  toPaths: string[];
+  transform: TransformSpec;
+  /** Confianza heurística de la detección (0–1) */
+  confidence: number;
+  /** Explicación en lenguaje natural */
+  reason: string;
+}
+
+// ─── Drift detection ─────────────────────────────────────────────────────────
+
+export interface DriftDetail {
+  /** Confianza promedio actual de los mappings auto-aceptados */
+  currentAvgConfidence: number;
+  /** Baseline de confianza promedio (de la memoria histórica) */
+  baselineAvgConfidence: number;
+  /** Caída absoluta de confianza */
+  confidenceDrop: number;
+  /** Número de campos en A que no tienen contraparte en B (campo huérfano) */
+  unmatchedFieldsA: number;
+  /** Número de campos en B que no tienen contraparte en A */
+  unmatchedFieldsB: number;
+  /** Lista de campos que cambiaron de tipo */
+  typeChanges: string[];
 }
 
 // ─── Opciones de comparación ─────────────────────────────────────────────────
