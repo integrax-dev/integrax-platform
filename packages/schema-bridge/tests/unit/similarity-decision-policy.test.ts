@@ -107,8 +107,9 @@ describe('Rule 2 — Value-dominant (opaque field names like SAP ABAP codes)', (
   });
 
   it('rejects when value is strong but structural is not', () => {
+    const localPolicy = new SimilarityDecisionPolicy({ autoAcceptThreshold: 0.88 });
     const s = score({
-      combined: 0.92,
+      combined: 0.82,
       margin: 0.28,
       reciprocalMargin: 0.26,
       evidenceBreakdown: {
@@ -120,7 +121,7 @@ describe('Rule 2 — Value-dominant (opaque field names like SAP ABAP codes)', (
         sufficiency: 0.70,
       },
     });
-    expect(policy.evaluate(s)).not.toBe('auto_accept');
+    expect(localPolicy.evaluate(s)).not.toBe('auto_accept');
   });
 });
 

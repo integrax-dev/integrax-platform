@@ -1,0 +1,510 @@
+[
+  {},
+  {},
+  {},
+  {},
+  {
+    "account": "",
+    "type": "account_update"
+  },
+  {
+    "account": "\u0084\ud9ae\udec2*",
+    "type": "account_onboarding",
+    "collect": "eventually_due",
+    "return_url": "",
+    "refresh_url": ""
+  },
+  {
+    "account": "",
+    "type": "account_onboarding",
+    "return_url": "3\u00d3\udb2f\udd9e\u00c1>",
+    "collect": "currently_due",
+    "expand": [
+      "\u009d\ud953\udf94\\\ud822\ude48\u00d1!",
+      "z\u00fe\u0097",
+      "\u00e1\u0091"
+    ],
+    "refresh_url": "\ud8e2\udd79\u00f1&{\u00c8>f\u00ee\u00a7",
+    "collection_options": {
+      "fields": "eventually_due"
+    }
+  },
+  {
+    "account": "\udab8\udeed\u0019\u00ccO",
+    "type": "account_update"
+  },
+  {
+    "account": "\u0016\u001f\u0010",
+    "type": "account_onboarding",
+    "return_url": "",
+    "expand": [
+      "\ud961\udc7e",
+      "\u00cdZ\u009c",
+      "\u008d\u00bbn\uda76\udead\ud95d\ude02\u00eb\u00a6\u00b1\u0014\u00fa",
+      "\u0019",
+      "\ud816\udf9f\u00ae\u000e\ud911\udda7\u00f8\u00d8\u00d3f",
+      "\uda2e\udcf3\n\u00a2\u001a\u00b8\u00bd@\u00b1\ud9d7\udc1a\u449f"
+    ],
+    "collect": "eventually_due",
+    "collection_options": {},
+    "refresh_url": "\u009e,%"
+  },
+  {
+    "account": "\udb4d\udc3f",
+    "components": {},
+    "expand": [
+      "\u00eb\u00e9",
+      "\u00f70\u4bb0L9\udb63\udf7f",
+      "\u000e\\"
+    ]
+  },
+  {
+    "account": "\u0013t\u008e\u00a8I\u00b7\u0083P\u00ed\u00e5C\u00b6\u00b0\u009cu",
+    "components": {
+      ")S\u00ac\u000e": {
+        "\ud9e3\udfd7\ud976\udefb\udbed\udf83]\u00f3O\u0016": -9531
+      }
+    },
+    "expand": []
+  },
+  {
+    "account": "",
+    "components": {
+      "\u0612\u0086": {
+        "\u0080\u0015\u00cb": 5.758646505678253e+16,
+        "\udbdc\udfcd\ud9c8\udf24\u00a4\udbf8\udd2c\ud972\udf3c\u00f7\u00c9": [],
+        "": [
+          [
+            3.636567905675432e+16,
+            -31445,
+            null
+          ],
+          [
+            true,
+            false
+          ],
+          {
+            "\u00a2\u0015Q\ud80b\udeadx": "\u00d9\u0006g"
+          }
+        ]
+      },
+      "\ud96e\udee8R\u00df\u00f1\udb34\udf01": [],
+      "1\u0000\uda0b\udff0\u00dc\u0016w\u00de'\u00c1\u0080\u5874\u008a2\u00cc\ud980\udcc8*\u00d6\u00f1\udad4\ude24\u00c9": []
+    },
+    "expand": [
+      "[\ud9c3\udf72r"
+    ]
+  },
+  {
+    "account": "\ud8fd\ude02\u009a",
+    "components": {},
+    "expand": [
+      "",
+      "T",
+      "",
+      "%\u00b9\n\ud8dc\udf32\u6b2e\u009a+\ud8ce\udd15\u0096\ud992\uddfa\u00b0#\u008c",
+      "",
+      "\u0006\ud866\udd7d0\u0082\ud9f1\udcafR",
+      "\u00fc"
+    ]
+  },
+  {
+    "account": "then",
+    "components": {},
+    "expand": [
+      "",
+      ""
+    ]
+  },
+  {},
+  {},
+  {},
+  {},
+  {},
+  {
+    "metadata": {
+      "\uda28\udefc\u00e1\u00cb\u0016\u0011\ud85e\udd6b\uf905\udaba\udd07\u00af\u00f0\u00ac\u0013\u009e\u00c9": "",
+      "T\u0081": " m~\ud87f\ude79}\u00e5\u00d4\udb9a\ude95b\udbaf\udd37\ud938\udd27\ud8d4\udeda\u00d8",
+      "\u000e": "\uda80\ude89\u001b\ud8c3\udeb0",
+      "\u00f8": "",
+      "l": "\udbb7\udcda\u00ae\uda3a\udc71\u00d853",
+      "\u00e5\u00bd": "\u00a6Iz\udaba\udccb\u00cf",
+      "": "\u000f\u0094\udb6a\ude31"
+    },
+    "controller": {
+      "stripe_dashboard": {},
+      "\u00fa": {},
+      "fees": {}
+    },
+    "individual": {
+      "maiden_name": "|\u00c4\u008a\u00eb\u0094\u00185B\u0089\u00db",
+      "\ud8ee\udc81\u00ef9\u001c\u00b79\u00a1\u0017\uda45\udf3b": {
+        "\u00e4\ud803\udfc6\u00daJ3\u0097\u00da\ud9d0\udc73": {
+          "": -1538217094081133.0
+        },
+        "\u00a7": null,
+        "\u00ad\u001b\u00fb": {}
+      },
+      "\udbdf\uddb1\u00a5y": {},
+      "\u00b2\udb69\udc04": {
+        "\u00ae\u0011[\u00b4\u009d\u00fdN\u00c1\u00a7\u0010\u00f27j\u00cbOBC": -18353
+      },
+      "address_kana": {
+        "state": "\u00f2\u00b8\ud85b\udd30'\u00a4-\u00eaBt{"
+      },
+      "L": [
+        {},
+        -735487543314716810
+      ],
+      "s\ud950\udd244\ud89b\udc9e\u0011\u0088": [
+        null
+      ],
+      "\u00a6\ud97b\ude7e": [],
+      "": [],
+      "ssn_last_4": ""
+    },
+    "type": "express",
+    "business_type": "government_entity"
+  },
+  {},
+  {
+    "default_currency": "Sb)\u009d\u0007",
+    "bank_account": "m\ud834\udded\u00ea\udaee\udd39\uec50\uda18\udfefG\u0014\u00ad\u009c",
+    "controller": {},
+    "country": "\ud956\udc3f!\b\u00a8\u00d5\ud97c\ude46/\u00f2\u00037\ud822\ude1b",
+    "metadata": "",
+    "business_type": "non_profit"
+  },
+  {},
+  {},
+  {},
+  {},
+  {},
+  {
+    "expand": [
+      "9\u001a"
+    ],
+    "default_currency": "G\ud94c\udf7c\u00f2\ud8ad\ude44",
+    "individual": {
+      "\r\ud9e3\udff00\u00c2h": {
+        "\u008f)V\u0091\u00b8": null,
+        "|": "__main__",
+        "\udaae\udf30\ud98d\udc56\u00d8Z]k;\u00cd\u001b\u00e5": []
+      },
+      "last_name_kana": "d\u3688\ud9ab\udcc2\u00b9\ud88a\udd6a\u00de\u00d7\u00dc",
+      "gender": "\u00f0\uda1f\udcf3omk",
+      ",./;'[]\\-=<>?:\"{}|_+!@#$%^&*()`~": [
+        []
+      ],
+      "address": {},
+      "political_exposure": "none",
+      "": {
+        "B\u1f93\u00a3\u00c5gS\u009b\uda3c\udef48\u0091\u00a7\u00e4JF": {
+          "\u00b1\u00e0=74": "\u00d8u:\ud8df\udf70\u00cd\u0003&!\u00fa\u00a6",
+          "\u0090\u00e7": 5.30810084670875e-66,
+          "=q\udb06\udc98E\u00ab\u009f": true
+        },
+        "\u00f7\"$\u0098\ud96b\udca6\u0002\u00b4\ud88d\udd5e": []
+      },
+      "id_number_secondary": "a\u00e9",
+      "\u00ee\u00a2\ud8c8\udeba\udb82\uded1\udba1\udfb1": [
+        {
+          "": null,
+          "w\u00a4h\u00ba": "NUL",
+          "\u0000\u00b4": null
+        },
+        [
+          null
+        ],
+        [
+          -3.500276269731568e+16,
+          -3.908548505068382e-130,
+          "\uda8a\udd1b\u00b5"
+        ]
+      ]
+    }
+  },
+  {
+    "business_type": "government_entity"
+  },
+  {},
+  {},
+  {
+    "expand": [
+      ""
+    ]
+  },
+  {},
+  {},
+  {
+    "metadata": {
+      "\ud964\udeec\u0087>\u00ca\u00bbi": "\ud932\udf45\u0014\udb96\uddf3\ud9a6\udc88\ud81f\udef7\u0081",
+      "\u00d7": "yB\u0087\u00d7\udb00\udd62{\u0014`\u00f0\udb40\udf2a\u00ad-[\u00c7\u00f6\udba7\ude35Pe\uda9f\udfa3",
+      ",\u0087\u00fb\u00c6\u0081\u00d0\u0010\u00ceL\u00fba": "\uda0e\udffcL\u00ef+\u00a0\u001e}\u00fb",
+      "\u00c2\u00c8=\u00bf\ud9f8\udf798\u00d71k\u000f": "7\u00cf",
+      "\udab4\uddb1L\ud845\udcea": "\u0086\ud9d5\ude4f\uda97\udf82\uda39\udecc\u00f6\u00dd\u00e3\u0003\u0092(\ud855\udd0e\ud88a\udc49\u0005Y)\ud888\udc0f\u007f\u00f0",
+      "w\u00bdp\u00a0\ud8dd\udd12\ud8c3\udccc\u00be": "\ud852\udf8fj\u0099\u00a9\ud892\uddf1~\udac8\udfe8",
+      "\u00cbY": "6\uda33\ude0c\u00af\u00c1\u696f\u00a8\udb6e\udc9aE\u0013q\ud8da\udd92",
+      "C\u00db\u009c\uda80\udc5d\u00d6\udaba\udf43\u000e\u0086\udaf0\udd09(^P\u0014=p": "_akB\ud867\udd81,\ud8cf\udf04",
+      "!\u0005\u00bc": "\u0089\u00e0\ud91e\ude51\uda2d\ude2a",
+      "\ud8cd\udde0!\ud8aa\ude64\r\u00cbB\"\u00a3K": "\udaa0\udc22\u0014Fr\u008f\u009e",
+      "3\udbb8\udd22\ud961\udc43": "\udb4c\udd12\u008fi\f\u009f,3\u0082",
+      "PG8": "\u00e7\ud964\udc14\ud94c\udc65\u00b1J",
+      "\ud8b0\uddb8\u00bb\ud9c6\udcb7Tk\u0093\u007f\ud84b\udd7a\u00bf\r\u00bf\ud8ca\ude1d": "",
+      "V": "\u00e6\u00a5",
+      "\uda3b\udca9\u00e0": "",
+      "\udb5a\udfa0\u00a1v\udbc8\udd841s": "\u0010W\udbdb\udd4a\u00c6",
+      "%!": "\u008d",
+      ")\u0081\u00d1\u00c5\u00f3(": "",
+      "\u00e1": "\u008c\u001a\u0004\u0007?\ud821\udcc6\u00af\u008a\u00fdkm;O\uda97\udc24\udaed\ude3e{\uda9f\udde9\u00fc\ud9e0\udfd6",
+      "\ud990\udd7d": "",
+      "\u00d6": "\u00c9\u00d5\u00f1"
+    },
+    "external_account": "\uda5f\udd9b",
+    "expand": [
+      "",
+      "",
+      "\uf51d\uda94\udd2c\u0086\ud856\udc90p",
+      "?\uda79\ude6aS\u0003\u0089m\udb4d\udfac\u354dL",
+      "\u0089\ud9f2\udfdf.\u00f3\u0004",
+      "NotSet",
+      "\udbcf\udf38\u001d\udb62\ude9b\u00b0\u0098F\u00caN\u00ced\u00f9HJO",
+      "X\u00b4",
+      "\u00e3\ud8c7\udc96",
+      "}}(\u674a",
+      "h\u00a0\ud9ae\uddf1\u00ce\u008d\u00b4\u00aa\udbe4\ude4a\u00d3d",
+      "",
+      "rA",
+      "\u00f5\ud999\udfc5@\ud917\ude34`\ud9b7\udc76i",
+      "",
+      "]>\u0086"
+    ],
+    "default_for_currency": false
+  },
+  {},
+  {},
+  {},
+  {},
+  {},
+  {},
+  {
+    "address_line1": "",
+    "default_for_currency": true
+  },
+  {},
+  {
+    "address_country": "\u0014X\u00c6\u00f6\u00c0[u\u00c9;\u001d\u000b",
+    "address_state": "",
+    "name": "\u009c\u00a7cb\udb4c\udfea\u00ab\u00e1R\u00b0\u00e7\u00fc\u00ad\u008a\u00c5MQ\u00c0\u0096\u00f6\ud953\udfe7",
+    "exp_year": "\uda69\ude78\u00bd\u00aa\u0092\u008b\u00b8\u000b\u009c\udb1e\ude46\u008c[\u0019\u0007"
+  },
+  {
+    "metadata": "",
+    "address_line2": "\u00a0)\udab3\udd3d",
+    "address_line1": "",
+    "account_holder_name": "\u0010x\udbb1\ude9a",
+    "address_state": "\udab6\ude93\u0018\udad8\udd72\ud85b\udf2d\u0012\u00e4\u0094\u00b6\u00bf\u00fa\u0083",
+    "account_holder_type": "individual",
+    "exp_year": "__main__",
+    "documents": {
+      "w": {
+        "__main__": [],
+        "\u0097": {
+          "\ud95f\udcc1Lu!U\u0001\u0081\u00d8y": 610857083192201776,
+          "h\u00e3C": 5.2357216684746776e+16,
+          "\u00cee": -4.922811269681848e+252
+        },
+        "\u00cb\ud8a4\udd3b3": true
+      }
+    },
+    "exp_month": "\ud9ce\ude58\uda26\udce9\u0013\u0086\u00a6\ud848\udfa9W\u00adCE\u009c\uda1e\udf56\ue49089\ud9f5\udf81",
+    "address_city": "\udb4d\udfc3\u00ab\u00f1\u0080",
+    "address_country": "",
+    "name": "\uda4b\udee7\udae4\udea6\u00c2",
+    "account_type": "savings",
+    "expand": [],
+    "address_zip": "\u00af\u0011",
+    "default_for_currency": true
+  },
+  {},
+  {},
+  {},
+  {},
+  {},
+  {},
+  {},
+  {},
+  {
+    "expand": [
+      "\u008f\u00f9U\udb05\udeef\u0017",
+      "\u0086\udacc\udf4e\u0081\u0084\ud9d6\udcd83\uda81\udeaa\udaa1\uddbd\uda11\udc93",
+      "\ud930\udd53\udb46\udc7a",
+      "",
+      "7\udb40\udf2f\uda4c\udefe",
+      "\ud9cc\ude6b\u00d7\u00abdw>",
+      "\udb07\uded5\udb0f\uddcd\u008a\ud8b5\udd56\ud9f0\udc75\ud841\udea1\u00d7\u00d2\u00cd\ud8d2\udf5f\udb37\udd21\u00f4\u0095",
+      "\u00ec",
+      "\u00c9\u00a3",
+      "\u0004",
+      "\u0006\u00ec\u00d8E",
+      "\u000f",
+      "\ud894\udc52\u00144\u000e",
+      "\u00a2\r"
+    ],
+    "requested": false
+  },
+  {
+    "expand": [
+      "\u0005,\uda23\uddc5a\ud864\udc66\ud990\udc44r\u00da{M\udb64\udc6d\u0090\u00ba",
+      "",
+      "V\u00f9\ud99c\uddb9\u00ea\u0098\u00c8\udb43\udd8e",
+      "\ud888\udc71u?\u00a8X\u00c6",
+      "\u0081\ud8a9\udf1e",
+      "\ud835\udd7f\ud835\udd8d\ud835\udd8a \ud835\udd96\ud835\udd9a\ud835\udd8e\ud835\udd88\ud835\udd90 \ud835\udd87\ud835\udd97\ud835\udd94\ud835\udd9c\ud835\udd93 \ud835\udd8b\ud835\udd94\ud835\udd9d \ud835\udd8f\ud835\udd9a\ud835\udd92\ud835\udd95\ud835\udd98 \ud835\udd94\ud835\udd9b\ud835\udd8a\ud835\udd97 \ud835\udd99\ud835\udd8d\ud835\udd8a \ud835\udd91\ud835\udd86\ud835\udd9f\ud835\udd9e \ud835\udd89\ud835\udd94\ud835\udd8c",
+      "",
+      "\ud98e\udcd4/\u00c9\u00bd",
+      "\u00ea\u00e5\u00d0\u00b6\uda2d\udc6f\u001f",
+      "\u009f",
+      "?",
+      "false",
+      "\ud9fc\udc8b7\u00c0Z[<\u00c0",
+      "\u00a5R,\u00ab\ud943\udc5a\udbb4\udc96",
+      "SK\u0091\u008c\n\udbb4\udda1\u00d4\uda9f\udddd\u00c9\u001d\u00f8\u0015",
+      "\u008b\u0097",
+      "\u00e4}\u009d\udaf1\udf40\u00d5\u00fb\u00c0",
+      ") \u00f7\u001d\u00aa\u0093\u0012\u00ed",
+      "",
+      "\u00e8[ngg\u008e)",
+      "\u000e\u001f",
+      "\u00fc7F\uda15\ude6a\u00c2r\u00ca\udab4\udc45\u00c8"
+    ],
+    "requested": true
+  },
+  {},
+  {
+    "requested": true,
+    "expand": [
+      "",
+      "\ud9ac\udccc\u00c5\u00df",
+      "\u00a4\u00a9\u00b5\u0005\ud8e6\udc09\u00f1_m\u000e\bzc",
+      "\u00bd\ud854\udf9c\udb4f\udfda4e",
+      "\u0093\u009a\u009cC\u00d2\u007f\u00e2 W\u008f\u0098iY\udb45\udd3f\udae4\udd7b\u1f2f\u00e5u3:",
+      "\uda53\udc88",
+      "\ud8c0\udd14\ud974\udf34\u00a3\u00b4\ud82c\ude1c6",
+      "?=\u0001\u0016\u00c1\u00ec \udb91\ude50",
+      "\u00fe",
+      "",
+      "\u00a8\u0002"
+    ]
+  },
+  {},
+  {},
+  {},
+  {},
+  {},
+  {
+    "expand": [
+      "I\u0085\u0091\u009e\ud879\udcf3\u008d",
+      "\u00b9\u008e\u00cb",
+      "\u00ed\ud817\udd80E\u0018\u009d",
+      "\u007f"
+    ],
+    "default_for_currency": false,
+    "external_account": "\ud9c1\udffa\u0000\udb3f\uddf0e"
+  },
+  {},
+  {},
+  {},
+  {},
+  {},
+  {},
+  {},
+  {},
+  {
+    "address_zip": "(",
+    "address_line2": "i]C "
+  },
+  {},
+  {},
+  {
+    "address_line2": "8\u0006z\u00f6S\u00fdI",
+    "account_holder_name": "",
+    "address_country": "",
+    "address_city": "\u00e1J\u008a r"
+  },
+  {},
+  {
+    "expand": [
+      "",
+      "",
+      "\u00ac{g"
+    ]
+  },
+  {
+    "expand": [
+      "\udba6\udf9b\u0087\udbeb\udeee\u00ad\udbd6\uddb8\r\udb47\ude95\u00bbR",
+      "\u009a\u000b\ud9ea\ude39\u00dc\u00a5\udadb\uddd4\u00cbE\u00e5\u00da\udb30\udcc6\ud88f\udda9\ud9c6\udfc0",
+      "",
+      ":\ud8a9\udff4\ud98c\udc99i\u00c6"
+    ]
+  },
+  {},
+  {},
+  {},
+  {},
+  {},
+  {},
+  {},
+  {},
+  {},
+  {},
+  {},
+  {},
+  {},
+  {},
+  {},
+  {},
+  {},
+  {
+    "political_exposure": "existing",
+    "dob": {
+      "day": 33,
+      "month": 15431,
+      "year": -291,
+      "\u00e1\u00af\u0018\u0095I\ud883\udda4\u00c82\u00f6": {},
+      "\u008d\u008e^Pc$\u000f\u00e7Y|\u00fc>77D\u0081": [
+        null,
+        11181,
+        "\u0e31\u0002\u00c0\u0015"
+      ],
+      "\u00e1\ud68b\rM": [
+        []
+      ],
+      "\u001d\ud8c2\udeb7V\u00cc\u00f6\u00ac|\udbde\uddbb\u0006\udb18\udd4cU\u009bB\u0094\udb90\udc21\u0088\ud814\udf8b": [
+        false
+      ],
+      "\u000e": "IR\u000e#i4\u0011",
+      "M\u00e7\u00dd\u009a": [
+        [],
+        []
+      ],
+      "": {
+        "\u00ff\u0093Q\u00e5\u00c6": {},
+        "Z\u00ce\udb8a\udf0d": [
+          67,
+          5.960464477539063e-08,
+          3241808280419931432
+        ]
+      },
+      "u_\uda4a\ude3e\u00d7\u00f6\u0097\u0017\u9282\u00d5\udbd8\udf6b\ud88c\udd98\u001c\udadf\udd50\u00e7\u009a": []
+    }
+  },
+  {
+    "first_name": "\u009a\udb0a\udd56G\u00a5D$X?d",
+    "nationality": "\u001d\u00b2\u0098\u00f8\u008eX",
+    "id_number": "R\uda5f\udc13\u00b5\u00d6U"
+  },
+  {},
+  {},
+  {}
+]

@@ -30,7 +30,8 @@ import { createMappingMemoryOntologyProvider, updateMemoryEntry, computeSignalWe
 import { runLlmEscalations } from './llm-escalation.js';
 import { detectCompositeMappings } from './composite-mapper.js';
 import { detectDrift } from './drift-detector.js';
-import type { OntologyProvider } from './types.js';
+import type { OntologyProvider, SchemaField } from './types.js';
+import type { SchemaAdapter } from './adapters/sql-adapter.js';
 
 export class SchemaBridge {
   private readonly inferrer: SchemaInferrer;
@@ -290,6 +291,37 @@ export class SchemaBridge {
     );
 
     return report;
+  }
+
+  /**
+   * Seeds the internal Mapping Memory from a schema adapter.
+   * Useful for training the engine with official specs (OpenAPI, SQL DDL, etc.)
+   * before live traffic arrives.
+   */
+  async seed(adapter: SchemaAdapter, connectorAId?: string, connectorBId?: string): Promise<number> {
+    const inferred = adapter.adapt();
+    let count = 0;
+
+    for (const field of inferred.fields) {
+      // In a seed, we record identity for the ontology entry
+      this.recordFeedback(
+        field.path,
+        field.path,
+        true,
+        1.0,
+        connectorAId,
+        connectorBId
+      );
+      count++;
+    }
+
+    this.logger.info({ 
+      fieldCount: count, 
+      connectorAId, 
+      connectorBId 
+    }, 'Bridge memory seeded from adapter');
+    
+    return count;
   }
 
   /**

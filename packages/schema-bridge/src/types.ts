@@ -28,6 +28,8 @@ export interface SchemaNode {
   enum?: unknown[];
   /** Calidad y cobertura observada de las muestras para este campo. */
   evidence?: FieldEvidence;
+  /** Human-readable description from spec (OpenAPI/SQL) */
+  description?: string;
 }
 
 export interface SchemaField {
