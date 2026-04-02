@@ -10,7 +10,10 @@
 import { describe, it, expect } from 'vitest';
 import { SchemaBridge } from '../../src/bridge.js';
 
-const bridge = new SchemaBridge();
+const bridge = new SchemaBridge({
+  autoAcceptThreshold: 0.88,
+  decisionPolicy: { autoAcceptThreshold: 0.88 },
+});
 
 type Scenario = {
   label: string;

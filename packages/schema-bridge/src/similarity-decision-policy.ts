@@ -6,7 +6,7 @@ import type {
   SimilarityScore,
 } from './types.js';
 
-const DEFAULT_AUTO_ACCEPT_THRESHOLD = 0.88;
+const DEFAULT_AUTO_ACCEPT_THRESHOLD = 0.95;
 const DEFAULT_REVIEW_THRESHOLD = 0.70;
 const DEFAULT_MIN_MARGIN = 0.15;
 

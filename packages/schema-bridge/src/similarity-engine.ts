@@ -571,6 +571,9 @@ function deriveConfidence(breakdown: SimilarityEvidenceBreakdown): number {
   if (breakdown.value >= 0.80 && corroboratedType >= 0.85 && breakdown.structural >= 0.45 && breakdown.sufficiency >= 0.60) {
     return 0.92;
   }
+  if (corroboratedType >= 0.95 && breakdown.value >= 0.70 && breakdown.structural >= 0.90 && breakdown.sufficiency >= 0.90) {
+    return 0.94;
+  }
   if (breakdown.value >= 0.70 && corroboratedType >= 0.95 && breakdown.lexical >= 0.72 && breakdown.structural >= 0.60) {
     return 0.94;
   }
