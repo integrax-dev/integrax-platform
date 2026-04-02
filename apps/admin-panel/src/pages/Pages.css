@@ -194,6 +194,55 @@
   margin-top: var(--spacing-sm);
 }
 
+.connector-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.connector-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.connector-config-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-md);
+}
+
+.connector-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-md);
+}
+
+.connector-detail-item {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  align-items: flex-start;
+  padding: var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+}
+
+.connector-detail-item p {
+  margin-top: var(--spacing-xs);
+}
+
+.connector-detail-tags {
+  display: flex;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+}
+
 /* Workflow Card */
 .workflow-card {
   background-color: var(--bg-card);
@@ -293,6 +342,13 @@
   width: 18px;
   height: 18px;
   accent-color: var(--color-primary);
+}
+
+.settings-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
 }
 
 /* Premium Mappings Grid */

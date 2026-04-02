@@ -116,3 +116,36 @@
   padding: 0.125rem 0.5rem;
   border-radius: var(--radius-sm);
 }
+
+.tenant-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.tenant-summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-lg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+}
+
+.tenant-summary-card strong {
+  font-size: 1.5rem;
+  line-height: 1.1;
+}
+
+.tenant-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-lg);
+}
+
+.dashboard-shortcut {
+  text-decoration: none;
+  color: inherit;
+}

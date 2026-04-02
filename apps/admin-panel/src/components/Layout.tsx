@@ -3,16 +3,19 @@ import { useAuthStore } from '../stores/auth';
 import './Layout.css';
 
 const navItems = [
-  { path: '/', label: 'Dashboard', icon: '📊' },
-  { path: '/tenants', label: 'Tenants', icon: '🏢' },
-  { path: '/connectors', label: 'Conectores', icon: '🔌' },
-  { path: '/workflows', label: 'Workflows', icon: '⚡' },
-  { path: '/events', label: 'Eventos', icon: '📨' },
-  { path: '/audit', label: 'Auditoría', icon: '📋' },
-  { path: '/incidents', label: 'Incidentes', icon: '🚨' },
-  { path: '/schema-diffs', label: 'Schema Diffs', icon: '🔀' },
-  { path: '/mapping-memory', label: 'Mapping Memory', icon: '🧠' },
-  { path: '/settings', label: 'Configuración', icon: '⚙️' },
+  { path: '/', label: 'Dashboard', icon: 'DB' },
+  { path: '/tenants', label: 'Tenants', icon: 'TN' },
+  { path: '/connectors', label: 'Connectors', icon: 'CX' },
+  { path: '/workflows', label: 'Workflows', icon: 'WF' },
+  { path: '/events', label: 'Events', icon: 'EV' },
+  { path: '/audit', label: 'Audit', icon: 'AU' },
+  { path: '/observability', label: 'Observability', icon: 'OB' },
+  { path: '/approvals', label: 'Approvals', icon: 'AP' },
+  { path: '/conflicts', label: 'Conflicts', icon: 'CF' },
+  { path: '/incidents', label: 'Incidents', icon: 'IN' },
+  { path: '/schema-diffs', label: 'Schema Diffs', icon: 'SD' },
+  { path: '/mapping-memory', label: 'Mapping Memory', icon: 'MM' },
+  { path: '/settings', label: 'Settings', icon: 'ST' },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -29,20 +32,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <aside className="sidebar">
         <div className="sidebar-header">
           <div className="logo">
-            <span className="logo-icon">⚡</span>
+            <span className="logo-icon">IX</span>
             <span className="logo-text">IntegraX</span>
           </div>
         </div>
 
         <nav className="sidebar-nav">
-          {navItems.map((item) => (
+          {navItems.map(item => (
             <NavLink
               key={item.path}
               to={item.path}
               end={item.path === '/'}
-              className={({ isActive }) =>
-                `nav-item ${isActive ? 'active' : ''}`
-              }
+              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
             >
               <span className="nav-icon">{item.icon}</span>
               <span className="nav-label">{item.label}</span>

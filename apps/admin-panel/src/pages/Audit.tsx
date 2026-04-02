@@ -1,39 +1,7 @@
-import { useEffect, useState } from 'react';
-import './Pages.css';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchAdminJson } from '../lib/adminApi';
 import { allowDemoFallbacks } from '../lib/runtime';
-
-type AuditLog = {
-  id: string;
-  action: string;
-  user: string;
-  resource: string;
-  ip: string;
-  time: string;
-};
-
-const MOCK_AUDIT_LOGS: AuditLog[] = [
-  { id: 'aud_001', action: 'tenant.create', user: 'admin@integrax.com', resource: 'Tienda ABC', ip: '190.2.45.123', time: '2024-02-15 14:30:00' },
-  { id: 'aud_002', action: 'connector.configure', user: 'user@tienda.com', resource: 'mercadopago', ip: '200.45.12.89', time: '2024-02-15 14:25:00' },
-  { id: 'aud_003', action: 'workflow.publish', user: 'user@tienda.com', resource: 'Facturar Pago', ip: '200.45.12.89', time: '2024-02-15 14:20:00' },
-  { id: 'aud_004', action: 'credential.rotate', user: 'admin@empresa.com', resource: 'afip-wsfe', ip: '181.23.45.67', time: '2024-02-15 14:15:00' },
-  { id: 'aud_005', action: 'tenant.suspend', user: 'admin@integrax.com', resource: 'Shop Online', ip: '190.2.45.123', time: '2024-02-15 14:10:00' },
-  { id: 'aud_006', action: 'user.login', user: 'user@tienda.com', resource: '-', ip: '200.45.12.89', time: '2024-02-15 14:00:00' },
-];
-
-const actionLabels: Record<string, { label: string; color: string }> = {
-  'tenant.create': { label: 'Crear Tenant', color: 'success' },
-  'tenant.suspend': { label: 'Suspender Tenant', color: 'error' },
-  'tenant.update': { label: 'Actualizar Tenant', color: 'info' },
-  'tenant.delete': { label: 'Cancelar Tenant', color: 'error' },
-  'connector.configure': { label: 'Configurar Conector', color: 'info' },
-  'workflow.publish': { label: 'Publicar Workflow', color: 'info' },
-  'workflow.trigger': { label: 'Trigger Workflow', color: 'info' },
-  'workflow.enable': { label: 'Activar Workflow', color: 'success' },
-  'workflow.disable': { label: 'Pausar Workflow', color: 'warning' },
-  'credential.rotate': { label: 'Rotar Credencial', color: 'warning' },
-  'user.login': { label: 'Login', color: 'success' },
-};
+import './Pages.css';
 
 type BackendEntry = {
   id: string;
@@ -43,66 +11,235 @@ type BackendEntry = {
   resource: string;
   ipAddress: string;
   createdAt: string;
+  details?: {
+    method?: string;
+    responseStatus?: number;
+    success?: boolean;
+  };
 };
+
+type AuditLog = {
+  id: string;
+  action: string;
+  user: string;
+  resource: string;
+  ip: string;
+  time: string;
+  tenant: string;
+  method: string;
+  responseStatus: number | null;
+  success: boolean;
+};
+
+type AuditResponse = {
+  success: boolean;
+  data: BackendEntry[];
+};
+
+const MOCK_AUDIT_LOGS: AuditLog[] = [
+  {
+    id: 'aud_001',
+    action: 'tenant.create',
+    user: 'admin@integrax.com',
+    resource: '/api/tenants',
+    ip: '190.2.45.123',
+    time: '15/2/2026 14:30:00',
+    tenant: '-',
+    method: 'POST',
+    responseStatus: 201,
+    success: true,
+  },
+  {
+    id: 'aud_002',
+    action: 'connector.configure',
+    user: 'user@tienda.com',
+    resource: '/api/connectors',
+    ip: '200.45.12.89',
+    time: '15/2/2026 14:25:00',
+    tenant: 'ten_mvp_demo',
+    method: 'POST',
+    responseStatus: 200,
+    success: true,
+  },
+  {
+    id: 'aud_003',
+    action: 'workflow.trigger',
+    user: 'user@tienda.com',
+    resource: '/api/workflows/flow-mp-invoice/trigger',
+    ip: '200.45.12.89',
+    time: '15/2/2026 14:20:00',
+    tenant: 'ten_mvp_demo',
+    method: 'POST',
+    responseStatus: 202,
+    success: true,
+  },
+  {
+    id: 'aud_004',
+    action: 'tenant.rotate_api_key',
+    user: 'admin@empresa.com',
+    resource: '/api/tenants/ten_mvp_demo/rotate-api-key',
+    ip: '181.23.45.67',
+    time: '15/2/2026 14:15:00',
+    tenant: 'ten_mvp_demo',
+    method: 'POST',
+    responseStatus: 200,
+    success: true,
+  },
+  {
+    id: 'aud_005',
+    action: 'workflow.disable',
+    user: 'admin@integrax.com',
+    resource: '/api/workflows/flow-mp-invoice/disable',
+    ip: '190.2.45.123',
+    time: '15/2/2026 14:10:00',
+    tenant: 'ten_mvp_demo',
+    method: 'PATCH',
+    responseStatus: 500,
+    success: false,
+  },
+];
+
+const actionLabels: Record<string, { label: string; color: string }> = {
+  'tenant.create': { label: 'Crear tenant', color: 'success' },
+  'tenant.suspend': { label: 'Suspender tenant', color: 'error' },
+  'tenant.update': { label: 'Actualizar tenant', color: 'info' },
+  'tenant.delete': { label: 'Cancelar tenant', color: 'error' },
+  'tenant.rotate_api_key': { label: 'Rotar API key', color: 'warning' },
+  'connector.configure': { label: 'Configurar conector', color: 'info' },
+  'workflow.publish': { label: 'Publicar workflow', color: 'info' },
+  'workflow.trigger': { label: 'Trigger workflow', color: 'info' },
+  'workflow.enable': { label: 'Activar workflow', color: 'success' },
+  'workflow.disable': { label: 'Pausar workflow', color: 'warning' },
+  'user.login': { label: 'Login', color: 'success' },
+};
+
+function mapEntry(entry: BackendEntry): AuditLog {
+  return {
+    id: entry.id,
+    action: entry.action,
+    user: entry.userId,
+    resource: entry.resource,
+    ip: entry.ipAddress,
+    time: new Date(entry.createdAt).toLocaleString('es-AR'),
+    tenant: entry.tenantId ?? '-',
+    method: entry.details?.method ?? '-',
+    responseStatus: entry.details?.responseStatus ?? null,
+    success: entry.details?.success ?? true,
+  };
+}
+
+function badgeTone(log: AuditLog): string {
+  if (!log.success || (log.responseStatus ?? 200) >= 400) return 'error';
+  return actionLabels[log.action]?.color ?? 'info';
+}
 
 export function Audit() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionFilter, setActionFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('');
+
+  const loadLogs = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    const query = new URLSearchParams();
+    if (actionFilter !== 'all') query.set('action', actionFilter);
+    if (dateFilter) {
+      query.set('startDate', new Date(`${dateFilter}T00:00:00`).toISOString());
+      query.set('endDate', new Date(`${dateFilter}T23:59:59`).toISOString());
+    }
+
+    try {
+      const path = query.size > 0 ? `/api/audit?${query.toString()}` : '/api/audit';
+      const data = await fetchAdminJson<AuditResponse>(path);
+      setLogs((data.data ?? []).map(mapEntry));
+    } catch {
+      if (allowDemoFallbacks) {
+        const filtered = MOCK_AUDIT_LOGS.filter(log => {
+          const matchesAction = actionFilter === 'all' || log.action.includes(actionFilter);
+          const matchesDate = !dateFilter || log.time.includes(dateFilter.split('-').reverse().join('/'));
+          return matchesAction && matchesDate;
+        });
+        setLogs(filtered);
+      } else {
+        setError('No se pudo cargar el log de auditoria');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [actionFilter, dateFilter]);
 
   useEffect(() => {
-    let cancelled = false;
+    void loadLogs();
+  }, [loadLogs]);
 
-    const load = async () => {
-      setLoading(true);
-      setError(null);
+  const stats = useMemo(() => {
+    const total = logs.length;
+    const successful = logs.filter(log => log.success).length;
+    const failed = logs.filter(log => !log.success).length;
+    const uniqueUsers = new Set(logs.map(log => log.user)).size;
 
-      try {
-        const data = await fetchAdminJson<{ data: BackendEntry[]; success: boolean }>('/api/audit');
-        if (!cancelled) {
-          const mapped: AuditLog[] = (data.data ?? []).map((e) => ({
-            id: e.id,
-            action: e.action,
-            user: e.userId,
-            resource: e.resource,
-            ip: e.ipAddress,
-            time: new Date(e.createdAt).toLocaleString('es-AR'),
-          }));
-          setLogs(mapped);
-        }
-      } catch {
-        if (allowDemoFallbacks) {
-          if (!cancelled) setLogs(MOCK_AUDIT_LOGS);
-        } else if (!cancelled) {
-          setError('No se pudo cargar el log de auditoría');
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    load();
-    return () => { cancelled = true; };
-  }, []);
+    return { total, successful, failed, uniqueUsers };
+  }, [logs]);
 
   return (
     <div className="page">
       <div className="page-header">
         <div>
-          <h1>Auditoría</h1>
-          <p className="text-secondary">Registro de todas las acciones en la plataforma</p>
+          <h1>Auditoria</h1>
+          <p className="text-secondary">Registro real de acciones sobre tenants, conectores y workflows.</p>
         </div>
-        <div className="flex gap-md">
-          <input className="input" type="date" style={{ width: 'auto' }} />
-          <select className="input" style={{ width: 'auto' }}>
-            <option>Todas las acciones</option>
-            <option>Tenants</option>
-            <option>Conectores</option>
-            <option>Workflows</option>
-            <option>Credenciales</option>
-            <option>Login</option>
+        <div className="flex gap-md" style={{ alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <input
+            className="input"
+            type="date"
+            value={dateFilter}
+            onChange={event => setDateFilter(event.target.value)}
+            style={{ width: 'auto' }}
+          />
+          <select
+            className="input"
+            value={actionFilter}
+            onChange={event => setActionFilter(event.target.value)}
+            style={{ width: 'auto' }}
+          >
+            <option value="all">Todas las acciones</option>
+            <option value="tenant">Tenants</option>
+            <option value="connector">Connectors</option>
+            <option value="workflow">Workflows</option>
+            <option value="rotate_api_key">API keys</option>
+            <option value="login">Login</option>
           </select>
-          <button className="btn btn-secondary">Exportar</button>
+          <button className="btn btn-secondary" onClick={() => void loadLogs()} disabled={loading}>
+            {loading ? 'Actualizando...' : 'Actualizar'}
+          </button>
+        </div>
+      </div>
+
+      {error && <div className="alert alert-error">{error}</div>}
+
+      <div className="stats-grid compact-stats-grid">
+        <div className="stat-surface">
+          <span className="stat-kicker">Entradas</span>
+          <strong>{stats.total}</strong>
+          <span className="text-secondary">logs visibles</span>
+        </div>
+        <div className="stat-surface">
+          <span className="stat-kicker">Exitosas</span>
+          <strong>{stats.successful}</strong>
+          <span className="text-secondary">acciones completadas</span>
+        </div>
+        <div className="stat-surface">
+          <span className="stat-kicker">Fallidas</span>
+          <strong>{stats.failed}</strong>
+          <span className="text-secondary">requieren revision</span>
+        </div>
+        <div className="stat-surface">
+          <span className="stat-kicker">Usuarios</span>
+          <strong>{stats.uniqueUsers}</strong>
+          <span className="text-secondary">con actividad registrada</span>
         </div>
       </div>
 
@@ -110,31 +247,39 @@ export function Audit() {
         <table className="table">
           <thead>
             <tr>
-              <th>Acción</th>
+              <th>Accion</th>
               <th>Usuario</th>
+              <th>Tenant</th>
               <th>Recurso</th>
+              <th>Metodo</th>
+              <th>Status</th>
               <th>IP</th>
               <th>Tiempo</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5}>Cargando...</td></tr>
-            ) : error ? (
-              <tr><td colSpan={5} style={{ color: 'red' }}>{error}</td></tr>
+              <tr><td colSpan={8}>Cargando...</td></tr>
             ) : logs.length === 0 ? (
-              <tr><td colSpan={5}>Sin registros de auditoría aún</td></tr>
-            ) : logs.map((log) => {
+              <tr><td colSpan={8}>Sin registros de auditoria aun</td></tr>
+            ) : logs.map(log => {
               const action = actionLabels[log.action] || { label: log.action, color: 'info' };
               return (
                 <tr key={log.id}>
                   <td>
-                    <span className={`badge badge-${action.color}`}>
+                    <span className={`badge badge-${badgeTone(log)}`}>
                       {action.label}
                     </span>
                   </td>
                   <td>{log.user}</td>
-                  <td>{log.resource}</td>
+                  <td>{log.tenant}</td>
+                  <td><code className="text-xs">{log.resource}</code></td>
+                  <td>{log.method}</td>
+                  <td>
+                    <span className={`badge badge-${log.success ? 'success' : 'error'}`}>
+                      {log.responseStatus ?? (log.success ? 200 : 500)}
+                    </span>
+                  </td>
                   <td className="text-muted"><code>{log.ip}</code></td>
                   <td className="text-muted">{log.time}</td>
                 </tr>
