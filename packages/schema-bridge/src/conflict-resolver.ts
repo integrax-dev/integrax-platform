@@ -23,7 +23,7 @@ import { TypeResolver } from './type-resolver.js';
 import { buildExplanation } from './explain.js';
 
 const resolver = new TypeResolver();
-const AUTO_ACCEPT_THRESHOLD = 0.88;
+const AUTO_ACCEPT_THRESHOLD = 0.95;
 const HUMAN_REVIEW_THRESHOLD = 0.70;
 const MIN_CONFIDENCE_MARGIN = 0.15;
 

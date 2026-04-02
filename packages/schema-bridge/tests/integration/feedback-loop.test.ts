@@ -149,7 +149,7 @@ describe('updateMemoryEntry — rolling average and veto state', () => {
 
 describe('SchemaBridge.recordFeedback — feedback loop state', () => {
   it('recordFeedback accumulates rejects and transitions to veto state', () => {
-    const bridge = new SchemaBridge();
+    const bridge = new SchemaBridge({ autoAcceptThreshold: 0.88, humanReviewThreshold: 0.70, decisionPolicy: { autoAcceptThreshold: 0.88, reviewThreshold: 0.70 } });
 
     // 1 accept → no veto
     bridge.recordFeedback('NETWR', 'net_amount', true, 0.88);
@@ -177,7 +177,7 @@ describe('SchemaBridge.recordFeedback — feedback loop state', () => {
   });
 
   it('scoped feedback only affects the correct connector pair', () => {
-    const bridge = new SchemaBridge();
+    const bridge = new SchemaBridge({ autoAcceptThreshold: 0.88, humanReviewThreshold: 0.70, decisionPolicy: { autoAcceptThreshold: 0.88, reviewThreshold: 0.70 } });
 
     // Feedback for sap↔oracle
     bridge.recordFeedback('amount', 'monto', true, 0.90, 'sap', 'oracle');
@@ -267,7 +267,7 @@ describe('SchemaBridge full feedback loop (SAP ↔ Oracle EBS)', () => {
   });
 
   it('mappings carry decisionReason for all auto-resolved fields', async () => {
-    const bridge = new SchemaBridge();
+    const bridge = new SchemaBridge({ autoAcceptThreshold: 0.88, humanReviewThreshold: 0.70, decisionPolicy: { autoAcceptThreshold: 0.88, reviewThreshold: 0.70 } });
     const report = await bridge.compare(BASE_REQUEST);
 
     const resolved = report.mappings.filter(m => m.decisionReason);
@@ -292,7 +292,7 @@ describe('SchemaBridge full feedback loop (SAP ↔ Oracle EBS)', () => {
 
   it('accepted memory entry raises the ontology score for the pair on the next compare', async () => {
     // Bridge A: no memory — relies purely on structural/lexical signals
-    const bridgeNoMemory = new SchemaBridge();
+    const bridgeNoMemory = new SchemaBridge({ autoAcceptThreshold: 0.88, humanReviewThreshold: 0.70, decisionPolicy: { autoAcceptThreshold: 0.88, reviewThreshold: 0.70 } });
     const reportNoMemory = await bridgeNoMemory.compare(BASE_REQUEST);
 
     // Collect which pairs were identified as rename_candidates so we can

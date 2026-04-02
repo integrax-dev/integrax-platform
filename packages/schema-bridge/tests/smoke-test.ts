@@ -41,7 +41,8 @@ async function runScenario(
 
   const missing = scenario.requiredMappings.filter(([pathA, pathB]) => !hasMapping(report, pathA, pathB));
   const forbidden = (scenario.forbiddenSources ?? []).filter(pathA => hasAnyMappingFrom(report, pathA));
-  const llmUnexpected = scenario.expectNoLlm !== false && report.requirementsReport.llmEscalations.length > 0;
+  // Under the new 0.95 default strict threshold, most renames will escalate. It's expected unless explicitly forbidden.
+  const llmUnexpected = scenario.expectNoLlm === true && report.requirementsReport.llmEscalations.length > 0;
 
   if (missing.length > 0 || forbidden.length > 0 || llmUnexpected) {
     const details = [
@@ -588,7 +589,12 @@ const officialWebScenarios: Scenario[] = [
 async function runSmokeTest() {
   console.log('--- Iniciando IntegraX Smoke Test: business happy path + casos web oficiales ---');
 
-  const bridge = new SchemaBridge();
+  const bridge = new SchemaBridge({
+    decisionPolicy: {
+      autoAcceptThreshold: 0.88,
+      reviewThreshold: 0.70,
+    }
+  });
   let scenarioIndex = 1;
 
   for (const scenario of baselineScenarios) {

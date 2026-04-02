@@ -5,7 +5,7 @@ import {
   positiveSyntheticScenarios,
 } from '../fixtures/synthetic-scenarios.js';
 
-const bridge = new SchemaBridge();
+const bridge = new SchemaBridge({ autoAcceptThreshold: 0.88, humanReviewThreshold: 0.70, decisionPolicy: { autoAcceptThreshold: 0.88, reviewThreshold: 0.70 } });
 
 type Report = Awaited<ReturnType<typeof bridge.compare>>;
 

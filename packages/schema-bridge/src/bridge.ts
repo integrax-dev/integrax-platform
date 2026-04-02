@@ -196,6 +196,33 @@ export class SchemaBridge {
     // ── 5. Mapping and TypeScript generation ──────────────────────────────────
     const mappings = this.mapper.generate(resolvedConflicts);
 
+    // Convierto los mappings compuestos a FieldMappings para inyectar su lógica en el AST de TS
+    for (const comp of compositeMappings) {
+      if (comp.kind === 'split') {
+        const primaryDest = comp.toPaths[0];
+        mappings.push({
+          id: `comp_${Date.now()}_split_${comp.fromPaths[0]}`,
+          pathA: comp.fromPaths[0],
+          pathB: primaryDest,
+          transform: comp.transform,
+          confidence: comp.confidence,
+          bidirectional: false,
+          decisionReason: `heuristic:split`,
+        });
+      } else if (comp.kind === 'merge') {
+        const primarySource = comp.fromPaths[0];
+        mappings.push({
+          id: `comp_${Date.now()}_merge_${comp.toPaths[0]}`,
+          pathA: primarySource,
+          pathB: comp.toPaths[0],
+          transform: comp.transform,
+          confidence: comp.confidence,
+          bidirectional: false,
+          decisionReason: `heuristic:merge`,
+        });
+      }
+    }
+
     for (const m of mappings) {
       if (m.pathA || m.pathB) {
         this.logger.info({

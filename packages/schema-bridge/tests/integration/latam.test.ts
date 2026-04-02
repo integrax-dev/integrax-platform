@@ -21,7 +21,7 @@
 import { describe, it, expect } from 'vitest';
 import { SchemaBridge } from '../../src/bridge.js';
 
-const bridge = new SchemaBridge();
+const bridge = new SchemaBridge({ autoAcceptThreshold: 0.88, humanReviewThreshold: 0.70, decisionPolicy: { autoAcceptThreshold: 0.88, reviewThreshold: 0.70 } });
 
 function hasMappingFor(
   report: Awaited<ReturnType<typeof bridge.compare>>,

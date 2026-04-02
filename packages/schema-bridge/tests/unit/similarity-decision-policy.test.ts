@@ -33,10 +33,10 @@ const policy = new SimilarityDecisionPolicy();
 
 // ─── auto_accept ──────────────────────────────────────────────────────────────
 
-describe('Rule 1 — Golden path (combined ≥ 0.90, value+structural)', () => {
+describe('Rule 1 — Golden path (combined ≥ 0.95, value+structural)', () => {
   it('auto-accepts a clear rename with value + structural evidence', () => {
     const s = score({
-      combined: 0.92,
+      combined: 0.96,
       margin: 0.18,
       reciprocalMargin: 0.18,
       evidenceBreakdown: {
@@ -53,7 +53,7 @@ describe('Rule 1 — Golden path (combined ≥ 0.90, value+structural)', () => {
 
   it('auto-accepts a clear rename with lexical + structural evidence', () => {
     const s = score({
-      combined: 0.91,
+      combined: 0.96,
       margin: 0.20,
       reciprocalMargin: 0.20,
       evidenceBreakdown: {
@@ -70,7 +70,7 @@ describe('Rule 1 — Golden path (combined ≥ 0.90, value+structural)', () => {
 
   it('rejects when combined is high but margin is insufficient', () => {
     const s = score({
-      combined: 0.92,
+      combined: 0.96,
       margin: 0.05,
       reciprocalMargin: 0.05,
       evidenceBreakdown: {
@@ -89,7 +89,7 @@ describe('Rule 1 — Golden path (combined ≥ 0.90, value+structural)', () => {
 describe('Rule 2 — Value-dominant (opaque field names like SAP ABAP codes)', () => {
   it('auto-accepts when value+structural are strong even without lexical', () => {
     const s = score({
-      combined: 0.85,
+      combined: 0.92,
       margin: 0.28,
       reciprocalMargin: 0.26,
       evidenceBreakdown: {
@@ -107,7 +107,7 @@ describe('Rule 2 — Value-dominant (opaque field names like SAP ABAP codes)', (
 
   it('rejects when value is strong but structural is not', () => {
     const s = score({
-      combined: 0.85,
+      combined: 0.92,
       margin: 0.28,
       reciprocalMargin: 0.26,
       evidenceBreakdown: {
@@ -126,7 +126,7 @@ describe('Rule 2 — Value-dominant (opaque field names like SAP ABAP codes)', (
 describe('Rule 3 — Margin-dominant (overwhelmingly clear winner)', () => {
   it('auto-accepts when margin is extremely wide', () => {
     const s = score({
-      combined: 0.82,
+      combined: 0.88,
       margin: 0.45,
       reciprocalMargin: 0.42,
       evidenceBreakdown: {
@@ -143,7 +143,7 @@ describe('Rule 3 — Margin-dominant (overwhelmingly clear winner)', () => {
 
   it('auto-accepts with dominant+min margin combination', () => {
     const s = score({
-      combined: 0.82,
+      combined: 0.88,
       margin: 0.65,
       reciprocalMargin: 0.13,
       evidenceBreakdown: {
@@ -162,7 +162,7 @@ describe('Rule 3 — Margin-dominant (overwhelmingly clear winner)', () => {
 describe('Rule 4 — Semantic certainty (ontology/businessType anchor)', () => {
   it('auto-accepts when domain knowledge confirms the match', () => {
     const s = score({
-      combined: 0.81,
+      combined: 0.88,
       margin: 0.15,
       reciprocalMargin: 0.15,
       evidenceBreakdown: {
@@ -180,7 +180,7 @@ describe('Rule 4 — Semantic certainty (ontology/businessType anchor)', () => {
 
   it('auto-accepts with ontology anchor instead of businessType', () => {
     const s = score({
-      combined: 0.81,
+      combined: 0.88,
       margin: 0.15,
       reciprocalMargin: 0.15,
       evidenceBreakdown: {
@@ -283,9 +283,9 @@ describe('Reject', () => {
 
 describe('Configurable thresholds', () => {
   it('stricter autoAcceptThreshold → fewer auto-accepts', () => {
-    const strict = new SimilarityDecisionPolicy({ autoAcceptThreshold: 0.95 });
+    const strict = new SimilarityDecisionPolicy({ autoAcceptThreshold: 0.99 });
     const s = score({
-      combined: 0.92,
+      combined: 0.96,
       margin: 0.18,
       reciprocalMargin: 0.18,
       evidenceBreakdown: {

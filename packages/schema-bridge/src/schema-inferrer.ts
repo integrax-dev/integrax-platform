@@ -209,8 +209,10 @@ function shouldIncludeField(path: string, node: SchemaNode, allPaths: string[]):
   return !hasDescendantPath(path, allPaths);
 }
 
-function buildFieldEvidence(node: SchemaNode, sampleCount: number): FieldEvidence {
-  const examples = node.examples.slice(0, sampleCount);
+function buildFieldEvidence(node: SchemaNode, sampleCount: number, appearances: number): FieldEvidence {
+  // Do NOT slice by `sampleCount`. `node.examples` already contains up to `maxExamples` 
+  // elements, which correctly represents flattened array contents across all root samples.
+  const examples = node.examples;
   const normalizedExamples = examples.map(normalizeEvidenceValue);
   const nonNullValues = examples.filter(example => example !== null && example !== undefined);
   const placeholderCount = nonNullValues.filter(isPlaceholderLike).length;
@@ -221,8 +223,10 @@ function buildFieldEvidence(node: SchemaNode, sampleCount: number): FieldEvidenc
   );
 
   const nonNullCount = nonNullValues.length;
-  const nullCount = Math.max(0, sampleCount - nonNullCount);
-  const coverageRatio = sampleCount === 0 ? 0 : nonNullCount / sampleCount;
+  // If field is in an array, appearances can exceed root sampleCount.
+  const maxPossible = Math.max(sampleCount, appearances);
+  const nullCount = Math.max(0, maxPossible - nonNullCount);
+  const coverageRatio = maxPossible === 0 ? 0 : Math.min(1, nonNullCount / maxPossible);
   const placeholderRatio = nonNullCount === 0 ? 0 : placeholderCount / nonNullCount;
   const uniqueCount = distinctValues.size;
   const usableCount = Math.max(0, normalizedExamples.length - placeholderCount);
@@ -274,6 +278,40 @@ export class SchemaInferrer {
     const sampleCount = samples.length;
     const requiredThreshold = 0.80;
     const allPaths = [...pathMap.keys()];
+
+    // Reconstruct children references for structural entropy calculations
+    for (const [path, entry] of pathMap) {
+      const nodeTypes = Array.isArray(entry.node.type) ? entry.node.type : [entry.node.type];
+      
+      if (nodeTypes.includes('object')) {
+        entry.node.children = entry.node.children || {};
+        const prefix = path ? `${path}.` : '';
+        for (const otherPath of allPaths) {
+          if (otherPath.startsWith(prefix) && otherPath !== path) {
+            const childKey = otherPath.slice(prefix.length).split(/[\.\[]/)[0];
+            if (childKey && !entry.node.children![childKey]) {
+              entry.node.children![childKey] = { type: 'null', nullable: true, examples: [] };
+            }
+          }
+        }
+      } else if (nodeTypes.includes('array')) {
+        if (!entry.node.itemSchema) {
+          entry.node.itemSchema = { type: 'object', nullable: false, examples: [], children: {} };
+        }
+        const itemSchema = entry.node.itemSchema;
+        itemSchema.children = itemSchema.children || {};
+        const prefix = `${path}[*].`;
+        for (const otherPath of allPaths) {
+          if (otherPath.startsWith(prefix)) {
+            const childKey = otherPath.slice(prefix.length).split(/[\.\[]/)[0];
+            if (childKey && !itemSchema.children![childKey]) {
+              itemSchema.children![childKey] = { type: 'null', nullable: true, examples: [] };
+            }
+          }
+        }
+      }
+    }
+
     const fields: SchemaField[] = [];
 
     for (const [path, entry] of pathMap) {
@@ -283,11 +321,14 @@ export class SchemaInferrer {
       if (entry.appearances < sampleCount) {
         node.nullable = true;
       }
-      node.evidence = buildFieldEvidence(node, sampleCount);
+      node.evidence = buildFieldEvidence(node, sampleCount, entry.appearances);
 
+      // Protect against arrays incrementing appearances beyond sampleCount 
+      // when evaluating if the field is strictly required at root level
+      const isRequired = (Math.min(sampleCount, entry.appearances) / sampleCount) >= requiredThreshold;
       fields.push({
         path,
-        required: entry.appearances / sampleCount >= requiredThreshold,
+        required: isRequired,
         node,
       });
     }

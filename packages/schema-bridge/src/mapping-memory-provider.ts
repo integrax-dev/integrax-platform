@@ -240,8 +240,8 @@ export function computeSignalWeights(
   now = Date.now(),
 ): ChannelMultipliers {
   const relevant = entries.filter(e =>
-    (!connectorAId || e.connectorAId === connectorAId) &&
-    (!connectorBId || e.connectorBId === connectorBId) &&
+    (!e.connectorAId || e.connectorAId === connectorAId) &&
+    (!e.connectorBId || e.connectorBId === connectorBId) &&
     e.acceptedCount >= 1 &&
     e.channelHits != null,
   );

@@ -106,20 +106,36 @@ export class MappingGenerator {
             valueExpr = JSON.stringify(transform.constant ?? null);
             break;
           case 'split': {
-            // split: un campo fuente → N destinos. La función generada asigna null
-            // a cada destino; el operador implementa la lógica real.
-            // Solo se emite para el primer destino del toPaths — los restantes
-            // se manejan via compositeMappings en el report.
-            valueExpr = `null /* split de ${pathA} — implementar lógica de split */`;
-            break;
+            atoBLines.push(`  // ${transform.description}`);
+            atoBLines.push(`  (() => {`);
+            atoBLines.push(`    const _src = String(${accessA} ?? '').trim();`);
+            atoBLines.push(`    if (!_src) return;`);
+            if (transform.splitStrategy === 'regex' && transform.splitRegex) {
+              atoBLines.push(`    const _parts = _src.split(new RegExp('${transform.splitRegex}'));`);
+            } else {
+              atoBLines.push(`    const _spaceIdx = _src.indexOf(' ');`);
+              atoBLines.push(`    const _parts = _spaceIdx === -1 ? [_src, ''] : [_src.substring(0, _spaceIdx), _src.substring(_spaceIdx + 1)];`);
+            }
+            const targets = transform.toPaths ?? [pathB];
+            targets.forEach((targetPath, i) => {
+               atoBLines.push(buildNestedAssignment((targetPath as string), `_parts[${i}]`, '    '));
+            });
+            atoBLines.push(`  })();`);
+            continue;
           }
           case 'merge': {
-            // merge: N fuentes → 1 destino. Se emite un objeto con los campos fuente.
-            const fromParts = (transform.fromPaths ?? [pathA]).map(
-              p => `'${p.split('.').pop()}': ${safeAccess(p)}`,
-            ).join(', ');
-            valueExpr = `{ ${fromParts} } /* merge → implementar lógica de combinación */`;
-            break;
+            atoBLines.push(`  // ${transform.description}`);
+            if (transform.mergeStrategy === 'concat') {
+              const sep = transform.mergeSeparator ?? ' ';
+              const joinExpr = (transform.fromPaths ?? [pathA]).map(p => `(${safeAccess(p as string)} ?? '')`).join(` + '${sep}' + `);
+              atoBLines.push(buildNestedAssignment(pathB, `(${joinExpr}).trim() || null`));
+            } else {
+              const fromParts = (transform.fromPaths ?? [pathA]).map(
+                p => `'${(p as string).split('.').pop()}': ${safeAccess(p as string)}`,
+              ).join(', ');
+              atoBLines.push(buildNestedAssignment(pathB, `{ ${fromParts} }`));
+            }
+            continue;
           }
           default:
             throw new Error(`Unhandled transform kind: '${(transform as { kind: string }).kind}'`);

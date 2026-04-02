@@ -232,7 +232,7 @@ describe('createMappingMemoryOntologyProvider — rejection veto', () => {
 
 describe('SchemaBridge.recordFeedback() + getMemorySnapshot()', () => {
   it('snapshot is empty on fresh instance', () => {
-    const bridge = new SchemaBridge();
+    const bridge = new SchemaBridge({ autoAcceptThreshold: 0.88, humanReviewThreshold: 0.70, decisionPolicy: { autoAcceptThreshold: 0.88, reviewThreshold: 0.70 } });
     expect(bridge.getMemorySnapshot()).toHaveLength(0);
   });
 
@@ -250,7 +250,7 @@ describe('SchemaBridge.recordFeedback() + getMemorySnapshot()', () => {
   });
 
   it('recordFeedback creates a new entry', () => {
-    const bridge = new SchemaBridge();
+    const bridge = new SchemaBridge({ autoAcceptThreshold: 0.88, humanReviewThreshold: 0.70, decisionPolicy: { autoAcceptThreshold: 0.88, reviewThreshold: 0.70 } });
     bridge.recordFeedback('monto', 'amount', true, 0.92);
     const snap = bridge.getMemorySnapshot();
     expect(snap).toHaveLength(1);
@@ -259,7 +259,7 @@ describe('SchemaBridge.recordFeedback() + getMemorySnapshot()', () => {
   });
 
   it('recordFeedback accumulates multiple feedbacks on same pair', () => {
-    const bridge = new SchemaBridge();
+    const bridge = new SchemaBridge({ autoAcceptThreshold: 0.88, humanReviewThreshold: 0.70, decisionPolicy: { autoAcceptThreshold: 0.88, reviewThreshold: 0.70 } });
     bridge.recordFeedback('monto', 'amount', true, 0.90);
     bridge.recordFeedback('monto', 'amount', true, 0.92);
     bridge.recordFeedback('monto', 'amount', false, 0.40);
@@ -269,7 +269,7 @@ describe('SchemaBridge.recordFeedback() + getMemorySnapshot()', () => {
   });
 
   it('getMemorySnapshot returns a copy — mutations do not affect internal state', () => {
-    const bridge = new SchemaBridge();
+    const bridge = new SchemaBridge({ autoAcceptThreshold: 0.88, humanReviewThreshold: 0.70, decisionPolicy: { autoAcceptThreshold: 0.88, reviewThreshold: 0.70 } });
     bridge.recordFeedback('x', 'y', true, 0.80);
     const snap = bridge.getMemorySnapshot();
     snap.push({ sourcePath: 'injected', targetPath: 'evil', acceptedCount: 0, rejectedCount: 0, averageConfidence: 0 });
@@ -278,11 +278,11 @@ describe('SchemaBridge.recordFeedback() + getMemorySnapshot()', () => {
 
   it('snapshot from one instance seeds a new instance correctly', async () => {
     // Simula el ciclo persist → reload: el feedback del operador afecta la siguiente corrida.
-    const bridge1 = new SchemaBridge();
+    const bridge1 = new SchemaBridge({ autoAcceptThreshold: 0.88, humanReviewThreshold: 0.70, decisionPolicy: { autoAcceptThreshold: 0.88, reviewThreshold: 0.70 } });
     bridge1.recordFeedback('nro_cliente', 'customer_id', true, 0.95);
     const snapshot = bridge1.getMemorySnapshot();
 
-    const bridge2 = new SchemaBridge({ mappingMemory: snapshot });
+    const bridge2 = new SchemaBridge({ mappingMemory: snapshot, autoAcceptThreshold: 0.88, humanReviewThreshold: 0.70, decisionPolicy: { autoAcceptThreshold: 0.88, reviewThreshold: 0.70 } });
     const report = await bridge2.compare({
       connectorAId: 'erp',
       connectorBId: 'crm',
