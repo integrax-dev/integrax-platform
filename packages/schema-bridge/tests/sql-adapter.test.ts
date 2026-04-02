@@ -1,53 +1,70 @@
 import { describe, expect, it } from 'vitest';
 import { SqlDdlAdapter } from '../src/adapters/sql-adapter.js';
+import { sqlDdlFixtures } from './fixtures/synthetic-scenarios.js';
 
 describe('SqlDdlAdapter', () => {
-  it('debe parsear un DDL básico correctamente', () => {
-    const ddl = `
-      CREATE TABLE users (
-        id UUID PRIMARY KEY,
-        first_name VARCHAR(100) NOT NULL,
-        age INT,
-        is_active BOOLEAN NOT NULL,
+  for (const fixture of sqlDdlFixtures) {
+    it(`adapts ${fixture.key}`, () => {
+      const adapter = new SqlDdlAdapter(fixture.ddl);
+      const schema = adapter.adapt();
+      const byPath = Object.fromEntries(schema.fields.map(field => [field.path, field]));
+
+      expect(schema.fields).toHaveLength(fixture.expectedFields.length);
+
+      for (const expectedField of fixture.expectedFields) {
+        expect(byPath[expectedField.path], `Missing ${expectedField.path} in ${fixture.key}`).toBeDefined();
+        expect(byPath[expectedField.path].required).toBe(expectedField.required);
+        expect(byPath[expectedField.path].node.type).toBe(expectedField.type);
+        expect(byPath[expectedField.path].node.nullable).toBe(expectedField.nullable);
+        expect(byPath[expectedField.path].node.format).toBe(expectedField.format);
+      }
+
+      expect(schema.fingerprint).toHaveLength(32);
+      expect(schema.sampleCount).toBe(0);
+    });
+  }
+
+  it('creates a stable fingerprint regardless of column order', () => {
+    const ddlA = `
+      CREATE TABLE one (
+        id UUID NOT NULL,
+        amount DECIMAL(10,2),
         created_at TIMESTAMP
       );
     `;
-
-    const adapter = new SqlDdlAdapter(ddl);
-    const schema = adapter.adapt();
-
-    expect(schema.fields).toHaveLength(5);
-    const byPath = Object.fromEntries(schema.fields.map(f => [f.path, f]));
-    expect(byPath['id'].required).toBe(true);
-    expect(byPath['id'].node.type).toBe('string');
-    expect(byPath['id'].node.nullable).toBe(false);
-    expect(byPath['first_name'].required).toBe(true);
-    expect(byPath['first_name'].node.type).toBe('string');
-    expect(byPath['age'].required).toBe(false);
-    expect(byPath['age'].node.type).toBe('number');
-    expect(byPath['age'].node.nullable).toBe(true);
-    expect(byPath['is_active'].required).toBe(true);
-    expect(byPath['is_active'].node.type).toBe('boolean');
-    expect(byPath['created_at'].required).toBe(false);
-    expect(byPath['created_at'].node.type).toBe('string');
-    expect(byPath['created_at'].node.format).toBe('date-time');
-  });
-
-  it('debe ignorar table-level constraints', () => {
-    const ddl = `
-      CREATE TABLE orders (
-        order_id INT NOT NULL,
+    const ddlB = `
+      CREATE TABLE two (
+        created_at TIMESTAMP,
         amount DECIMAL(10,2),
-        PRIMARY KEY (order_id),
-        CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id)
-      )
+        id UUID NOT NULL
+      );
     `;
 
-    const adapter = new SqlDdlAdapter(ddl);
-    const schema = adapter.adapt();
+    const schemaA = new SqlDdlAdapter(ddlA).adapt();
+    const schemaB = new SqlDdlAdapter(ddlB).adapt();
 
-    // Solo debe reconocer 'order_id' y 'amount'
-    expect(schema.fields.map((f: any) => f.path)).toEqual(['order_id', 'amount']);
-    expect(schema.fields.find((f: any) => f.path === 'amount')?.node.type).toBe('number');
+    expect(schemaA.fingerprint).toBe(schemaB.fingerprint);
+  });
+
+  it('throws when the ddl does not contain a create table statement', () => {
+    const adapter = new SqlDdlAdapter('ALTER TABLE users ADD COLUMN age INT;');
+    expect(() => adapter.adapt()).toThrow('Invalid SQL DDL: Could not find column definitions.');
+  });
+
+  it('treats unknown SQL types as strings instead of crashing', () => {
+    const ddl = `
+      CREATE TABLE custom_types (
+        external_ref HIERARCHYID NOT NULL,
+        payload XML
+      );
+    `;
+
+    const schema = new SqlDdlAdapter(ddl).adapt();
+    const byPath = Object.fromEntries(schema.fields.map(field => [field.path, field]));
+
+    expect(byPath.external_ref.node.type).toBe('string');
+    expect(byPath.external_ref.required).toBe(true);
+    expect(byPath.payload.node.type).toBe('string');
+    expect(byPath.payload.required).toBe(false);
   });
 });

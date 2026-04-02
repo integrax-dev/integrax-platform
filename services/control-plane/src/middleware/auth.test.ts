@@ -10,6 +10,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createHmac } from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
+vi.hoisted(() => {
+  process.env.JWT_SECRET = process.env.JWT_SECRET ?? 'test-jwt-secret';
+});
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -26,6 +29,7 @@ vi.mock('../store/tenants.js', () => ({
 vi.mock('bcrypt', () => ({
   compare: vi.fn(),
 }));
+
 
 import * as bcrypt from 'bcrypt';
 import { requireAuth, requireTenant, verifyWebhookSignature } from './auth.js';

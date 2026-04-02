@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const queryMock = vi.fn();
+const { queryMock } = vi.hoisted(() => ({ queryMock: vi.fn() }));
 
 vi.mock('./db.js', () => ({
   pool: { query: queryMock },
@@ -101,7 +101,7 @@ describe('listTenants', () => {
 
   it('devuelve los tenants y el total para paginación', async () => {
     queryMock
-      .mockResolvedValueOnce({ rows: [{ total_count: '2' }] })
+      .mockResolvedValueOnce({ rows: [{ count: '2' }] })
       .mockResolvedValueOnce({ rows: [makeTenantRow({ id: 'ten_01' }), makeTenantRow({ id: 'ten_02', name: 'Beta' })] });
 
     const result = await listTenants({ page: 1, pageSize: 20 });
@@ -113,7 +113,7 @@ describe('listTenants', () => {
 
   it('filtra por status cuando se provee', async () => {
     queryMock
-      .mockResolvedValueOnce({ rows: [{ total_count: '1' }] })
+      .mockResolvedValueOnce({ rows: [{ count: '1' }] })
       .mockResolvedValueOnce({ rows: [makeTenantRow({ status: 'suspended' })] });
 
     await listTenants({ status: 'suspended', page: 1, pageSize: 20 });

@@ -9,7 +9,6 @@
  * Los rename_candidate se aceptan por evidencia corroborada y margen relativo.
  */
 
-import { ulid } from 'ulid';
 import type {
   CompareOptions,
   ConflictResolverConfig,
@@ -50,7 +49,7 @@ function makeMapping(
   score?: SimilarityScore,
 ): FieldMapping {
   return {
-    id: `map_${ulid()}`,
+    id: `map_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
     pathA,
     pathB,
     transform,

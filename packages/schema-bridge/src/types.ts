@@ -1,39 +1,39 @@
 /**
  * @integrax/schema-bridge — Types
  *
- * Todos los tipos y esquemas Zod para el motor de comparación entre sistemas.
+ * All Zod schemas and TypeScript types for the schema comparison engine.
  */
 
 import { z } from 'zod';
 
-// ─── Nodo de esquema inferido ──────────────────────────────────────────────────
+// ─── Inferred schema node ─────────────────────────────────────────────────────
 
 export type JsonPrimitiveType = 'string' | 'number' | 'boolean' | 'null' | 'object' | 'array';
 
 export interface SchemaNode {
-  /** Tipo JSON. Puede ser array si hay tipos mixtos (ej: ["string", "null"]). */
+  /** JSON type. Array when mixed types are observed (e.g. ["string", "null"]). */
   type: JsonPrimitiveType | JsonPrimitiveType[];
-  /** Formato semántico (date, date-time, email, uuid, uri, ar-cuit, ar-money-string) */
+  /** Semantic format (date, date-time, email, uuid, uri, ar-cuit, ar-money-string) */
   format?: string;
-  /** El campo puede ser null en las muestras */
+  /** Field was null in at least one sample */
   nullable: boolean;
   /** Muestras de ejemplo (máx 3) */
   /** Muestras de ejemplo retenidas para la señal estadística (configurable, default 200) */
   examples: unknown[];
-  /** Hijos si type === 'object' */
+  /** Child nodes when type === 'object' */
   children?: Record<string, SchemaNode>;
-  /** Esquema del item si type === 'array' */
+  /** Item schema when type === 'array' */
   itemSchema?: SchemaNode;
-  /** Valores posibles si se detectó un enum */
+  /** Possible values when an enum is detected */
   enum?: unknown[];
   /** Calidad y cobertura observada de las muestras para este campo. */
   evidence?: FieldEvidence;
 }
 
 export interface SchemaField {
-  /** Ruta en dot-notation, ej: "order.customer.email" */
+  /** Dot-notation path, e.g. "order.customer.email" */
   path: string;
-  /** true si el campo aparece en ≥80% de las muestras */
+  /** true if the field appears in ≥80% of samples */
   required: boolean;
   node: SchemaNode;
 }
@@ -42,7 +42,7 @@ export interface InferredJsonSchema {
   fields: SchemaField[];
   /** SHA-256 (32 chars) del esquema canonicalizado */
   fingerprint: string;
-  /** Total de muestras procesadas */
+  /** Total number of samples processed */
   sampleCount: number;
 }
 
@@ -186,9 +186,9 @@ export interface FieldDiff {
   pathB: string | null;
   nodeA: SchemaNode | null;
   nodeB: SchemaNode | null;
-  /** 0.0–1.0, donde 1.0 es breaking crítico */
+  /** 0.0–1.0, where 1.0 is a critical breaking change */
   breakingScore: number;
-  /** Solo para rename_candidate */
+  /** Only populated for rename_candidate */
   similarity?: SimilarityScore;
 }
 
@@ -199,7 +199,7 @@ export interface SchemaDiff {
   generatedAt: string;
 }
 
-// ─── Compatibilidad de tipos ──────────────────────────────────────────────────
+// ─── Type compatibility ───────────────────────────────────────────────────────
 
 export type TypeCompatibility =
   | 'identical'
@@ -210,14 +210,14 @@ export type TypeCompatibility =
 
 export interface TypeResolution {
   compatibility: TypeCompatibility;
-  /** Expresión JS segura (sin eval), ej: "Number(v)" */
+  /** Safe JS expression (no eval), e.g. "Number(v)" */
   coercionFn: string | null;
   requiresValidation: boolean;
   lossOfPrecision: boolean;
   description: string;
 }
 
-// ─── Resolución de conflictos ────────────────────────────────────────────────
+// ─── Conflict resolution ──────────────────────────────────────────────────────
 
 export type ConflictClass = 'deterministic' | 'heuristic' | 'ambiguous';
 
@@ -234,11 +234,29 @@ export interface TransformSpec {
   kind: TransformKind;
   fromPath: string | null;
   toPath: string | null;
-  /** Expresión JS segura para coerción */
+  /** Safe JS coercion expression */
   coercionFn?: string;
-  /** Valor constante para campos nuevos sin contraparte */
+  /** Constant value for new fields with no counterpart in A */
   constant?: unknown;
   description: string;
+  /**
+   * Para kind='split': los campos destino derivados del campo fuente.
+   * Ejemplo: full_name → ['first_name', 'last_name']
+   */
+  toPaths?: string[];
+  /** Estrategia de split: 'space' (primera palabra / resto) | 'regex' */
+  splitStrategy?: 'space' | 'regex';
+  /** Regex literal (sin delimitadores) para splitStrategy='regex' */
+  splitRegex?: string;
+  /**
+   * Para kind='merge': los campos fuente que se combinan en un campo destino.
+   * Ejemplo: ['amount', 'currency'] → money
+   */
+  fromPaths?: string[];
+  /** Estrategia de merge: 'object' (objeto con keys) | 'concat' (string unido) */
+  mergeStrategy?: 'object' | 'concat';
+  /** Separador para mergeStrategy='concat'. Default: ' ' */
+  mergeSeparator?: string;
 }
 
 /**
@@ -272,7 +290,7 @@ export interface FieldMapping {
   transform: TransformSpec;
   confidence: number;
   bidirectional: boolean;
-  /** Expresión inversa para B→A */
+  /** Inverse expression for B→A */
   inverseCoercionFn?: string;
   /**
    * Razón de la decisión de mapping — útil para observabilidad y auditoría.
@@ -299,11 +317,11 @@ export interface ResolvedConflict {
   mapping: FieldMapping | null;
   confidence: number;
   llmRequired: boolean;
-  /** Explicación en español del motivo de escalación al LLM */
+  /** Human-readable reason why this conflict needs LLM escalation */
   llmReason?: string;
 }
 
-// ─── Reporte de requerimientos funcionales ────────────────────────────────────
+// ─── Functional requirements report ──────────────────────────────────────────
 
 export type RequirementPriority = 'P0' | 'P1' | 'P2' | 'P3';
 export type RequirementCategory =
@@ -330,18 +348,18 @@ export interface FunctionalRequirement {
 export interface LLMEscalation {
   diff: FieldDiff;
   reason: string;
-  /** Semilla de prompt en español para el operador o el LLM */
+  /** Prompt seed for the operator or the LLM */
   promptSeed: string;
 }
 
 export interface RequirementsReport {
-  /** Cambios que rompen la integración existente */
+  /** Changes that break the existing integration */
   breaking: FunctionalRequirement[];
-  /** Cambios que NO rompen pero requieren actualización */
+  /** Changes that do not break but require updates */
   nonBreaking: FunctionalRequirement[];
-  /** Solo informativos, sin código a cambiar */
+  /** Informational only — no code change required */
   informational: FunctionalRequirement[];
-  /** Conflictos que requieren intervención manual o LLM */
+  /** Conflicts requiring manual review or LLM escalation */
   llmEscalations: LLMEscalation[];
   summary: {
     totalDiffs: number;
@@ -355,7 +373,7 @@ export interface RequirementsReport {
   };
 }
 
-// ─── Notificación a clientes ──────────────────────────────────────────────────
+// ─── Client notification ──────────────────────────────────────────────────────
 
 export type ChangeSeverity = 'info' | 'minor' | 'major' | 'critical';
 
@@ -370,7 +388,7 @@ export interface ClientUpdateNotification {
   tenantId?: string;
 }
 
-// ─── Reporte completo (salida principal del bridge) ──────────────────────────
+// ─── Full bridge report (main output) ────────────────────────────────────────
 
 export interface BridgeReport {
   id: string;
@@ -382,13 +400,60 @@ export interface BridgeReport {
   diffs: FieldDiff[];
   mappings: FieldMapping[];
   resolvedConflicts: ResolvedConflict[];
+  /** Mappings compuestos detectados (split / merge). Complementan, no reemplazan, los mappings 1:1. */
+  compositeMappings?: CompositeMapping[];
   requirementsReport: RequirementsReport;
-  /** Función TypeScript generada automáticamente para transformar A→B */
+  /** Auto-generated TypeScript function to transform A→B */
   generatedTransformTs: string;
   generatedAt: string;
+  /**
+   * true cuando se detecta drift significativo respecto al baseline de confianza.
+   * Señal de que el schema o la distribución de valores cambió desde la última comparación.
+   */
+  driftDetected?: boolean;
+  /** Detalle del drift detectado (si driftDetected=true). */
+  driftDetail?: DriftDetail;
 }
 
-// ─── Opciones de comparación ─────────────────────────────────────────────────
+// ─── Composite mappings ──────────────────────────────────────────────────────
+
+export type CompositeMappingKind = 'split' | 'merge';
+
+/**
+ * Describe un mapping compuesto (1:N o N:1) detectado heurísticamente.
+ * No es auto-aceptado — va a revisión del operador.
+ */
+export interface CompositeMapping {
+  kind: CompositeMappingKind;
+  /** Campo(s) origen */
+  fromPaths: string[];
+  /** Campo(s) destino */
+  toPaths: string[];
+  transform: TransformSpec;
+  /** Confianza heurística de la detección (0–1) */
+  confidence: number;
+  /** Explicación en lenguaje natural */
+  reason: string;
+}
+
+// ─── Drift detection ─────────────────────────────────────────────────────────
+
+export interface DriftDetail {
+  /** Confianza promedio actual de los mappings auto-aceptados */
+  currentAvgConfidence: number;
+  /** Baseline de confianza promedio (de la memoria histórica) */
+  baselineAvgConfidence: number;
+  /** Caída absoluta de confianza */
+  confidenceDrop: number;
+  /** Número de campos en A que no tienen contraparte en B (campo huérfano) */
+  unmatchedFieldsA: number;
+  /** Número de campos en B que no tienen contraparte en A */
+  unmatchedFieldsB: number;
+  /** Lista de campos que cambiaron de tipo */
+  typeChanges: string[];
+}
+
+// ─── Compare options ──────────────────────────────────────────────────────────
 
 export interface CompareOptions {
   /** Umbral de similitud para detectar renombrados (default: 0.70) */
@@ -424,7 +489,7 @@ export interface ConflictResolverConfig {
   decisionPolicy?: SimilarityDecisionPolicyConfig;
 }
 
-// ─── Zod schemas para validación de request ──────────────────────────────────
+// ─── Zod request schemas ──────────────────────────────────────────────────────
 
 export const CompareOptionsSchema = z.object({
   renameSimilarityThreshold: z.number().min(0).max(1).default(0.70),
@@ -454,16 +519,16 @@ export const CompareSchemasRequestSchema = z.object({
 
 export type CompareSchemasRequest = z.infer<typeof CompareSchemasRequestSchema>;
 
-// ─── Config del bridge ───────────────────────────────────────────────────────
+// ─── Bridge config ────────────────────────────────────────────────────────────
 
 export interface SchemaBridgeConfig {
-  /** URL de Redis para pub/sub (opcional — si no hay Redis, solo callbacks locales) */
+  /** Redis URL for pub/sub (optional — degrades to local callbacks if absent) */
   redisUrl?: string;
-  /** Canal Redis para notificaciones en tiempo real */
+  /** Redis channel for real-time notifications */
   realtimeChannel?: string;
-  /** API key de Anthropic (solo necesaria si enableLlmEscalation=true) */
+  /** Anthropic API key (only required when enableLlmEscalation=true) */
   anthropicApiKey?: string;
-  /** Logger de @integrax/logger */
+  /** Logger compatible with @integrax/logger */
   logger?: { info: (...a: unknown[]) => void; warn: (...a: unknown[]) => void; error: (...a: unknown[]) => void };
   /** Business types inyectables para semántica específica de dominio. */
   businessTypeProviders?: BusinessTypeProvider[];

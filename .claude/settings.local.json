@@ -45,6 +45,7 @@
       "Bash(pnpm run dev)",
       "Bash(START_SERVER=true pnpm run dev:*)",
       "Bash(find:*)",
+<<<<<<< Updated upstream
       "Bash(git fetch:*)",
       "Bash(pnpm --filter @integrax/schema-bridge build)",
       "Bash(pnpm --filter @integrax/control-plane build)",
@@ -57,6 +58,13 @@
       "Bash(grep -r \"pool\\\\|default.*pool\" c:Userslsperintegrax-platformnode_modulesvitest --include=*.md)",
       "WebSearch",
       "Bash(xargs grep:*)"
+=======
+      "Bash(for f:*)",
+      "Bash(do echo:*)",
+      "Read(//c/Users/lsper/integrax-platform/**)",
+      "Bash(done)",
+      "Bash(pnpm --filter @integrax/schema-bridge build)"
+>>>>>>> Stashed changes
     ]
   }
 }

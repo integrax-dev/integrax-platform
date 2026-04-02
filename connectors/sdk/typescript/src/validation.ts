@@ -1,11 +1,11 @@
 /**
  * Utilities for early schema validation
  *
- * SchemaMismatchError: capturado por kafka-consumer / worker para triggerear
- * la Temporal Activity `generateSchemaDiff` como fallback automático.
+ * SchemaMismatchError: caught by kafka-consumer / worker to trigger
+ * the `generateSchemaDiff` Temporal Activity as an automatic fallback.
  *
- * validatePayloadStructurally: validación liviana en runtime.
- * Para análisis profundo de diferencias, usar @integrax/schema-bridge directamente.
+ * validatePayloadStructurally: lightweight runtime validation.
+ * For deep schema diff analysis use @integrax/schema-bridge directly.
  */
 
 // ─── Error tipado ─────────────────────────────────────────────────────────────
@@ -13,9 +13,9 @@
 export class SchemaMismatchError extends Error {
   public readonly sourcePayload: unknown;
   public readonly expectedSchemaId: string;
-  /** Campos que faltaban en el payload recibido */
+  /** Fields missing from the received payload */
   public readonly missingFields: string[];
-  /** Campos que tenían un tipo inesperado { field, expected, received } */
+  /** Fields with an unexpected type { field, expected, received } */
   public readonly typeViolations: Array<{ field: string; expected: string; received: string }>;
 
   constructor(
@@ -32,7 +32,7 @@ export class SchemaMismatchError extends Error {
     this.typeViolations = opts.typeViolations ?? [];
   }
 
-  /** Serializa el error para logging estructurado */
+  /** Serializes the error for structured logging */
   toLogContext(): Record<string, unknown> {
     return {
       schemaId: this.expectedSchemaId,
@@ -43,7 +43,7 @@ export class SchemaMismatchError extends Error {
   }
 }
 
-// ─── Tipos esperados (subconjunto práctico) ───────────────────────────────────
+// ─── Expected types (practical subset) ───────────────────────────────────────
 
 export type ExpectedType = 'string' | 'number' | 'boolean' | 'object' | 'array' | 'any';
 
@@ -53,7 +53,7 @@ export interface FieldSpec {
   type?: ExpectedType;
 }
 
-// ─── Validación estructural liviana ──────────────────────────────────────────
+// ─── Lightweight structural validation ───────────────────────────────────────
 
 /**
  * Valida un payload en runtime contra una lista de campos esperados.
@@ -80,7 +80,7 @@ export function validatePayloadStructurally(
 
   const obj = payload as Record<string, unknown>;
 
-  // Normalizar: acepta string[] por retrocompatibilidad con ID-0001
+  // Normalize: accepts string[] for backward compatibility
   const specs: FieldSpec[] = expectedFields.map(f =>
     typeof f === 'string' ? { name: f, required: true } : f,
   );
