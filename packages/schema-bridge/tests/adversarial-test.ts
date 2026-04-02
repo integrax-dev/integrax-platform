@@ -244,7 +244,10 @@ async function runScenario(bridge: SchemaBridge, scenario: AdversarialScenario, 
 async function runAdversarialSuite() {
   console.log('--- Iniciando IntegraX Adversarial Suite: statistical resilience + deep arrays ---');
 
-  const bridge = new SchemaBridge();
+const bridge = new SchemaBridge({
+  autoAcceptThreshold: 0.88,
+  decisionPolicy: { autoAcceptThreshold: 0.88 },
+});
   const outcomes: ScenarioOutcome[] = [];
 
   for (const [index, scenario] of adversarialScenarios.entries()) {

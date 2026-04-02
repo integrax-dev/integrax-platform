@@ -278,11 +278,26 @@ describe('SchemaBridge.recordFeedback() + getMemorySnapshot()', () => {
 
   it('snapshot from one instance seeds a new instance correctly', async () => {
     // Simula el ciclo persist → reload: el feedback del operador afecta la siguiente corrida.
-    const bridge1 = new SchemaBridge({ autoAcceptThreshold: 0.88, humanReviewThreshold: 0.70, decisionPolicy: { autoAcceptThreshold: 0.88, reviewThreshold: 0.70 } });
+    const bridge1 = new SchemaBridge({ 
+      autoAcceptThreshold: 0.88, 
+      humanReviewThreshold: 0.70, 
+      decisionPolicy: { 
+        autoAcceptThreshold: 0.88, 
+        reviewThreshold: 0.70 
+      } 
+    });
     bridge1.recordFeedback('nro_cliente', 'customer_id', true, 0.95);
     const snapshot = bridge1.getMemorySnapshot();
 
-    const bridge2 = new SchemaBridge({ mappingMemory: snapshot, autoAcceptThreshold: 0.88, humanReviewThreshold: 0.70, decisionPolicy: { autoAcceptThreshold: 0.88, reviewThreshold: 0.70 } });
+    const bridge2 = new SchemaBridge({ 
+      mappingMemory: snapshot, 
+      autoAcceptThreshold: 0.88, 
+      humanReviewThreshold: 0.70, 
+      decisionPolicy: { 
+        autoAcceptThreshold: 0.88, 
+        reviewThreshold: 0.70 
+      } 
+    });
     const report = await bridge2.compare({
       connectorAId: 'erp',
       connectorBId: 'crm',

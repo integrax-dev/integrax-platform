@@ -47,6 +47,7 @@ export class SchemaBridge {
   private readonly memoryVetoRatio: number | undefined;
   private readonly memoryMinSamples: number | undefined;
   private readonly anthropicApiKey: string | undefined;
+  private readonly explicitAutoAcceptThreshold: number | undefined;
 
   constructor(config: SchemaBridgeConfig = {}) {
     this.memoryEntries = [...(config.mappingMemory ?? [])];
@@ -58,6 +59,8 @@ export class SchemaBridge {
     this.memoryVetoRatio = config.rejectionVetoRatio;
     this.memoryMinSamples = config.rejectionMinSamples;
     this.anthropicApiKey = config.anthropicApiKey;
+    this.explicitAutoAcceptThreshold =
+      config.decisionPolicy?.autoAcceptThreshold ?? config.autoAcceptThreshold;
 
     this.inferrer = new SchemaInferrer({
       businessTypeProviders: config.businessTypeProviders,
@@ -153,7 +156,9 @@ export class SchemaBridge {
       channelMultipliers,
       decisionPolicy: {
         ...(this.similarityConfig.decisionPolicy ?? {}),
-        autoAcceptThreshold: Math.max(0.85, options.renameSimilarityThreshold + 0.15),
+        autoAcceptThreshold:
+          this.explicitAutoAcceptThreshold ??
+          Math.max(0.95, options.renameSimilarityThreshold + 0.15),
         reviewThreshold: options.renameSimilarityThreshold,
       },
       ontologyProviders: [...this.baseOntologyProviders, ...memoryProviders],

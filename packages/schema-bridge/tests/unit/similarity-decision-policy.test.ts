@@ -29,7 +29,8 @@ function score(overrides: Partial<SimilarityScore> & { combined: number }): Simi
   };
 }
 
-const policy = new SimilarityDecisionPolicy();
+const policy = new SimilarityDecisionPolicy({ autoAcceptThreshold: 0.88 });
+const strictPolicy = new SimilarityDecisionPolicy();
 
 // ─── auto_accept ──────────────────────────────────────────────────────────────
 
@@ -282,6 +283,23 @@ describe('Reject', () => {
 // ─── configurable thresholds ─────────────────────────────────────────────────
 
 describe('Configurable thresholds', () => {
+  it('default policy uses stricter 0.95 auto-accept threshold', () => {
+    const s = score({
+      combined: 0.92,
+      margin: 0.18,
+      reciprocalMargin: 0.18,
+      evidenceBreakdown: {
+        lexical: 0.50,
+        value: 0.80,
+        structural: 0.60,
+        businessType: 0,
+        ontology: 0,
+        sufficiency: 0.70,
+      },
+    });
+    expect(strictPolicy.evaluate(s)).not.toBe('auto_accept');
+  });
+
   it('stricter autoAcceptThreshold → fewer auto-accepts', () => {
     const strict = new SimilarityDecisionPolicy({ autoAcceptThreshold: 0.99 });
     const s = score({
