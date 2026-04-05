@@ -476,6 +476,8 @@ export interface CompareOptions {
 export interface SchemaInferrerConfig {
   businessTypeProviders?: BusinessTypeProvider[];
   maxExamples?: number;
+  /** Maximum object/array nesting depth to traverse (default: 20). Guards against malicious payloads. */
+  maxDepth?: number;
 }
 
 export interface SimilarityEngineConfig {

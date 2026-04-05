@@ -98,6 +98,23 @@ const feedbackBodySchema = z.object({
   confidence: z.number().min(0).max(1).default(0.80),
 });
 
+type TestJsonPayload = {
+  success?: boolean;
+  data?: any;
+  error?: {
+    code?: string;
+  };
+};
+
+async function readJson(response: Response): Promise<TestJsonPayload> {
+  return await response.json() as TestJsonPayload;
+}
+
+function expectErrorPayload(payload: TestJsonPayload): { code?: string } {
+  expect(payload.error).toBeDefined();
+  return payload.error as { code?: string };
+}
+
 // ─── HTTP test suite ──────────────────────────────────────────────────────────
 
 describe('schemas-extended — HTTP routes', () => {
@@ -323,7 +340,7 @@ describe('schemas-extended — HTTP routes', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-    const payload = await response.json();
+    const payload = await readJson(response);
     expect(response.status).toBe(202);
     expect(payload.success).toBe(true);
     expect(payload.data.workflowId).toBeDefined();
@@ -357,7 +374,7 @@ describe('schemas-extended — HTTP routes', () => {
 
     const workflowId = `schemaDiff-tenant-1-${Date.now()}`;
     const response = await fetch(`${baseUrl}/api/schemas/status/${workflowId}`);
-    const payload = await response.json();
+    const payload = await readJson(response);
 
     expect(response.status).toBe(200);
     expect(payload.success).toBe(true);
@@ -381,9 +398,9 @@ describe('schemas-extended — HTTP routes', () => {
     'schemaDiff-abc',
   ])('GET /status — 403 for workflowId "%s" (wrong tenant)', async (workflowId) => {
     const response = await fetch(`${baseUrl}/api/schemas/status/${workflowId}`);
-    const payload = await response.json();
+    const payload = await readJson(response);
     expect(response.status).toBe(403);
-    expect(payload.error.code).toBe('FORBIDDEN');
+    expect(expectErrorPayload(payload).code).toBe('FORBIDDEN');
   });
 
   // ── GET /reports/:id — DB scenarios ─────────────────────────────────────────
@@ -402,7 +419,7 @@ describe('schemas-extended — HTTP routes', () => {
     });
 
     const response = await fetch(`${baseUrl}/api/schemas/reports/${reportId}`);
-    const payload = await response.json();
+    const payload = await readJson(response);
 
     expect(response.status).toBe(200);
     expect(payload.success).toBe(true);
@@ -418,22 +435,22 @@ describe('schemas-extended — HTTP routes', () => {
     queryMock.mockResolvedValueOnce({ rows: [] });
 
     const response = await fetch(`${baseUrl}/api/schemas/reports/${reportId}`);
-    const payload = await response.json();
+    const payload = await readJson(response);
 
     expect(response.status).toBe(404);
     expect(payload.success).toBe(false);
-    expect(payload.error.code).toBe('NOT_FOUND');
+    expect(expectErrorPayload(payload).code).toBe('NOT_FOUND');
   });
 
   it('GET /reports/:id — 500 when DB throws', async () => {
     queryMock.mockRejectedValueOnce(new Error('DB connection lost'));
 
     const response = await fetch(`${baseUrl}/api/schemas/reports/some-id`);
-    const payload = await response.json();
+    const payload = await readJson(response);
 
     expect(response.status).toBe(500);
     expect(payload.success).toBe(false);
-    expect(payload.error.code).toBe('FETCH_REPORT_FAILED');
+    expect(expectErrorPayload(payload).code).toBe('FETCH_REPORT_FAILED');
   });
 
   // ── GET /reports (list) ────────────────────────────────────────────────────
@@ -447,7 +464,7 @@ describe('schemas-extended — HTTP routes', () => {
     });
 
     const response = await fetch(`${baseUrl}/api/schemas/reports`);
-    const payload = await response.json();
+    const payload = await readJson(response);
 
     expect(response.status).toBe(200);
     expect(payload.success).toBe(true);
@@ -458,7 +475,7 @@ describe('schemas-extended — HTTP routes', () => {
     queryMock.mockResolvedValueOnce({ rows: [] });
 
     const response = await fetch(`${baseUrl}/api/schemas/reports`);
-    const payload = await response.json();
+    const payload = await readJson(response);
 
     expect(response.status).toBe(200);
     expect(payload.success).toBe(true);
@@ -469,11 +486,11 @@ describe('schemas-extended — HTTP routes', () => {
     queryMock.mockRejectedValueOnce(new Error('DB unavailable'));
 
     const response = await fetch(`${baseUrl}/api/schemas/reports`);
-    const payload = await response.json();
+    const payload = await readJson(response);
 
     expect(response.status).toBe(500);
     expect(payload.success).toBe(false);
-    expect(payload.error.code).toBe('FETCH_REPORTS_FAILED');
+    expect(expectErrorPayload(payload).code).toBe('FETCH_REPORTS_FAILED');
   });
 
   // ── GET /memory — query param combinations ───────────────────────────────
@@ -496,7 +513,7 @@ describe('schemas-extended — HTTP routes', () => {
 
     const url = `${baseUrl}/api/schemas/memory?connectorAId=${connectorAId}&connectorBId=${connectorBId}`;
     const response = await fetch(url);
-    const payload = await response.json();
+    const payload = await readJson(response);
 
     expect(response.status).toBe(200);
     expect(payload.success).toBe(true);
@@ -510,19 +527,19 @@ describe('schemas-extended — HTTP routes', () => {
   ])('GET /memory — 400 for incomplete params "%s"', async (queryString) => {
     const response = await fetch(`${baseUrl}/api/schemas/memory${queryString}`);
     expect(response.status).toBe(400);
-    const payload = await response.json();
-    expect(payload.error.code).toBe('VALIDATION_ERROR');
+    const payload = await readJson(response);
+    expect(expectErrorPayload(payload).code).toBe('VALIDATION_ERROR');
   });
 
   it('GET /memory — 500 when loadMappingMemory throws', async () => {
     loadMappingMemoryMock.mockRejectedValueOnce(new Error('Redis timeout'));
 
     const response = await fetch(`${baseUrl}/api/schemas/memory?connectorAId=a&connectorBId=b`);
-    const payload = await response.json();
+    const payload = await readJson(response);
 
     expect(response.status).toBe(500);
     expect(payload.success).toBe(false);
-    expect(payload.error.code).toBe('MEMORY_FETCH_FAILED');
+    expect(expectErrorPayload(payload).code).toBe('MEMORY_FETCH_FAILED');
   });
 
   // ── POST /reports/:reportId/feedback ────────────────────────────────────────
@@ -655,7 +672,7 @@ describe('schemas-extended — HTTP routes', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-    const payload = await response.json();
+    const payload = await readJson(response);
 
     expect(response.status).toBe(200);
     expect(payload.success).toBe(true);
@@ -679,11 +696,11 @@ describe('schemas-extended — HTTP routes', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sourcePath: 'a', targetPath: 'b', accepted: true, confidence: 0.8 }),
     });
-    const payload = await response.json();
+    const payload = await readJson(response);
 
     expect(response.status).toBe(404);
     expect(payload.success).toBe(false);
-    expect(payload.error.code).toBe('NOT_FOUND');
+    expect(expectErrorPayload(payload).code).toBe('NOT_FOUND');
   });
 
   it('POST /feedback — 500 when upsertEntry throws', async () => {
@@ -697,11 +714,11 @@ describe('schemas-extended — HTTP routes', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sourcePath: 'a', targetPath: 'b', accepted: true, confidence: 0.8 }),
     });
-    const payload = await response.json();
+    const payload = await readJson(response);
 
     expect(response.status).toBe(500);
     expect(payload.success).toBe(false);
-    expect(payload.error.code).toBe('FEEDBACK_FAILED');
+    expect(expectErrorPayload(payload).code).toBe('FEEDBACK_FAILED');
   });
 
   // ── 503 when TEMPORAL_ADDRESS is not configured ───────────────────────────
@@ -712,10 +729,10 @@ describe('schemas-extended — HTTP routes', () => {
 
     const workflowId = `schemaDiff-tenant-1-test`;
     const response = await fetch(`${baseUrl}/api/schemas/status/${workflowId}`);
-    const payload = await response.json();
+    const payload = await readJson(response);
 
     expect(response.status).toBe(503);
-    expect(payload.error.code).toBe('TEMPORAL_UNAVAILABLE');
+    expect(expectErrorPayload(payload).code).toBe('TEMPORAL_UNAVAILABLE');
 
     process.env.TEMPORAL_ADDRESS = prev ?? 'localhost:7233';
   });

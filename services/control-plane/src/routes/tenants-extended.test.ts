@@ -55,6 +55,45 @@ vi.mock('../middleware/validate.js', () => ({
 
 import { tenantsRouter } from './tenants.js';
 
+type TestJsonPayload = {
+  success?: boolean;
+  data?: any;
+  pagination?: {
+    page?: number;
+    pageSize?: number;
+    totalItems?: number;
+    totalPages?: number;
+  };
+  error?: {
+    code?: string;
+    message?: string;
+  };
+};
+
+async function readJson(response: Response): Promise<TestJsonPayload> {
+  return await response.json() as TestJsonPayload;
+}
+
+function expectErrorPayload(payload: TestJsonPayload): { code?: string; message?: string } {
+  expect(payload.error).toBeDefined();
+  return payload.error as { code?: string; message?: string };
+}
+
+function expectPagination(payload: TestJsonPayload): {
+  page?: number;
+  pageSize?: number;
+  totalItems?: number;
+  totalPages?: number;
+} {
+  expect(payload.pagination).toBeDefined();
+  return payload.pagination as {
+    page?: number;
+    pageSize?: number;
+    totalItems?: number;
+    totalPages?: number;
+  };
+}
+
 // ─── Plan limits constants (mirror of tenants.ts) ─────────────────────────────
 const PLAN_LIMITS = {
   free: {
@@ -165,7 +204,7 @@ describe('tenants-extended — HTTP routes', () => {
         ownerName: 'Owner Name',
       }),
     });
-    const payload = await response.json();
+    const payload = await readJson(response);
 
     expect(response.status).toBe(201);
     expect(payload.success).toBe(true);
@@ -187,7 +226,7 @@ describe('tenants-extended — HTTP routes', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, plan, ownerEmail: 'x@y.com', ownerName: 'X Y', metadata, limits }),
     });
-    const payload = await response.json();
+    const payload = await readJson(response);
     expect(response.status).toBe(201);
     expect(payload.success).toBe(true);
     expect(payload.data.tenant.name).toBe(name);
@@ -233,13 +272,14 @@ describe('tenants-extended — HTTP routes', () => {
     listTenantsMock.mockResolvedValueOnce({ data: tenants, totalItems });
 
     const response = await fetch(`${baseUrl}/api/tenants${query}`);
-    const payload = await response.json();
+    const payload = await readJson(response);
+    const pagination = expectPagination(payload);
 
     expect(response.status).toBe(200);
     expect(payload.success).toBe(true);
     expect(payload.data).toHaveLength(count);
-    expect(payload.pagination.totalItems).toBe(totalItems);
-    expect(payload.pagination.totalPages).toBe(Math.ceil(totalItems / (Number(new URLSearchParams(query.replace('?', '')).get('pageSize')) || 20)));
+    expect(pagination.totalItems).toBe(totalItems);
+    expect(pagination.totalPages).toBe(Math.ceil(totalItems / (Number(new URLSearchParams(query.replace('?', '')).get('pageSize')) || 20)));
   });
 
   it('GET / — 403 for tenant_admin role', async () => {
@@ -260,7 +300,7 @@ describe('tenants-extended — HTTP routes', () => {
     getTenantMock.mockResolvedValueOnce(tenant);
 
     const response = await fetch(`${baseUrl}/api/tenants/${id}`);
-    const payload = await response.json();
+    const payload = await readJson(response);
 
     expect(response.status).toBe(200);
     expect(payload.success).toBe(true);
@@ -276,9 +316,9 @@ describe('tenants-extended — HTTP routes', () => {
   ])('GET /:id — 404 for "%s"', async (id) => {
     getTenantMock.mockResolvedValueOnce(null);
     const response = await fetch(`${baseUrl}/api/tenants/${id}`);
-    const payload = await response.json();
+    const payload = await readJson(response);
     expect(response.status).toBe(404);
-    expect(payload.error.code).toBe('TENANT_NOT_FOUND');
+    expect(expectErrorPayload(payload).code).toBe('TENANT_NOT_FOUND');
   });
 
   it('GET /:id — 403 when tenant_admin accesses another tenant', async () => {
@@ -287,10 +327,10 @@ describe('tenants-extended — HTTP routes', () => {
     getTenantMock.mockResolvedValueOnce(makeTenant({ id: 'ten_OTHERS' }));
 
     const response = await fetch(`${baseUrl}/api/tenants/ten_OTHERS`);
-    const payload = await response.json();
+    const payload = await readJson(response);
 
     expect(response.status).toBe(403);
-    expect(payload.error.code).toBe('FORBIDDEN');
+    expect(expectErrorPayload(payload).code).toBe('FORBIDDEN');
   });
 
   it('GET /:id — tenant_admin can access own tenant', async () => {
@@ -299,7 +339,7 @@ describe('tenants-extended — HTTP routes', () => {
     getTenantMock.mockResolvedValueOnce(makeTenant({ id: 'ten_MINE' }));
 
     const response = await fetch(`${baseUrl}/api/tenants/ten_MINE`);
-    const payload = await response.json();
+    const payload = await readJson(response);
 
     expect(response.status).toBe(200);
     expect(payload.data.id).toBe('ten_MINE');
@@ -325,7 +365,7 @@ describe('tenants-extended — HTTP routes', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(update),
     });
-    const payload = await response.json();
+    const payload = await readJson(response);
 
     expect(response.status).toBe(200);
     expect(payload.success).toBe(true);
@@ -339,9 +379,9 @@ describe('tenants-extended — HTTP routes', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'X' }),
     });
-    const payload = await response.json();
+    const payload = await readJson(response);
     expect(response.status).toBe(404);
-    expect(payload.error.code).toBe('TENANT_NOT_FOUND');
+    expect(expectErrorPayload(payload).code).toBe('TENANT_NOT_FOUND');
   });
 
   it('PATCH /:id — plan change auto-applies plan limits when no custom limits provided', async () => {
@@ -353,7 +393,7 @@ describe('tenants-extended — HTTP routes', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ plan: 'enterprise' }),
     });
-    const payload = await response.json();
+    const payload = await readJson(response);
 
     expect(response.status).toBe(200);
     expect(payload.data.plan).toBe('enterprise');
@@ -371,7 +411,7 @@ describe('tenants-extended — HTTP routes', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: `${plan} Tenant`, plan, ownerEmail: 'x@y.com', ownerName: 'X' }),
     });
-    const payload = await response.json();
+    const payload = await readJson(response);
 
     expect(response.status).toBe(201);
     const tenantLimits = payload.data.tenant.limits;
@@ -392,7 +432,7 @@ describe('tenants-extended — HTTP routes', () => {
     getTenantMock.mockResolvedValueOnce(tenant);
 
     const response = await fetch(`${baseUrl}/api/tenants/${id}/suspend`, { method: 'POST' });
-    const payload = await response.json();
+    const payload = await readJson(response);
 
     expect(response.status).toBe(200);
     expect(payload.success).toBe(true);
@@ -416,7 +456,7 @@ describe('tenants-extended — HTTP routes', () => {
     getTenantMock.mockResolvedValueOnce(tenant);
 
     const response = await fetch(`${baseUrl}/api/tenants/${id}/resume`, { method: 'POST' });
-    const payload = await response.json();
+    const payload = await readJson(response);
 
     expect(response.status).toBe(200);
     expect(payload.success).toBe(true);
@@ -438,14 +478,14 @@ describe('tenants-extended — HTTP routes', () => {
     getTenantMock.mockResolvedValueOnce({ ...tenant });
     const suspendResponse = await fetch(`${baseUrl}/api/tenants/ten_FLOW01/suspend`, { method: 'POST' });
     expect(suspendResponse.status).toBe(200);
-    const suspendPayload = await suspendResponse.json();
+    const suspendPayload = await readJson(suspendResponse);
     expect(suspendPayload.data.status).toBe('suspended');
 
     // Resume
     getTenantMock.mockResolvedValueOnce({ ...tenant, status: 'suspended' });
     const resumeResponse = await fetch(`${baseUrl}/api/tenants/ten_FLOW01/resume`, { method: 'POST' });
     expect(resumeResponse.status).toBe(200);
-    const resumePayload = await resumeResponse.json();
+    const resumePayload = await readJson(resumeResponse);
     expect(resumePayload.data.status).toBe('active');
   });
 
@@ -460,7 +500,7 @@ describe('tenants-extended — HTTP routes', () => {
     getTenantMock.mockResolvedValueOnce(tenant);
 
     const response = await fetch(`${baseUrl}/api/tenants/${id}`, { method: 'DELETE' });
-    const payload = await response.json();
+    const payload = await readJson(response);
 
     expect(response.status).toBe(200);
     expect(payload.success).toBe(true);
@@ -490,7 +530,7 @@ describe('tenants-extended — HTTP routes', () => {
     getTenantMock.mockResolvedValueOnce(tenant);
 
     const response = await fetch(`${baseUrl}/api/tenants/${id}/rotate-api-key`, { method: 'POST' });
-    const payload = await response.json();
+    const payload = await readJson(response);
 
     expect(response.status).toBe(200);
     expect(payload.success).toBe(true);
@@ -504,7 +544,7 @@ describe('tenants-extended — HTTP routes', () => {
     getTenantMock.mockResolvedValueOnce(tenant);
 
     const response = await fetch(`${baseUrl}/api/tenants/ten_MINE/rotate-api-key`, { method: 'POST' });
-    const payload = await response.json();
+    const payload = await readJson(response);
 
     expect(response.status).toBe(200);
     expect(payload.data.apiKey).toMatch(/^ixk_/);
@@ -556,12 +596,13 @@ describe('tenants-extended — HTTP routes', () => {
     });
 
     const response = await fetch(`${baseUrl}/api/tenants?page=${page}&pageSize=${pageSize}`);
-    const payload = await response.json();
+    const payload = await readJson(response);
+    const pagination = expectPagination(payload);
 
     expect(response.status).toBe(200);
-    expect(payload.pagination.page).toBe(page);
-    expect(payload.pagination.pageSize).toBe(pageSize);
-    expect(payload.pagination.totalItems).toBe(totalItems);
-    expect(payload.pagination.totalPages).toBe(expectedTotalPages);
+    expect(pagination.page).toBe(page);
+    expect(pagination.pageSize).toBe(pageSize);
+    expect(pagination.totalItems).toBe(totalItems);
+    expect(pagination.totalPages).toBe(expectedTotalPages);
   });
 });
