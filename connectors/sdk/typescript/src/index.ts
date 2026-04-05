@@ -27,3 +27,9 @@ export * from './validation.js';
 
 // Schema guard wrapper
 export * from './schema-guard.js';
+
+// Connector Manifest (declarative per-connector config)
+export * from './manifest-types.js';
+
+// Connector Facade (stable interface for integration-engine / Activepieces)
+export * from './facade-types.js';

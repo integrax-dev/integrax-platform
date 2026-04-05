@@ -21,6 +21,7 @@ import type {
 } from './types.js';
 
 const DEFAULT_MAX_EXAMPLES = 200;
+const DEFAULT_MAX_DEPTH = 20;
 const FINGERPRINT_LENGTH = 32;
 const PLACEHOLDER_TOKENS = new Set([
   '',
@@ -144,7 +145,10 @@ function traverseValue(
   path: string,
   pathMap: Map<string, PathEntry>,
   config: Required<SchemaInferrerConfig>,
+  depth = 0,
 ): void {
+  if (depth >= config.maxDepth) return;
+
   const type = getJsonType(value);
 
   let node: SchemaNode;
@@ -173,14 +177,14 @@ function traverseValue(
     const children: Record<string, SchemaNode> = {};
     for (const [key, childValue] of Object.entries(objectValue)) {
       const childPath = path ? `${path}.${key}` : key;
-      traverseValue(childValue, childPath, pathMap, config);
+      traverseValue(childValue, childPath, pathMap, config, depth + 1);
     }
     node = { type: 'object', nullable: false, examples: [], children };
   } else {
     const arrayValue = value as unknown[];
     for (const item of arrayValue.slice(0, config.maxExamples)) {
       const itemPath = `${path}[*]`;
-      traverseValue(item, itemPath, pathMap, config);
+      traverseValue(item, itemPath, pathMap, config, depth + 1);
     }
     node = { type: 'array', nullable: false, examples: [], itemSchema: undefined };
   }
@@ -263,6 +267,7 @@ export class SchemaInferrer {
     this.config = {
       businessTypeProviders: config.businessTypeProviders ?? defaultBusinessTypeProviders,
       maxExamples: config.maxExamples ?? DEFAULT_MAX_EXAMPLES,
+      maxDepth: config.maxDepth ?? DEFAULT_MAX_DEPTH,
     };
   }
 

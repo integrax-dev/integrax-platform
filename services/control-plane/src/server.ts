@@ -9,6 +9,7 @@ import { connectorsRouter } from './routes/connectors.js';
 import { workflowsRouter } from './routes/workflows.js';
 import { schemasRouter } from './routes/schemas.js';
 import { adminRouter } from './routes/admin.js';
+import { reconciliationRouter } from './routes/reconciliation.js';
 import { getAuditLogs } from './middleware/audit.js';
 import { requireAuth, requireRole } from './middleware/auth.js';
 import { createLogger, requestLogger } from '@integrax/logger';
@@ -93,6 +94,7 @@ app.use('/api/tenants', tenantsRouter);
 app.use('/api/connectors', connectorsRouter);
 app.use('/api/workflows', workflowsRouter);
 app.use('/api/schemas', schemasRouter);
+app.use('/api/reconciliation', reconciliationRouter);
 
 // Endpoint de logs de auditoría
 app.get(
