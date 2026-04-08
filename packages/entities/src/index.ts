@@ -13,3 +13,7 @@ export type { Stock } from './stock.js';
 export type { Shipment, ShipmentStatus } from './shipment.js';
 export type { Transaction, TransactionStatus, TransactionType } from './transaction.js';
 export type { Document } from './document.js';
+export type { Payment, PaymentStatus, PaymentMethodType } from './payment.js';
+export type { PaymentMethod } from './payment-method.js';
+export type { Subscription, SubscriptionStatus, BillingFrequency } from './subscription.js';
+export type { Refund, RefundStatus, RefundReason } from './refund.js';

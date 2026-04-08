@@ -25,7 +25,7 @@ import { eventBus } from './event-bus.js';
 import { timelineStore } from './stores.js';
 import { commandRegistry } from './commands.js';
 import { facadeResolver } from './connectors.js';
-import { billingService, inventoryService } from './modules.js';
+import { billingService, inventoryService, paymentsService } from './modules.js';
 
 // ─── Validator ────────────────────────────────────────────────────────────────
 
@@ -68,6 +68,33 @@ export const operationEngine = new OperationEngine({
       inventory: async (_tenantId, action, payload) => {
         if (action === 'update_stock') return inventoryService.updateStock(payload as any);
         throw new Error(`inventory: unknown action '${action}'`);
+      },
+      payments: async (tenantId, action, payload) => {
+        const p = payload as Record<string, unknown>;
+        switch (action) {
+          case 'create_payment':
+            return paymentsService.createPayment(p['input'] as any, p['externalId'] as string, p['initialStatus'] as any);
+          case 'authorize_payment':
+            return paymentsService.authorizePayment(p as any);
+          case 'capture_payment':
+            return paymentsService.capturePayment(p as any);
+          case 'refund_payment':
+            return paymentsService.refundPayment(p['input'] as any, p['externalRefundId'] as string);
+          case 'cancel_payment':
+            return paymentsService.cancelPayment(p as any);
+          case 'tokenize_payment_method':
+            return paymentsService.tokenizePaymentMethod(p['input'] as any, p['pspToken'] as string, p['details'] as any);
+          case 'create_subscription':
+            return paymentsService.createSubscription(p['input'] as any, p['externalId'] as string);
+          case 'cancel_subscription':
+            return paymentsService.cancelSubscription(p as any);
+          case 'send_payment_reminder':
+            return paymentsService.sendPaymentReminder(p as any);
+          case 'reconcile_payment':
+            return paymentsService.reconcilePayment(p['input'] as any, p['livePayment'] as any);
+          default:
+            throw new Error(`payments: unknown action '${action}'`);
+        }
       },
     },
   },

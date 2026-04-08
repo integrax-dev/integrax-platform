@@ -53,4 +53,26 @@ export type IntegraxEventType =
   | 'operation.failed'
   | 'operation.approval_required'
   | 'operation.approved'
-  | 'operation.rejected';
+  | 'operation.rejected'
+  // --- Pagos ----------------------------------------------------------------
+  | 'payment.created'
+  | 'payment.updated'
+  | 'payment.authorized'
+  | 'payment.captured'
+  | 'payment.approved'
+  | 'payment.failed'
+  | 'payment.cancelled'
+  | 'payment.refunded'
+  | 'payment.partially_refunded'
+  | 'payment.chargeback'
+  | 'payment.expired'
+  | 'payment.reconciliation_failed'
+  | 'payment.method.tokenized'
+  | 'payment.reminder.sent'
+  // --- Suscripciones --------------------------------------------------------
+  | 'subscription.created'
+  | 'subscription.updated'
+  | 'subscription.activated'
+  | 'subscription.past_due'
+  | 'subscription.cancelled'
+  | 'subscription.expired';
