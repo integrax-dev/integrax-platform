@@ -18,7 +18,27 @@ export type ConnectorCapability =
   | 'polling'          // soporta lectura incremental basada en cursor
   | 'notification'     // canal de notificacion solo saliente (email, whatsapp)
   | 'fiscal'           // emite documentos fiscales autorizados por organismos
-  | 'spreadsheet';     // almacena datos tabulares estructurados
+  | 'spreadsheet'      // almacena datos tabulares estructurados
+  | 'payments';        // PSP: puede procesar pagos, refunds, suscripciones, etc.
+
+/**
+ * Capacidades de pago granulares que un conector PSP puede declarar.
+ * Las claves coinciden exactamente con OperationCapability del operation-engine.
+ */
+export type PaymentCapability =
+  | 'create_payment'
+  | 'authorize_payment'
+  | 'capture_payment'
+  | 'refund_payment'
+  | 'cancel_payment'
+  | 'tokenize_payment_method'
+  | 'create_subscription'
+  | 'cancel_subscription'
+  | 'create_checkout_link'
+  | 'generate_qr_payment'
+  | 'create_split_payment'
+  | 'reconcile_payment'
+  | 'send_payment_reminder';
 
 /**
  * Archivo unico requerido por conector.
@@ -96,6 +116,16 @@ export interface ConnectorManifest {
    * Los hooks se ejecutan antes o despues de las acciones de reconciliacion.
    */
   hooks?: Record<string, string>;
+
+  /**
+   * Capacidades de pago granulares soportadas por este conector.
+   * Solo relevante si `capabilities` incluye 'payments'.
+   *
+   * Ejemplo (MercadoPago):
+   *   payment_capabilities: ['create_payment','refund_payment','create_subscription',
+   *                          'create_checkout_link','generate_qr_payment']
+   */
+  payment_capabilities?: PaymentCapability[];
 }
 
 /**

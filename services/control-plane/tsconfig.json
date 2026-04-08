@@ -28,7 +28,8 @@
       "@integrax/reconciliation-engine": ["../../packages/reconciliation-engine/src/index.ts"],
       "@integrax/integration-orchestrator": ["../../packages/integration-orchestrator/src/index.ts"],
       "@integrax/connector-sdk": ["../../connectors/sdk/typescript/src/index.ts"],
-      "@integrax/operation-engine": ["../../packages/operation-engine/src/index.ts"]
+      "@integrax/operation-engine": ["../../packages/operation-engine/src/index.ts"],
+      "@integrax/module-payments": ["../../modules/payments/src/index.ts"]
     }
   },
   "include": ["src/**/*"],
