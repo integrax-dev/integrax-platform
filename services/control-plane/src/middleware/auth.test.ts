@@ -45,7 +45,7 @@ function makeRes(): { res: Response; status: ReturnType<typeof vi.fn>; json: Ret
   return { res: { status } as unknown as Response, status, json };
 }
 
-const next: NextFunction = vi.fn();
+const next = vi.fn() as unknown as NextFunction;
 
 beforeEach(() => {
   vi.clearAllMocks();

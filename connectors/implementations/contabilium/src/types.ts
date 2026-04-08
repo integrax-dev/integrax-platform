@@ -1,5 +1,5 @@
 /**
- * Contabilium API Types
+ * Tipos de la API de Contabilium
  *
  * Contabilium es un ERP/sistema contable muy usado en Argentina para PyMEs.
  * API Docs: https://contabilium.com/api
@@ -7,8 +7,38 @@
 
 import { z } from 'zod';
 
+type AlicuotaIVAValue = '0' | '10.5' | '21' | '27';
+type FormaPagoValue = 'Efectivo' | 'Transferencia' | 'Tarjeta' | 'Cheque' | 'MercadoPago' | 'Otro';
+
+const ALICUOTA_IVA_VALUES = ['0', '10.5', '21', '27'] as const;
+const FORMA_PAGO_VALUES = ['Efectivo', 'Transferencia', 'Tarjeta', 'Cheque', 'MercadoPago', 'Otro'] as const;
+const FORMA_PAGO_ALIAS_VALUES = ['EF', 'TC', 'TD', 'TB', 'MP', 'CH', 'DEB', 'OT'] as const;
+const MEDIO_PAGO_ALIAS: Record<string, FormaPagoValue> = {
+  EF: 'Efectivo',
+  TC: 'Tarjeta',
+  TD: 'Tarjeta',
+  TB: 'Transferencia',
+  MP: 'MercadoPago',
+  CH: 'Cheque',
+  DEB: 'Otro',
+  OT: 'Otro',
+};
+
+const AlicuotaIVAValueSchema = z.union([
+  z.enum(ALICUOTA_IVA_VALUES),
+  z.literal(0),
+  z.literal(10.5),
+  z.literal(21),
+  z.literal(27),
+]).transform((value): AlicuotaIVAValue => String(value) as AlicuotaIVAValue);
+
+const FormaPagoValueSchema = z.union([
+  z.enum(FORMA_PAGO_VALUES),
+  z.enum(FORMA_PAGO_ALIAS_VALUES),
+]).transform((value): FormaPagoValue => MEDIO_PAGO_ALIAS[value] ?? value);
+
 // ============================================
-// Authentication
+// Autenticacion
 // ============================================
 export interface ContabiliumCredentials {
   clientId: string;
@@ -73,7 +103,7 @@ export interface ClienteResponse {
 }
 
 // ============================================
-// Productos (Products/Services)
+// Productos (productos/servicios)
 // ============================================
 export const ProductoSchema = z.object({
   Id: z.number().optional(),
@@ -89,11 +119,11 @@ export const ProductoSchema = z.object({
   Categoria: z.string().optional(),
   Activo: z.boolean().default(true),
   // Impuestos
-  AlicuotaIVA: z.enum(['0', '10.5', '21', '27']).default('21'),
+  AlicuotaIVA: AlicuotaIVAValueSchema.default('21'),
   Exento: z.boolean().default(false),
 });
 
-export type Producto = z.infer<typeof ProductoSchema>;
+export type Producto = z.input<typeof ProductoSchema>;
 
 export interface ProductoResponse {
   Id: number;
@@ -115,7 +145,7 @@ export interface ProductoResponse {
 }
 
 // ============================================
-// Comprobantes (Invoices/Receipts)
+// Comprobantes (facturas/recibos)
 // ============================================
 export const ItemComprobanteSchema = z.object({
   ProductoId: z.number().optional(),
@@ -124,11 +154,11 @@ export const ItemComprobanteSchema = z.object({
   Cantidad: z.number(),
   PrecioUnitario: z.number(),
   Bonificacion: z.number().default(0),
-  AlicuotaIVA: z.enum(['0', '10.5', '21', '27']).default('21'),
+  AlicuotaIVA: AlicuotaIVAValueSchema.default('21'),
   Exento: z.boolean().default(false),
 });
 
-export type ItemComprobante = z.infer<typeof ItemComprobanteSchema>;
+export type ItemComprobante = z.input<typeof ItemComprobanteSchema>;
 
 export const ComprobanteSchema = z.object({
   Id: z.number().optional(),
@@ -160,10 +190,10 @@ export const ComprobanteSchema = z.object({
   CAEVencimiento: z.string().optional(),
   // Pago
   Pagado: z.boolean().default(false),
-  FormaPago: z.enum(['Efectivo', 'Transferencia', 'Tarjeta', 'Cheque', 'Otro']).optional(),
+  FormaPago: FormaPagoValueSchema.optional(),
 });
 
-export type Comprobante = z.infer<typeof ComprobanteSchema>;
+export type Comprobante = z.input<typeof ComprobanteSchema>;
 
 export interface ComprobanteResponse {
   Id: number;
@@ -215,26 +245,39 @@ export const PagoSchema = z.object({
   ComprobanteId: z.number(),
   Fecha: z.string(),
   Monto: z.number(),
-  FormaPago: z.enum(['Efectivo', 'Transferencia', 'Tarjeta', 'Cheque', 'MercadoPago', 'Otro']),
-  Referencia: z.string().optional(), // External reference (e.g., MercadoPago payment ID)
+  FormaPago: FormaPagoValueSchema.optional(),
+  MedioPago: FormaPagoValueSchema.optional(),
+  Referencia: z.string().optional(), // Referencia externa (por ejemplo, ID de pago de MercadoPago)
   Observaciones: z.string().optional(),
-});
+}).superRefine((value, ctx) => {
+  if (!value.FormaPago && !value.MedioPago) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['FormaPago'],
+      message: 'FormaPago o MedioPago es requerido',
+    });
+  }
+}).transform(({ MedioPago, FormaPago, ...rest }) => ({
+  ...rest,
+  FormaPago: FormaPago ?? MedioPago!,
+}));
 
-export type Pago = z.infer<typeof PagoSchema>;
+export type Pago = z.input<typeof PagoSchema>;
 
 export interface PagoResponse {
   Id: number;
   ComprobanteId: number;
   Fecha: string;
   Monto: number;
-  FormaPago: string;
+  FormaPago?: string;
+  MedioPago?: string;
   Referencia?: string;
   Observaciones?: string;
   FechaCreacion: string;
 }
 
 // ============================================
-// API Response Types
+// Tipos de respuesta de API
 // ============================================
 export interface ContabiliumListResponse<T> {
   Items: T[];
@@ -251,7 +294,7 @@ export interface ContabiliumError {
 }
 
 // ============================================
-// Connector Configuration
+// Configuracion del conector
 // ============================================
 export interface ContabiliumConfig {
   clientId: string;

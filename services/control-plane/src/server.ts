@@ -10,6 +10,11 @@ import { workflowsRouter } from './routes/workflows.js';
 import { schemasRouter } from './routes/schemas.js';
 import { adminRouter } from './routes/admin.js';
 import { reconciliationRouter } from './routes/reconciliation.js';
+import { webhooksRouter } from './routes/webhooks.js';
+import { snapshotsRouter } from './routes/snapshots.js';
+import { platformRouter } from './routes/platform.js';
+import { timelineRouter } from './routes/timeline.js';
+import { operationsRouter } from './routes/operations.js';
 import { getAuditLogs } from './middleware/audit.js';
 import { requireAuth, requireRole } from './middleware/auth.js';
 import { createLogger, requestLogger } from '@integrax/logger';
@@ -95,6 +100,17 @@ app.use('/api/connectors', connectorsRouter);
 app.use('/api/workflows', workflowsRouter);
 app.use('/api/schemas', schemasRouter);
 app.use('/api/reconciliation', reconciliationRouter);
+
+// ─── Nueva arquitectura orientada a eventos ──────────────────────────────────
+// Webhooks: /webhooks/:connectorId
+app.use('/webhooks', webhooksRouter);
+// Snapshots: /api/tenants/:tenantId/snapshots/:entityType[/:canonicalId]
+app.use('/api/tenants/:tenantId/snapshots', snapshotsRouter);
+// Platform modules: /api/tenants/:tenantId/{orders,stock,invoices,products,consistency,...}
+app.use('/api', platformRouter);
+// Timeline: /api/tenants/:tenantId/timeline[/:id]
+app.use('/api/tenants', timelineRouter);
+app.use('/api/tenants/:tenantId/operations', operationsRouter);
 
 // Endpoint de logs de auditoría
 app.get(

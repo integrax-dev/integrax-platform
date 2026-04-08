@@ -38,8 +38,6 @@ const KAFKA_GROUP_ID = process.env.KAFKA_GROUP_ID || 'integrax-consumer';
 const TEMPORAL_ADDRESS = process.env.TEMPORAL_ADDRESS as string;
 if (!TEMPORAL_ADDRESS) throw new Error('TEMPORAL_ADDRESS env var is required');
 
-const TEMPORAL_TASK_QUEUE = process.env.TEMPORAL_TASK_QUEUE || 'integrax-workflows';
-
 // Topics to subscribe
 const TOPICS = [
   // Debezium CDC topics
@@ -125,9 +123,9 @@ async function handleCDCEvent(topic: string, event: DebeziumEvent): Promise<void
     // Route to appropriate workflow based on aggregate type
     switch (aggregateType) {
       case 'payment':
-        await client.startPayment(eventPayload.tenantId || 'default', {
+        await client.startPayment((eventPayload.tenantId as string) || 'default', {
           paymentId: record.aggregate_id as string,
-          tenantId: eventPayload.tenantId || 'default',
+          tenantId: (eventPayload.tenantId as string) || 'default',
           correlationId: crypto.randomUUID(),
           source: 'cdc',
         });
@@ -187,24 +185,18 @@ async function handleBusinessEvent(topic: string, event: BusinessEvent): Promise
 
   // Route based on event type
   if (event.eventType.startsWith('payment.')) {
-    await client.workflow.start('paymentWorkflow', {
-      taskQueue: TEMPORAL_TASK_QUEUE,
-      workflowId: `payment-${event.data.paymentId}-${Date.now()}`,
-      args: [
-        {
-          paymentId: event.data.paymentId,
-          tenantId: event.tenantId,
-          correlationId: event.correlationId,
-          source: 'api',
-        },
-      ],
-    });
+    await client.startPayment(event.tenantId, {
+      paymentId: event.data.paymentId as string,
+      tenantId: event.tenantId,
+      correlationId: event.correlationId,
+      source: 'api',
+    }, `payment-${event.data.paymentId as string}-${Date.now()}`);
   }
 
   if (event.eventType.startsWith('order.')) {
     // Signal existing order workflow
     try {
-      const handle = client.workflow.getHandle(`order-${event.data.orderId}`);
+      const handle = client.getHandle(`order-${event.data.orderId as string}`);
 
       if (event.eventType === 'order.payment_received') {
         await handle.signal('paymentReceived', {
@@ -216,27 +208,19 @@ async function handleBusinessEvent(topic: string, event: BusinessEvent): Promise
       }
     } catch (error) {
       logger.warn({ orderId: event.data.orderId }, 'Order workflow not found, skipping signal');
-      // Workflow doesn't exist, might need to create one
     }
   }
 
   if (event.eventType === 'webhook.mercadopago') {
-    // MercadoPago webhook
     const webhookData = event.data as { type: string; data: { id: string } };
 
     if (webhookData.type === 'payment') {
-      await client.workflow.start('paymentWorkflow', {
-        taskQueue: TEMPORAL_TASK_QUEUE,
-        workflowId: `payment-webhook-${webhookData.data.id}-${Date.now()}`,
-        args: [
-          {
-            paymentId: webhookData.data.id,
-            tenantId: event.tenantId,
-            correlationId: event.correlationId,
-            source: 'webhook',
-          },
-        ],
-      });
+      await client.startPayment(event.tenantId, {
+        paymentId: webhookData.data.id,
+        tenantId: event.tenantId,
+        correlationId: event.correlationId,
+        source: 'webhook',
+      }, `payment-webhook-${webhookData.data.id}-${Date.now()}`);
     }
   }
 }
@@ -319,7 +303,7 @@ async function main() {
     }
 
     if (temporalClient) {
-      await temporalClient.connection.close();
+      await temporalClient.disconnect();
     }
 
     await new Promise<void>((resolve) => {

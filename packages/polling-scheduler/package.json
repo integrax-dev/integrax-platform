@@ -1,0 +1,20 @@
+{
+  "name": "@integrax/polling-scheduler",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Cursor-based incremental fetch scheduler — emits synthetic events when changes are detected",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@integrax/event-bus": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.6.1"
+  }
+}

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { DriftAnalyzer } from '../drift-analyzer.js';
-import type { EvidencePack, DriftReport, SchemaFingerprint } from '../../connector-watchdog/src/types.js';
+import type { EvidencePack, DriftReport, SchemaFingerprint } from '@integrax/connector-watchdog';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 

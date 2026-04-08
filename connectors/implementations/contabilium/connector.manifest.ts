@@ -5,33 +5,42 @@ const manifest = {
 
   auth: { type: 'oauth2' as const },
 
+  capabilities: ['read', 'write', 'polling'] as const,
+
+  webhooks_supported: false,
+  polling_supported: true,
+  cursor_fields: ['FechaModificacion', 'Fecha'],
+  entities_supported: ['customer', 'product', 'invoice'],
+
   operations: {
     getCliente: true,
-    listClientes: true,
+    searchClientes: true,
     createCliente: true,
     updateCliente: true,
     getProducto: true,
-    listProductos: true,
+    searchProductos: true,
     createProducto: true,
     updateProducto: true,
     getComprobante: true,
-    listComprobantes: true,
+    searchComprobantes: true,
     createComprobante: true,
-    getPago: true,
-    listPagos: true,
+    facturarComprobante: true,
+    anularComprobante: true,
+    registrarPago: true,
+    getPagosComprobante: true,
   },
 
   entities: {
     customer: {
       source: 'clientes',
       identity: {
-        primary: ['NumeroDocumento'],     // CUIT/CUIL — strongest identity signal
+        primary: ['NumeroDocumento'], // CUIT/CUIL: senal de identidad mas fuerte
         fallback: ['RazonSocial', 'Email'],
       },
       fields: {
         externalId: 'Id',
         sku: 'NumeroDocumento',
-        title: 'RazonSocial',            // RazonSocial = company name / customer name
+        title: 'RazonSocial', // nombre comercial o razon social del cliente
         price: '',
         currency: '',
         stock: '',
@@ -41,17 +50,17 @@ const manifest = {
     },
 
     product: {
-      source: 'productos',
+      source: 'conceptos',
       identity: {
-        primary: ['Codigo'],             // product code / SKU
+        primary: ['Codigo'], // codigo interno o SKU
         fallback: ['Nombre', 'CodigoBarras'],
       },
       fields: {
         externalId: 'Id',
         sku: 'Codigo',
-        title: 'Nombre',                 // Nombre = product name (NOT Descripcion)
-        price: 'Precio',                 // Precio = sale price (NOT PrecioVenta)
-        currency: '',                    // Contabilium uses tenant-level currency (ARS default)
+        title: 'Nombre',
+        price: 'Precio',
+        currency: '', // la moneda suele ser a nivel tenant (ARS por defecto)
         stock: 'Stock',
         status: 'Activo',
         updatedAt: 'FechaModificacion',
@@ -61,26 +70,25 @@ const manifest = {
     invoice: {
       source: 'comprobantes',
       identity: {
-        primary: ['NumeroComprobante', 'PuntoVenta'],
-        fallback: ['ClienteNumeroDocumento', 'Total'],
+        primary: ['NumeroCompleto'],
+        fallback: ['Cliente.NumeroDocumento', 'Total'],
       },
       fields: {
         externalId: 'Id',
-        sku: 'NumeroComprobante',
-        title: 'ClienteRazonSocial',
+        sku: 'NumeroCompleto',
+        title: 'Cliente.RazonSocial',
         price: 'Total',
         currency: 'Moneda',
         stock: '',
         status: 'Estado',
-        updatedAt: 'Fecha',
+        updatedAt: 'FechaModificacion',
       },
     },
   },
 
   drift: {
-    endpoints: ['clientes', 'productos', 'comprobantes', 'pagos'],
+    endpoints: ['clientes', 'conceptos', 'comprobantes', 'pagos'],
   },
-
 } satisfies ConnectorManifest;
 
 export default manifest;

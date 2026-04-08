@@ -5,13 +5,17 @@ const manifest = {
 
   auth: { type: 'api_key' as const },
 
+  capabilities: ['read', 'write', 'webhook_inbound', 'polling'] as const,
+
+  webhooks_supported: true,
+  polling_supported: true,
+  cursor_fields: ['date_last_updated', 'date_created'],
+  entities_supported: ['payment'],
+
   operations: {
-    getPayment: true,
-    searchPayments: true,
-    createPayment: true,
-    refundPayment: true,
-    getOrder: true,
-    searchOrders: true,
+    get_payment: true,
+    search_payments: true,
+    refund_payment: true,
   },
 
   entities: {
@@ -26,52 +30,16 @@ const manifest = {
         sku: 'external_reference',
         price: 'transaction_amount',
         currency: 'currency_id',
-        stock: '',        // not applicable for payments
-        status: 'status',
-        updatedAt: 'date_last_updated',
-      },
-    },
-
-    order: {
-      source: 'merchant_orders',
-      identity: {
-        primary: ['id'],
-        fallback: ['external_reference'],
-      },
-      fields: {
-        externalId: 'id',
-        sku: 'external_reference',
-        price: 'total_amount',
-        currency: 'currency_id',
         stock: '',
         status: 'status',
         updatedAt: 'date_last_updated',
       },
     },
-
-    product: {
-      source: 'items',
-      identity: {
-        primary: ['id'],
-        fallback: ['title'],
-      },
-      fields: {
-        externalId: 'id',
-        sku: 'id',
-        title: 'title',
-        price: 'unit_price',
-        currency: 'currency_id',
-        stock: 'available_quantity',
-        status: 'status',
-        updatedAt: 'date_created',
-      },
-    },
   },
 
   drift: {
-    endpoints: ['payments', 'merchant_orders', 'items'],
+    endpoints: ['payments'],
   },
-
 } satisfies ConnectorManifest;
 
 export default manifest;

@@ -120,7 +120,7 @@ describe('schemas router', () => {
     });
 
     expect(response.status).toBe(500);
-    const payload = await response.json();
+    const payload = await response.json() as Record<string, any>;
     expect(payload.success).toBe(false);
     expect(payload.error.code).toBe('WORKFLOW_START_FAILED');
   });
@@ -141,7 +141,7 @@ describe('schemas router', () => {
     });
 
     expect(response.status).toBe(503);
-    const payload = await response.json();
+    const payload = await response.json() as Record<string, any>;
     expect(payload.error.code).toBe('TEMPORAL_UNAVAILABLE');
 
     process.env.TEMPORAL_ADDRESS = prev ?? 'localhost:7233';
@@ -159,7 +159,7 @@ describe('schemas router', () => {
     });
 
     const response = await fetch(`${baseUrl}/api/schemas/reports/br_01REPORT`);
-    const payload = await response.json();
+    const payload = await response.json() as Record<string, any>;
 
     expect(response.status).toBe(200);
     expect(payload.success).toBe(true);
@@ -177,7 +177,7 @@ describe('schemas router', () => {
 
     const workflowId = 'schemaDiff-tenant-1-123';
     const response = await fetch(`${baseUrl}/api/schemas/status/${workflowId}`);
-    const payload = await response.json();
+    const payload = await response.json() as Record<string, any>;
 
     expect(response.status).toBe(200);
     expect(payload.success).toBe(true);
@@ -191,7 +191,7 @@ describe('schemas router', () => {
   it('rechaza con 403 si el workflowId no pertenece al tenant autenticado', async () => {
     const workflowId = 'schemaDiff-otro-tenant-999';
     const response = await fetch(`${baseUrl}/api/schemas/status/${workflowId}`);
-    const payload = await response.json();
+    const payload = await response.json() as Record<string, any>;
 
     expect(response.status).toBe(403);
     expect(payload.success).toBe(false);
@@ -212,7 +212,7 @@ describe('schemas router', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-    const payload = await response.json();
+    const payload = await response.json() as Record<string, any>;
 
     expect(response.status).toBe(202);
     expect(payload.success).toBe(true);
@@ -238,7 +238,7 @@ describe('schemas router', () => {
         confidence: 0.88,
       }),
     });
-    const payload = await response.json();
+    const payload = await response.json() as Record<string, any>;
 
     expect(response.status).toBe(200);
     expect(payload.success).toBe(true);
@@ -276,7 +276,7 @@ describe('schemas router', () => {
     const response = await fetch(
       `${baseUrl}/api/schemas/memory?connectorAId=mercadopago&connectorBId=contabilium`,
     );
-    const payload = await response.json();
+    const payload = await response.json() as Record<string, any>;
 
     expect(response.status).toBe(200);
     expect(payload.success).toBe(true);

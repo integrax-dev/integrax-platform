@@ -932,4 +932,49 @@ router.post(
   }
 );
 
+/**
+ * POST /connectors/:id/activate-polling
+ *
+ * Activates cursor-based polling for a configured connector.
+ * Calls registerTenantPolling so the PollingScheduler starts fetching.
+ */
+router.post(
+  '/:id/activate-polling',
+  requireAuth,
+  requireTenant,
+  requireRole('tenant_admin', 'platform_admin'),
+  audit('connector.activate_polling'),
+  async (req, res) => {
+    const tenantId = req.tenantId!;
+    const tc = await getTenantConnector(req.params.id);
+
+    if (!tc || tc.tenantId !== tenantId) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'CONNECTOR_NOT_FOUND', message: 'Connector configuration not found' },
+      });
+    }
+
+    const { registerTenantPolling, orchestrator, pollingScheduler, connectorRegistry } = await import('../platform/container.js');
+
+    const decryptedCredentials: Record<string, string> = {};
+    for (const [key, value] of Object.entries(tc.credentials)) {
+      decryptedCredentials[key] = decrypt(value as string);
+    }
+
+    await registerTenantPolling({
+      tenantId,
+      connectors: [{ connectorId: tc.connectorId, credentials: decryptedCredentials }],
+      registry: connectorRegistry,
+      scheduler: pollingScheduler,
+      orchestrator,
+    });
+
+    res.json({
+      success: true,
+      data: { tenantId, connectorId: tc.connectorId, pollingActivated: true },
+    });
+  },
+);
+
 export { router as connectorsRouter, CONNECTOR_CATALOG };

@@ -1,12 +1,12 @@
 /**
- * Email/SMTP Connector Tests
+ * Tests del conector Email/SMTP
  *
  * Tests para el conector de Email SMTP
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Types from the connector
+// Tipos usados en el conector
 interface EmailAddress {
   name?: string;
   address: string;
@@ -52,7 +52,7 @@ interface EmailTemplate {
   variables: string[];
 }
 
-// Helper: Format recipient
+// Utilidad: formatea un destinatario
 function formatRecipient(recipient: EmailRecipient): string {
   if (typeof recipient === 'string') {
     return recipient;
@@ -60,16 +60,16 @@ function formatRecipient(recipient: EmailRecipient): string {
   return recipient.name ? `"${recipient.name}" <${recipient.address}>` : recipient.address;
 }
 
-// Helper: Render template
+// Utilidad: renderiza una plantilla
 function renderTemplate(template: string, data: Record<string, any>): string {
   let result = template;
 
-  // Simple variable replacement: {{variable}}
+  // Reemplazo simple de variables: {{variable}}
   result = result.replace(/\{\{(\w+)\}\}/g, (match, key) => {
     return data[key] !== undefined ? String(data[key]) : match;
   });
 
-  // Simple conditionals: {{#if variable}}...{{/if}}
+  // Condicionales simples: {{#if variable}}...{{/if}}
   result = result.replace(/\{\{#if (\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (match, key, content) => {
     return data[key] ? content : '';
   });
@@ -419,7 +419,6 @@ describe('Email Connector', () => {
   });
 
   describe('Email Integration (real)', () => {
-    const { EmailConnector } = require('../index');
     const smtpHost = process.env.SMTP_HOST;
     const smtpUser = process.env.SMTP_USER;
     const smtpPass = process.env.SMTP_PASS;
@@ -431,13 +430,16 @@ describe('Email Connector', () => {
         console.warn('Email integration test skipped: set SMTP_HOST, SMTP_USER, SMTP_PASS');
         return;
       }
+      const { EmailConnector } = await import('../index');
       const connector = new EmailConnector();
       await connector.connect({
-        type: 'basic',
-        credentials: { provider: 'smtp', host: smtpHost, user: smtpUser, pass: smtpPass },
+        provider: 'smtp',
+        host: smtpHost,
+        user: smtpUser,
+        pass: smtpPass,
       });
-      const verified = await connector.verify();
-      expect(verified).toBe(true);
+      const verified = await connector.verifyConnection();
+      expect(verified.success).toBe(true);
       await connector.disconnect();
     }, 10000);
 
@@ -446,17 +448,22 @@ describe('Email Connector', () => {
         console.warn('Email integration test skipped: set SMTP_HOST, SMTP_USER, SMTP_PASS');
         return;
       }
+      const from = smtpFrom ?? smtpUser;
+      const to = smtpTo ?? smtpUser;
+      const { EmailConnector } = await import('../index');
       const connector = new EmailConnector();
       await connector.connect({
-        type: 'basic',
-        credentials: { provider: 'smtp', host: smtpHost, user: smtpUser, pass: smtpPass },
+        provider: 'smtp',
+        host: smtpHost,
+        user: smtpUser,
+        pass: smtpPass,
       });
       let result = null;
       let error = null;
       try {
         result = await connector.sendEmail({
-          from: smtpFrom,
-          to: smtpTo,
+          from,
+          to,
           subject: 'Test IntegraX',
           text: 'Test de integración SMTP',
         });
