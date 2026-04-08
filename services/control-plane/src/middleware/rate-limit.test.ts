@@ -12,12 +12,12 @@ function makeRes(): { status: ReturnType<typeof vi.fn>; json: ReturnType<typeof 
   return res;
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => { vi.restoreAllMocks(); });
 
 describe('rateLimit middleware', () => {
   it('allows requests below the limit', () => {
     const mw = rateLimit({ maxRequests: 3, windowMs: 60_000 });
-    const next = vi.fn() as NextFunction;
+    const next = vi.fn() as unknown as NextFunction;
 
     for (let i = 0; i < 3; i++) {
       const res = makeRes();
@@ -29,7 +29,7 @@ describe('rateLimit middleware', () => {
 
   it('returns 429 on the request that exceeds the limit', () => {
     const mw = rateLimit({ maxRequests: 2, windowMs: 60_000 });
-    const next = vi.fn() as NextFunction;
+    const next = vi.fn() as unknown as NextFunction;
 
     mw(makeReq() as Request, makeRes() as unknown as Response, next);
     mw(makeReq() as Request, makeRes() as unknown as Response, next);
@@ -47,7 +47,7 @@ describe('rateLimit middleware', () => {
   it('sets X-RateLimit-* headers on every request', () => {
     const mw = rateLimit({ maxRequests: 10, windowMs: 60_000 });
     const res = makeRes();
-    mw(makeReq() as Request, res as unknown as Response, vi.fn() as NextFunction);
+    mw(makeReq() as Request, res as unknown as Response, vi.fn() as unknown as NextFunction);
 
     expect(res.setHeader).toHaveBeenCalledWith('X-RateLimit-Limit', 10);
     expect(res.setHeader).toHaveBeenCalledWith('X-RateLimit-Remaining', 9);
@@ -56,7 +56,7 @@ describe('rateLimit middleware', () => {
 
   it('tracks different tenants independently', () => {
     const mw = rateLimit({ maxRequests: 1, windowMs: 60_000 });
-    const next = vi.fn() as NextFunction;
+    const next = vi.fn() as unknown as NextFunction;
 
     mw(makeReq('tenant-A') as Request, makeRes() as unknown as Response, next);
     mw(makeReq('tenant-B') as Request, makeRes() as unknown as Response, next);
@@ -66,9 +66,9 @@ describe('rateLimit middleware', () => {
   });
 
   it('resets the window after windowMs elapses', () => {
-    vi.useFakeTimers();
+    void vi.useFakeTimers();
     const mw = rateLimit({ maxRequests: 1, windowMs: 1_000 });
-    const next = vi.fn() as NextFunction;
+    const next = vi.fn() as unknown as NextFunction;
 
     mw(makeReq() as Request, makeRes() as unknown as Response, next); // OK
     const blocked = makeRes();

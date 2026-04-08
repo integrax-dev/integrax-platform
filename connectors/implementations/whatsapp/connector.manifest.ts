@@ -3,31 +3,35 @@ import type { ConnectorManifest } from '@integrax/connector-sdk';
 const manifest = {
   service: 'whatsapp',
 
-  // Meta Cloud API: accessToken + phoneNumberId → api_key
+  // Meta Cloud API: accessToken + phoneNumberId se modela como api_key.
   auth: { type: 'api_key' as const },
+
+  // Mensajeria saliente e ingreso de mensajes por webhook de Meta.
+  // No hay reconciliacion de entidades: los mensajes se envian y despachan.
+  capabilities: ['notification', 'webhook_inbound'] as const,
+
+  webhooks_supported: true, // Meta empuja mensajes entrantes y estados de entrega
+  polling_supported: false,
+  cursor_fields: [],
+  entities_supported: [],
 
   operations: {
     sendMessage: true,
+    sendText: true,
     sendTemplate: true,
-    sendMedia: true,
-    getTemplates: true,
-    markAsRead: true,
+    sendImage: true,
+    sendDocument: true,
+    listTemplates: true,
   },
 
-  // WhatsApp Business API is outbound messaging — no entities to reconcile.
-  // Incoming messages are received via webhook (push), not polled.
+  // La API de WhatsApp Business se usa como canal de mensajeria, no como fuente de entidades.
+  // Los mensajes entrantes llegan por webhook, no por polling.
   entities: {},
 
   drift: {
-    // Graph API versioning is the only drift to watch
+    // Solo interesa vigilar cambios de versionado en Graph API.
     endpoints: [],
   },
-
-  hooks: {
-    // Incoming messages + delivery statuses arrive via Meta webhook
-    inbound: 'hooks/whatsapp-webhook.ts',
-  },
-
 } satisfies ConnectorManifest;
 
 export default manifest;

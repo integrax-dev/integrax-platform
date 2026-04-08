@@ -3,8 +3,17 @@ import type { ConnectorManifest } from '@integrax/connector-sdk';
 const manifest = {
   service: 'email',
 
-  // SMTP basic auth (user + pass) or provider API key via apiKey field
-  auth: { type: 'basic' as const },
+  // El conector acepta configuracion SMTP y opciones de proveedor, no solo user/pass.
+  auth: { type: 'custom' as const },
+
+  // Canal de notificacion solo saliente: no lee entidades, no hace polling y no recibe webhooks.
+  // Los webhooks de entrega dependen de cada proveedor y se manejan por separado.
+  capabilities: ['notification'] as const,
+
+  webhooks_supported: false,
+  polling_supported: false,
+  cursor_fields: [],
+  entities_supported: [],
 
   operations: {
     sendEmail: true,
@@ -13,15 +22,14 @@ const manifest = {
     verifyConnection: true,
   },
 
-  // Email is outbound-only — no entities to reconcile.
-  // Messages are fire-and-forget: there is no get/list/update.
+  // Email es solo saliente: no hay entidades para reconciliar.
+  // Los mensajes se envian y despachan: no existe get/list/update.
   entities: {},
 
   drift: {
-    // No REST endpoints to watch; delivery status comes via webhooks from providers
+    // No hay endpoints REST para vigilar; el estado de entrega llega por webhooks del proveedor.
     endpoints: [],
   },
-
 } satisfies ConnectorManifest;
 
 export default manifest;

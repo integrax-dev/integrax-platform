@@ -6,3 +6,7 @@ packages:
   - 'workflows/temporal'
   - 'services/*'
   - 'apps/*'
+  - 'country-packs/*'
+  - 'runtime/*'
+  - 'modules/*'
+  - 'profiles/*'

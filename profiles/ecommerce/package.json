@@ -1,0 +1,19 @@
+{
+  "name": "@integrax/profile-ecommerce",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Ecommerce profile — default modules, workflows, entities and UI presets",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "build": "tsc --noEmit" },
+  "dependencies": {
+    "@integrax/module-orders": "workspace:*",
+    "@integrax/module-inventory": "workspace:*",
+    "@integrax/module-billing": "workspace:*",
+    "@integrax/module-catalog": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  }
+}

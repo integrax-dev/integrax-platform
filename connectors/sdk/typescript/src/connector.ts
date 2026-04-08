@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import type {
   ConnectorSpec,
   ActionInput,
@@ -166,8 +165,8 @@ export abstract class BaseConnector {
    * Override this method to handle webhooks for this connector.
    */
   async parseWebhook(
-    payload: WebhookPayload,
-    context: Omit<ExecutionContext, 'correlationId'>
+    _payload: WebhookPayload,
+    _context: Omit<ExecutionContext, 'correlationId'>
   ): Promise<NormalizedEvent | null> {
     throw new Error('Webhook parsing not implemented for this connector');
   }
@@ -176,8 +175,8 @@ export abstract class BaseConnector {
    * Verify webhook signature if applicable.
    */
   async verifyWebhookSignature(
-    payload: WebhookPayload,
-    secret: string
+    _payload: WebhookPayload,
+    _secret: string
   ): Promise<boolean> {
     return true; // Override in subclass
   }

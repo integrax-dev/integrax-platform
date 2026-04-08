@@ -18,8 +18,11 @@
     "experimentalDecorators": true,
     "strictPropertyInitialization": false,
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "../..",
     "skipLibCheck": true,
+    "paths": {
+      "@integrax/connector-watchdog": ["../connector-watchdog/src/index.ts"]
+    },
     "esModuleInterop": true,
     "resolveJsonModule": true
   },

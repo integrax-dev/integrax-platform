@@ -5,21 +5,30 @@ const manifest = {
 
   auth: { type: 'oauth2' as const },
 
+  // Google Sheets no tiene webhooks push nativos: los cambios se detectan solo por polling.
+  capabilities: ['read', 'write', 'polling', 'spreadsheet'] as const,
+
+  webhooks_supported: false,
+  polling_supported: true,
+  // No hay cursor temporal nativo: el polling compara snapshots completos de filas.
+  cursor_fields: [],
+  entities_supported: ['row'],
+
   operations: {
-    getSpreadsheet: true,
-    readRange: true,
-    writeRange: true,
-    appendRows: true,
-    clearRange: true,
-    createSpreadsheet: true,
-    addSheet: true,
+    get_spreadsheet: true,
+    read_range: true,
+    write_range: true,
+    append_rows: true,
+    clear_range: true,
+    create_spreadsheet: true,
+    add_sheet: true,
   },
 
   entities: {
     /**
-     * A "row" entity represents a single data row in a sheet.
-     * Identity uses spreadsheetId + range + row index.
-     * The row entity is generic — schema is inferred at runtime.
+     * Una entidad "row" representa una fila de datos dentro de una hoja.
+     * La identidad usa spreadsheetId + hoja + indice de fila.
+     * La estructura es generica: el esquema se infiere en tiempo de ejecucion.
      */
     row: {
       source: 'values',
@@ -30,7 +39,7 @@ const manifest = {
       fields: {
         externalId: '__rowIndex',
         sku: '__rowIndex',
-        title: '__spreadsheetId',
+        title: '__sheetName',
         price: '',
         currency: '',
         stock: '',
@@ -41,10 +50,9 @@ const manifest = {
   },
 
   drift: {
-    // Google Sheets does not expose push webhooks — drift via polling
+    // Google Sheets no expone webhooks push: el drift se detecta por polling.
     endpoints: [],
   },
-
 } satisfies ConnectorManifest;
 
 export default manifest;

@@ -1,77 +1,124 @@
 /**
- * Connector Manifest Types
+ * Tipos de manifest de conectores
  *
- * Declarative schema for connector.manifest.ts files.
- * Each connector declares its capabilities, entity mappings, and integration points.
- * No procedural logic allowed in manifests — data only.
+ * Esquema declarativo para los archivos `connector.manifest.ts`.
+ * Cada conector declara sus capacidades, mapeos de entidades y puntos de
+ * integracion. En estos manifests no debe haber logica procedural: solo datos.
  */
 
 /**
- * The single required file per connector.
- * Lives at: connectors/implementations/<service>/connector.manifest.ts
+ * Capacidades de alto nivel que un conector puede publicar.
+ * La plataforma las usa para decidir que componentes del pipeline activar.
+ */
+export type ConnectorCapability =
+  | 'read'             // puede leer entidades por polling o bajo demanda
+  | 'write'            // puede crear o actualizar entidades
+  | 'webhook_inbound'  // recibe eventos push desde el servicio externo
+  | 'webhook_outbound' // puede suscribirse a webhooks del servicio externo
+  | 'polling'          // soporta lectura incremental basada en cursor
+  | 'notification'     // canal de notificacion solo saliente (email, whatsapp)
+  | 'fiscal'           // emite documentos fiscales autorizados por organismos
+  | 'spreadsheet';     // almacena datos tabulares estructurados
+
+/**
+ * Archivo unico requerido por conector.
+ * Vive en `connectors/implementations/<service>/connector.manifest.ts`.
  */
 export interface ConnectorManifest {
-  /** Unique service identifier, e.g. 'mercadopago', 'contabilium', 'afip-wsfe' */
+  /** Identificador unico del servicio, por ejemplo 'mercadopago', 'contabilium' o 'afip-wsfe'. */
   service: string;
 
-  /** Path to OpenAPI / Swagger / Postman spec for code generation (relative to manifest) */
+  /** Ruta al spec OpenAPI / Swagger / Postman para generacion de codigo, relativa al manifest. */
   spec?: string;
 
-  /** Auth configuration */
+  /** Configuracion de autenticacion. */
   auth: {
     type: 'api_key' | 'oauth2' | 'basic' | 'custom';
   };
 
   /**
-   * Which API operations to expose via the facade.
-   * Keys match operation names in the spec or existing connector actions.
-   * true = expose, false = hide.
+   * Flags de capacidades de alto nivel.
+   * `polling-scheduler` evalua `polling`; `webhook-ingestion` evalua `webhook_inbound`.
+   * Si se omite, la plataforma trata al conector como solo `read + write`.
+   */
+  capabilities?: ConnectorCapability[];
+
+  /**
+   * Indica si el servicio externo empuja eventos hacia la plataforma por webhook.
+   * Si es true, `webhook-ingestion` registra una ruta para este conector.
+   */
+  webhooks_supported?: boolean;
+
+  /**
+   * Indica si el conector soporta polling incremental basado en cursores.
+   * Si es true, `polling-scheduler` puede registrar un job para este conector.
+   */
+  polling_supported?: boolean;
+
+  /**
+   * Campos que `polling-scheduler` puede usar como cursor para lectura incremental.
+   * La primera entrada es el cursor preferido; las siguientes funcionan como respaldo.
+   * Ejemplo: ['updated_at', 'date_last_updated']
+   */
+  cursor_fields?: string[];
+
+  /**
+   * Tipos de entidad canonica que este conector puede proveer.
+   * Sirve para seleccionar entidades en `snapshot-store` y en el motor de reconciliacion.
+   * Ejemplo: ['product', 'order', 'customer']
+   */
+  entities_supported?: string[];
+
+  /**
+   * Operaciones de API expuestas via facade.
+   * Las claves deben coincidir con nombres de operacion reales del spec o del conector.
+   * true = exponer, false = ocultar.
    */
   operations?: Record<string, boolean>;
 
   /**
-   * Entity mappings for the reconciliation engine.
-   * Keys are canonical entity names ('product', 'order', 'customer', 'invoice').
+   * Mapeos de entidades para el motor de reconciliacion.
+   * Las claves son nombres canonicos ('product', 'order', 'customer', 'invoice').
    */
   entities?: Record<string, EntityManifest>;
 
   /**
-   * API drift monitoring configuration.
-   * Endpoints listed here are automatically registered with connector-watchdog.
+   * Configuracion de monitoreo de drift de API.
+   * Los endpoints listados aca se registran automaticamente en `connector-watchdog`.
    */
   drift?: {
     endpoints: string[];
   };
 
   /**
-   * Optional lifecycle hooks per entity.
-   * Keys are entity names, values are paths to hook files (relative to manifest).
-   * Hooks fire before/after reconciliation actions.
+   * Hooks opcionales de ciclo de vida por entidad.
+   * Las claves son nombres de entidad y los valores son rutas relativas al manifest.
+   * Los hooks se ejecutan antes o despues de las acciones de reconciliacion.
    */
   hooks?: Record<string, string>;
 }
 
 /**
- * Entity configuration within a manifest.
- * Tells the reconciliation engine how to extract canonical fields
- * from the raw API response of this service.
+ * Configuracion de una entidad dentro del manifest.
+ * Le indica al motor de reconciliacion como extraer campos canonicos desde la
+ * respuesta cruda de este servicio.
  */
 export interface EntityManifest {
-  /** Name of the API resource (e.g. 'products', 'items', 'comprobantes') */
+  /** Nombre del recurso de API, por ejemplo 'products', 'items' o 'comprobantes'. */
   source: string;
 
-  /** Identity signals used to match entities across systems */
+  /** Senales de identidad usadas para matchear entidades entre sistemas. */
   identity: {
-    /** Primary identity fields, in priority order. Supports dot paths and array notation. */
+    /** Campos primarios de identidad, en orden de prioridad. Soporta dot paths y arrays. */
     primary: string[];
-    /** Fallback fields used when primary fields don't produce a confident match */
+    /** Campos de respaldo cuando la identidad primaria no alcanza para un match confiable. */
     fallback?: string[];
   };
 
   /**
-   * Maps canonical field names to source field paths.
-   * Canonical names: externalId, sku, title, price, currency, stock, status, updatedAt
-   * Paths: dot notation, e.g. 'variants[0].price', 'updated_at'
+   * Mapea nombres de campo canonicos a paths del payload origen.
+   * Nombres canonicos: externalId, sku, title, price, currency, stock, status, updatedAt.
+   * Paths: notacion con puntos, por ejemplo 'variants[0].price' o 'updated_at'.
    */
   fields: Record<string, string>;
 }

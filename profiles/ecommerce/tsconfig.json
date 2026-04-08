@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "paths": {
+      "@integrax/module-orders": ["../../modules/orders/src/index.ts"],
+      "@integrax/module-inventory": ["../../modules/inventory/src/index.ts"],
+      "@integrax/module-billing": ["../../modules/billing/src/index.ts"],
+      "@integrax/module-catalog": ["../../modules/catalog/src/index.ts"],
+      "@integrax/entities": ["../../packages/entities/src/index.ts"],
+      "@integrax/event-bus": ["../../packages/event-bus/src/index.ts"],
+      "@integrax/snapshot-store": ["../../packages/snapshot-store/src/index.ts"],
+      "@integrax/platform-kernel": ["../../packages/platform-kernel/src/index.ts"],
+      "@integrax/reconciliation-engine": ["../../packages/reconciliation-engine/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"]
+}

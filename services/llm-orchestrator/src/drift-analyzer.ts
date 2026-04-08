@@ -14,7 +14,7 @@
 
 import { appendFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { EvidencePack, DriftReport } from '../../connector-watchdog/src/types.js';
+import type { EvidencePack, DriftReport } from '@integrax/connector-watchdog';
 
 // ─── Feature flag guard ───────────────────────────────────────────────────────
 

@@ -15,7 +15,7 @@ global.fetch = fetchMock;
 import { ContabiliumConnector, ClienteSchema, ProductoSchema, ComprobanteSchema, PagoSchema } from '../index.js';
 import type { Cliente, Producto, Comprobante, Pago } from '../index.js';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// --- Utilidades -------------------------------------------------------------
 
 function makeConnector() {
   return new ContabiliumConnector({
@@ -205,10 +205,10 @@ describe('validación de CUIT en LatAm Argentina', () => {
   }
 
   it.each([
-    ['30-71234567-9', true],   // empresa
-    ['20-12345678-9', true],   // persona
+    ['30-71234567-1', true],   // empresa
+    ['20-12345678-6', true],   // persona
     ['27-98765432-1', false],  // dígito verificador incorrecto
-    ['30-00000000-4', true],   // CUIT con ceros
+    ['30-00000000-7', true],   // CUIT con ceros
     ['12345678', false],       // muy corto
     ['', false],               // vacío
   ])('CUIT %s válido=%s', (cuit, valid) => {
