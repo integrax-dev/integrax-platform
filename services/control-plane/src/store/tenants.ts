@@ -77,15 +77,21 @@ export async function saveTenant(tenant: Tenant): Promise<void> {
 export interface ListTenantsOptions {
   status?: TenantStatus;
   plan?: TenantPlan;
+  /** Offset-based pagination (legacy) */
   page?: number;
   pageSize?: number;
+  /** Cursor-based pagination — pass the last `id` returned to get the next page */
+  after?: string;
+  /** Page size for cursor-based pagination */
+  limit?: number;
 }
 
 export async function listTenants(opts: ListTenantsOptions = {}): Promise<{
   data: Tenant[];
   totalItems: number;
+  nextCursor?: string;
 }> {
-  const { status, plan, page = 1, pageSize = 20 } = opts;
+  const { status, plan } = opts;
   const conditions: string[] = [];
   const params: unknown[] = [];
 
@@ -98,6 +104,54 @@ export async function listTenants(opts: ListTenantsOptions = {}): Promise<{
     conditions.push(`plan = $${params.length}`);
   }
 
+  // ─── Cursor-based (preferred) ─────────────────────────────────────────────
+  if (opts.after !== undefined || opts.limit !== undefined) {
+    const limit = opts.limit ?? 20;
+
+    if (opts.after) {
+      // Cursor is the created_at + id of the last row; encode as base64 JSON
+      let cursorDate: string | null = null;
+      let cursorId: string | null = null;
+      try {
+        const decoded = JSON.parse(Buffer.from(opts.after, 'base64').toString('utf8')) as { createdAt: string; id: string };
+        cursorDate = decoded.createdAt;
+        cursorId = decoded.id;
+      } catch {
+        // Invalid cursor — ignore and return from start
+      }
+
+      if (cursorDate && cursorId) {
+        const i = params.length;
+        conditions.push(`(created_at, id) < ($${i + 1}::timestamptz, $${i + 2})`);
+        params.push(cursorDate, cursorId);
+      }
+    }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    params.push(limit + 1); // fetch one extra to detect hasNextPage
+
+    const dataResult = await pool.query<TenantRow>(
+      `SELECT * FROM tenants ${where} ORDER BY created_at DESC, id DESC LIMIT $${params.length}`,
+      params,
+    );
+
+    const hasNextPage = dataResult.rows.length > limit;
+    const rows = hasNextPage ? dataResult.rows.slice(0, limit) : dataResult.rows;
+    const data = rows.map(rowToTenant);
+
+    let nextCursor: string | undefined;
+    if (hasNextPage && rows.length > 0) {
+      const last = rows[rows.length - 1];
+      nextCursor = Buffer.from(
+        JSON.stringify({ createdAt: last.created_at.toISOString(), id: last.id }),
+      ).toString('base64');
+    }
+
+    return { data, totalItems: data.length, nextCursor };
+  }
+
+  // ─── Offset-based (legacy) ────────────────────────────────────────────────
+  const { page = 1, pageSize = 20 } = opts;
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const countResult = await pool.query<{ count: string }>(

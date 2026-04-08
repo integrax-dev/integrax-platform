@@ -108,22 +108,28 @@ router.get(
   requireAuth,
   requireRole('platform_admin'),
   async (req: Request, res: Response) => {
-    const page = parseInt(req.query.page as string) || 1;
-    const pageSize = parseInt(req.query.pageSize as string) || 20;
     const status = req.query.status as TenantStatus | undefined;
     const plan = req.query.plan as TenantPlan | undefined;
 
-    const { data, totalItems } = await listTenants({ status, plan, page, pageSize });
+    // Cursor-based pagination (preferred): ?after=<cursor>&limit=20
+    // Offset-based pagination (legacy):    ?page=1&pageSize=20
+    const after = req.query.after as string | undefined;
+    const limitParam = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+    const page = parseInt(req.query.page as string) || 1;
+    const pageSize = parseInt(req.query.pageSize as string) || 20;
+
+    const { data, totalItems, nextCursor } = await listTenants({
+      status, plan,
+      after, limit: limitParam,
+      page, pageSize,
+    });
 
     res.json({
       success: true,
       data,
-      pagination: {
-        page,
-        pageSize,
-        totalItems,
-        totalPages: Math.ceil(totalItems / pageSize),
-      },
+      pagination: after !== undefined || limitParam !== undefined
+        ? { limit: limitParam ?? 20, count: data.length, nextCursor: nextCursor ?? null }
+        : { page, pageSize, totalItems, totalPages: Math.ceil(totalItems / pageSize) },
     });
   }
 );

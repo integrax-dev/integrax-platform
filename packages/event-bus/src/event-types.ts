@@ -46,4 +46,11 @@ export type IntegraxEventType =
   | 'webhook.received'
   | 'workflow.started'
   | 'workflow.completed'
-  | 'workflow.failed';
+  | 'workflow.failed'
+  // --- Operaciones ----------------------------------------------------------
+  | 'operation.submitted'
+  | 'operation.succeeded'
+  | 'operation.failed'
+  | 'operation.approval_required'
+  | 'operation.approved'
+  | 'operation.rejected';
