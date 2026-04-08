@@ -20,8 +20,9 @@ export class OperationEventPublisher {
   constructor(private readonly bus: EventBus) {}
 
   async publishOperationCompleted(record: OperationRecord): Promise<void> {
-    const succeeded = record.status === 'succeeded';
-    const type = succeeded ? 'workflow.completed' : 'workflow.failed';
+    const type = record.status === 'succeeded'
+      ? 'operation.succeeded'
+      : 'operation.failed';
 
     await this.bus.publish({
       id: await getUlid(),
@@ -44,10 +45,15 @@ export class OperationEventPublisher {
     });
   }
 
+  /**
+   * Emitted when an operation enters 'awaiting_approval'.
+   * Downstream subscribers (realtime, notification service) can use this
+   * to alert the relevant approvers via WebSocket, email, or Slack.
+   */
   async publishApprovalRequired(record: OperationRecord, approvalId: string): Promise<void> {
     await this.bus.publish({
       id: await getUlid(),
-      type: 'workflow.started',
+      type: 'operation.approval_required',
       tenantId: record.tenantId,
       sourceSystem: 'operation-engine',
       entityType: record.target.entityType ?? 'operation',
@@ -57,6 +63,9 @@ export class OperationEventPublisher {
         operationId: record.operationId,
         commandName: record.commandName,
         approvalId,
+        reason: `Command '${record.commandName}' requires approval before execution`,
+        actor: record.actor,
+        target: record.target,
         status: 'awaiting_approval',
       },
     });

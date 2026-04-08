@@ -14,6 +14,7 @@ import { PollingScheduler } from '@integrax/polling-scheduler';
 import { connectorRegistry } from './connectors.js';
 import { snapshotStore, timelineStore } from './stores.js';
 import { eventBus } from './event-bus.js';
+import { createResolverFactory } from './identity.js';
 
 export const pollingScheduler = new PollingScheduler(eventBus);
 
@@ -22,6 +23,7 @@ export const orchestrator = new IntegrationOrchestrator(connectorRegistry, {
   eventBus,
   timelineStore,
   scheduler: pollingScheduler,
+  resolverFactory: createResolverFactory(),
 });
 
 // ─── Webhook → Orchestrator subscription ─────────────────────────────────────

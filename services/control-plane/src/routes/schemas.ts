@@ -243,6 +243,113 @@ router.get(
   },
 );
 
+/**
+ * POST /api/schemas/reports/:id/explain
+ *
+ * Uses the LLM DriftAnalyzer to generate a plain-English explanation of a
+ * schema diff report. Requires ENABLE_LLM_DRIFT_ANALYSIS=true and ANTHROPIC_API_KEY.
+ *
+ * Returns the cached analysis if the report already has one stored; otherwise
+ * calls the LLM, stores the result in the report row, and returns it.
+ *
+ * Rate-limited to 10 requests/minute to avoid accidental LLM cost spikes.
+ */
+router.post(
+  '/reports/:id/explain',
+  requireAuth,
+  requireTenant,
+  rateLimit({ maxRequests: 10, windowMs: 60_000 }),
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const tenantId = req.tenantId!;
+
+    try {
+      const result = await pool.query(
+        'SELECT * FROM schema_diff_reports WHERE id = $1 AND tenant_id = $2',
+        [id, tenantId],
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: { code: 'NOT_FOUND', message: 'Report not found' },
+        });
+      }
+
+      const report = result.rows[0] as Record<string, unknown>;
+
+      // Return cached analysis if already done
+      if (report['llm_analysis']) {
+        return res.json({ success: true, data: report['llm_analysis'], cached: true });
+      }
+
+      if (!process.env.ANTHROPIC_API_KEY) {
+        return res.status(503).json({
+          success: false,
+          error: {
+            code: 'LLM_UNAVAILABLE',
+            message: 'ANTHROPIC_API_KEY is not configured. Set ENABLE_LLM_DRIFT_ANALYSIS=true and ANTHROPIC_API_KEY to enable explanations.',
+          },
+        });
+      }
+
+      // Build a minimal EvidencePack from the stored report
+      const diffPayload = (report['diff_payload'] ?? {}) as Record<string, unknown>;
+      const evidencePack = {
+        id: id,
+        connectorId: String(report['source_connector_id'] ?? 'unknown'),
+        drift: {
+          connectorId: String(report['source_connector_id'] ?? 'unknown'),
+          detectedAt: String(report['created_at'] ?? new Date().toISOString()),
+          severity: (diffPayload['summary'] as Record<string, unknown>)?.['severity'] ?? 'medium',
+          baseline: { version: 'A', endpoints: [], schemas: [] },
+          current: { version: 'B', endpoints: [], schemas: [] },
+          changes: (diffPayload['conflicts'] as unknown[]) ?? [],
+        },
+        httpSamples: [],
+        collectedAt: String(report['created_at'] ?? new Date().toISOString()),
+      };
+
+      const { DriftAnalyzer } = await import('../../llm-orchestrator/src/drift-analyzer.js');
+      const analyzer = new DriftAnalyzer({
+        anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+        model: 'claude-haiku-4-5-20251001', // use cheapest model for batch explanations
+      });
+
+      const analysis = await analyzer.analyze(evidencePack as any);
+
+      if (!analysis) {
+        return res.status(503).json({
+          success: false,
+          error: {
+            code: 'LLM_UNAVAILABLE',
+            message: 'LLM analysis is disabled (ENABLE_LLM_DRIFT_ANALYSIS is not set to true) or call failed.',
+          },
+        });
+      }
+
+      // Cache result in the report row
+      await pool.query(
+        'UPDATE schema_diff_reports SET llm_analysis = $1 WHERE id = $2 AND tenant_id = $3',
+        [JSON.stringify(analysis), id, tenantId],
+      );
+
+      logger.info({ reportId: id, tenantId, model: analysis.analysisModel }, 'Drift explanation generated');
+
+      res.json({ success: true, data: analysis, cached: false });
+    } catch (error) {
+      logger.error({ err: error, reportId: id, tenantId }, 'Failed to generate drift explanation');
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'EXPLAIN_FAILED',
+          message: error instanceof Error ? error.message : 'Error generating explanation',
+        },
+      });
+    }
+  },
+);
+
 // ─── Schema: feedback body ────────────────────────────────────────────────────
 
 const feedbackBodySchema = z.object({
