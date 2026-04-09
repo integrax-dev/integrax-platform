@@ -91,10 +91,13 @@ export class EcommerceService {
       tenantId,
       occurredAt: now,
       entityType: 'catalog_item',
-      canonicalId: item.id,
       sourceSystem: 'ecommerce',
-      status: 'synced',
-      actor: 'system',
+      trigger: 'manual',
+      recordsFetched: 1,
+      recordsChanged: 1,
+      cursor: null,
+      cursorAfter: null,
+      durationMs: 0,
     });
 
     return item;
@@ -179,10 +182,13 @@ export class EcommerceService {
       tenantId,
       occurredAt: now,
       entityType: 'fulfillment_request',
-      canonicalId: request.orderId,
       sourceSystem: 'ecommerce',
-      status: 'synced',
-      actor: 'system',
+      trigger: 'manual',
+      recordsFetched: 1,
+      recordsChanged: 1,
+      cursor: null,
+      cursorAfter: null,
+      durationMs: 0,
     });
   }
 

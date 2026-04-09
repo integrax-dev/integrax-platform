@@ -492,6 +492,9 @@ importers:
       typescript:
         specifier: ^5.3.0
         version: 5.9.3
+      vitest:
+        specifier: ^1.0.0
+        version: 1.6.1(@types/node@20.19.35)
 
   modules/orders:
     dependencies:
@@ -542,6 +545,9 @@ importers:
       typescript:
         specifier: ^5.3.0
         version: 5.9.3
+      vitest:
+        specifier: ^1.0.0
+        version: 1.6.1(@types/node@20.19.35)
 
   packages/event-bus:
     devDependencies:
@@ -4342,10 +4348,10 @@ packages:
     resolution: {integrity: sha512-bb5gMzR9FDZ9sa8SXzrXSpH9sp9WL/yuchMeeRtaljJ9UqQ88J+JJtMxYKMWqqJX0oZFWo0hoQECqiJ/C2F95w==}
     engines: {node: '>=20'}
     dependencies:
-      '@mikro-orm/cli': 6.6.12(pg@8.17.2)
+      '@mikro-orm/cli': 6.6.12(pg@8.20.0)
       '@mikro-orm/core': 6.6.12
-      '@mikro-orm/knex': 6.6.12(@mikro-orm/core@6.6.12)(pg@8.17.2)
-      '@mikro-orm/migrations': 6.6.12(@mikro-orm/core@6.6.12)(@types/node@20.19.35)(pg@8.17.2)
+      '@mikro-orm/knex': 6.6.12(@mikro-orm/core@6.6.12)(pg@8.20.0)
+      '@mikro-orm/migrations': 6.6.12(@mikro-orm/core@6.6.12)(@types/node@20.19.35)(pg@8.20.0)
       '@mikro-orm/postgresql': 6.6.12(@mikro-orm/core@6.6.12)
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/instrumentation-pg': 0.52.0(@opentelemetry/api@1.9.0)
@@ -4353,7 +4359,7 @@ packages:
       '@opentelemetry/sdk-node': 0.200.0(@opentelemetry/api@1.9.0)
       '@opentelemetry/sdk-trace-node': 2.6.1(@opentelemetry/api@1.9.0)
       awilix: 8.0.1
-      pg: 8.17.2
+      pg: 8.20.0
       zod: 3.25.76
     transitivePeerDependencies:
       - '@types/node'
@@ -5045,7 +5051,7 @@ packages:
       express: 4.22.1
       graphql: 16.13.2
       jsonwebtoken: 9.0.3
-      pg-connection-string: 2.10.1
+      pg-connection-string: 2.12.0
       pluralize: 8.0.0
       ulid: 2.4.0
     transitivePeerDependencies:
@@ -5111,14 +5117,14 @@ packages:
       - tedious
     dev: false
 
-  /@mikro-orm/cli@6.6.12(pg@8.17.2):
+  /@mikro-orm/cli@6.6.12(pg@8.20.0):
     resolution: {integrity: sha512-NDsPRFgthHz7yXfhADF/xeZDliY0lCjsZvTHLnXJe4PlPy4r8OeaOGILwJJMPrkjrq4EF9t4JrMi8XCEPoVHBg==}
     engines: {node: '>= 18.12.0'}
     hasBin: true
     dependencies:
       '@jercle/yargonaut': 1.1.5
       '@mikro-orm/core': 6.6.12
-      '@mikro-orm/knex': 6.6.12(@mikro-orm/core@6.6.12)(pg@8.17.2)
+      '@mikro-orm/knex': 6.6.12(@mikro-orm/core@6.6.12)(pg@8.20.0)
       fs-extra: 11.3.3
       tsconfig-paths: 4.2.0
       yargs: 17.7.2
@@ -5147,37 +5153,6 @@ packages:
       globby: 11.1.0
       mikro-orm: 6.6.12
       reflect-metadata: 0.2.2
-    dev: false
-
-  /@mikro-orm/knex@6.6.12(@mikro-orm/core@6.6.12)(pg@8.17.2):
-    resolution: {integrity: sha512-4enhWqWEEt2ijFI9G7zg07gRNq/UkJ2ihCYfMWooQU5cZQZJl1DnKJae9Q/StoKP2Ttyg4e+GgQXFm94/9MhnQ==}
-    engines: {node: '>= 18.12.0'}
-    peerDependencies:
-      '@mikro-orm/core': ^6.0.0
-      better-sqlite3: '*'
-      libsql: '*'
-      mariadb: '*'
-    peerDependenciesMeta:
-      better-sqlite3:
-        optional: true
-      libsql:
-        optional: true
-      mariadb:
-        optional: true
-    dependencies:
-      '@mikro-orm/core': 6.6.12
-      fs-extra: 11.3.3
-      knex: 3.2.8(pg@8.17.2)
-      sqlstring: 2.3.3
-    transitivePeerDependencies:
-      - mysql
-      - mysql2
-      - pg
-      - pg-native
-      - pg-query-stream
-      - sqlite3
-      - supports-color
-      - tedious
     dev: false
 
   /@mikro-orm/knex@6.6.12(@mikro-orm/core@6.6.12)(pg@8.20.0):
@@ -5211,14 +5186,14 @@ packages:
       - tedious
     dev: false
 
-  /@mikro-orm/migrations@6.6.12(@mikro-orm/core@6.6.12)(@types/node@20.19.35)(pg@8.17.2):
+  /@mikro-orm/migrations@6.6.12(@mikro-orm/core@6.6.12)(@types/node@20.19.35)(pg@8.20.0):
     resolution: {integrity: sha512-uSF477rga32+7cnIxuixXPqupuDw8YtKkwbzrcuGmozeTSGc0Lw5MajZgPbmtaA+Fyu5B4Io7Z/gxDQDhWZdaw==}
     engines: {node: '>= 18.12.0'}
     peerDependencies:
       '@mikro-orm/core': ^6.0.0
     dependencies:
       '@mikro-orm/core': 6.6.12
-      '@mikro-orm/knex': 6.6.12(@mikro-orm/core@6.6.12)(pg@8.17.2)
+      '@mikro-orm/knex': 6.6.12(@mikro-orm/core@6.6.12)(pg@8.20.0)
       fs-extra: 11.3.3
       umzug: 3.8.2(@types/node@20.19.35)
     transitivePeerDependencies:
@@ -5418,7 +5393,7 @@ packages:
     engines: {node: '>=8.0.0'}
     deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
     dependencies:
-      '@oclif/errors': 1.3.5
+      '@oclif/errors': 1.3.6
       '@oclif/parser': 3.8.17
       debug: 4.4.3(supports-color@8.1.1)
       globby: 11.1.0
@@ -9986,7 +9961,7 @@ packages:
       ajv: 8.13.0
       ajv-draft-04: 1.0.0(ajv@8.13.0)
       ajv-formats: 3.0.1(ajv@8.13.0)
-      fs-extra: 11.3.3
+      fs-extra: 11.3.4
       import-lazy: 4.0.0
       jju: 1.4.0
       resolve: 1.22.11
@@ -11460,7 +11435,7 @@ packages:
     resolution: {integrity: sha512-1Kc4oAGzAl7uqUStZCDvaLFqZrW9qWSjXOmBfdgyBP5La7Us6Mg4GBvRlSoaZMhQF/zSj1C8CtKMBkoiT8eL8w==}
     dependencies:
       '@types/node': 20.19.35
-      pg-protocol: 1.11.0
+      pg-protocol: 1.13.0
       pg-types: 2.2.0
     dev: false
 
@@ -15404,56 +15379,6 @@ packages:
     engines: {node: '>=6'}
     dev: false
 
-  /knex@3.2.8(pg@8.17.2):
-    resolution: {integrity: sha512-ElXXxu9Nq+5hWYdBUddYIWIT5yKKs5KNCsmKGbJSHPyaMpAABp3xs4L55GgdQoAs6QQ7dv72ai3M4pxYQ8utEg==}
-    engines: {node: '>=16'}
-    hasBin: true
-    peerDependencies:
-      better-sqlite3: '*'
-      mysql: '*'
-      mysql2: '*'
-      pg: '*'
-      pg-native: '*'
-      pg-query-stream: ^4.14.0
-      sqlite3: '*'
-      tedious: '*'
-    peerDependenciesMeta:
-      better-sqlite3:
-        optional: true
-      mysql:
-        optional: true
-      mysql2:
-        optional: true
-      pg:
-        optional: true
-      pg-native:
-        optional: true
-      pg-query-stream:
-        optional: true
-      sqlite3:
-        optional: true
-      tedious:
-        optional: true
-    dependencies:
-      colorette: 2.0.19
-      commander: 10.0.1
-      debug: 4.3.4
-      escalade: 3.2.0
-      esm: 3.2.25
-      get-package-type: 0.1.0
-      getopts: 2.3.0
-      interpret: 2.2.0
-      lodash: 4.17.23
-      pg: 8.17.2
-      pg-connection-string: 2.6.2
-      rechoir: 0.8.0
-      resolve-from: 5.0.0
-      tarn: 3.0.2
-      tildify: 2.0.0
-    transitivePeerDependencies:
-      - supports-color
-    dev: false
-
   /knex@3.2.8(pg@8.20.0):
     resolution: {integrity: sha512-ElXXxu9Nq+5hWYdBUddYIWIT5yKKs5KNCsmKGbJSHPyaMpAABp3xs4L55GgdQoAs6QQ7dv72ai3M4pxYQ8utEg==}
     engines: {node: '>=16'}
@@ -16481,7 +16406,7 @@ packages:
       '@oclif/config': 1.18.17
       '@oclif/plugin-help': 3.3.1
       cli-ux: 5.6.7(@oclif/config@1.18.17)
-      pg: 8.17.2
+      pg: 8.20.0
       tslib: 1.14.1
     transitivePeerDependencies:
       - pg-native

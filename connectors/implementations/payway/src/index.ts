@@ -60,7 +60,7 @@ export class PaywayConnector {
         'apikey': this.credentials.api_key,
         'Origin': 'IntegraX',
       },
-      body: body ? JSON.stringify({ ...body as object, site_transaction_id: this.credentials.site_id }) : undefined,
+      body: body ? JSON.stringify({ site_transaction_id: this.credentials.site_id, ...body as object }) : undefined,
       signal: AbortSignal.timeout(15000),
     });
 

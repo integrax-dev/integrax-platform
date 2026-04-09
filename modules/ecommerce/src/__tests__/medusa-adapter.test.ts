@@ -34,14 +34,15 @@ function makeMedusaProduct(overrides: Partial<MedusaProduct> = {}): MedusaProduc
     description: 'A test product',
     status: 'published',
     handle: 'test-product',
-    thumbnail: null,
     variants: [
       {
         id: 'var_1',
+        product_id: 'prod_abc',
         title: 'Default Variant',
         sku: 'SKU-001',
-        prices: [{ currency_code: 'ars', amount: 10000 }],
+        prices: [{ id: 'price_1', variant_id: 'var_1', currency_code: 'ars', amount: 10000 }],
         inventory_quantity: 50,
+        allow_backorder: false,
       },
     ],
     created_at: '2024-01-01T00:00:00Z',
@@ -62,6 +63,8 @@ function makeMedusaCart(overrides: Partial<MedusaCart> = {}): MedusaCart {
     tax_total: 0,
     shipping_total: 0,
     discounts: [],
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z',
     ...overrides,
   };
 }
