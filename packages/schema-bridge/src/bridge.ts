@@ -32,6 +32,7 @@ import { detectCompositeMappings } from './composite-mapper.js';
 import { detectDrift } from './drift-detector.js';
 import type { OntologyProvider, SchemaField } from './types.js';
 import type { SchemaAdapter } from './adapters/sql-adapter.js';
+import { assessImpact } from './impact-scorer.js';
 
 export class SchemaBridge {
   private readonly inferrer: SchemaInferrer;
@@ -276,6 +277,9 @@ export class SchemaBridge {
       ...(driftDetail ? { driftDetected: true, driftDetail } : {}),
       generatedAt: new Date().toISOString(),
     };
+
+    // ── 8. Impact assessment + remediation hints ──────────────────────────────
+    report.impactAssessment = assessImpact(report);
 
     this.logger.info({
       id,

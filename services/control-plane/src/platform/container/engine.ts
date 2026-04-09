@@ -31,12 +31,38 @@ import { billingService, inventoryService, paymentsService } from './modules.js'
 
 const operationValidator = new Validator({
   capabilityMap: {
-    mercadopago: ['create_record', 'update_record', 'sync_record'],
+    // PSP connectors — generic + payment-specific capabilities
+    mercadopago: [
+      'create_record', 'update_record', 'sync_record',
+      'create_payment', 'authorize_payment', 'capture_payment',
+      'refund_payment', 'cancel_payment', 'tokenize_payment_method',
+      'create_subscription', 'cancel_subscription',
+      'create_checkout_link', 'generate_qr_payment', 'reconcile_payment',
+      'send_payment_reminder',
+    ],
+    payway: [
+      'create_record', 'sync_record',
+      'create_payment', 'capture_payment', 'refund_payment', 'cancel_payment',
+      'tokenize_payment_method',
+    ],
+    mobbex: [
+      'create_record', 'sync_record',
+      'create_payment', 'refund_payment', 'cancel_payment',
+      'create_checkout_link', 'reconcile_payment',
+    ],
+    decidir: [
+      'create_record', 'sync_record',
+      'create_payment', 'authorize_payment', 'capture_payment',
+      'refund_payment', 'cancel_payment', 'tokenize_payment_method',
+    ],
+    // ERP / fiscal connectors
     contabilium: ['create_record', 'update_record', 'sync_record', 'create_document'],
     'afip-wsfe': ['create_document', 'approve_document'],
+    // Utility connectors
     'google-sheets': ['create_record', 'update_record', 'sync_record'],
     email: ['send_notification'],
     whatsapp: ['send_notification'],
+    // Module handlers (not connector facades)
     billing: ['create_document', 'sync_record'],
     inventory: ['update_record', 'sync_record'],
     orders: ['update_record', 'sync_record'],

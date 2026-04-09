@@ -13,8 +13,9 @@ import type {
   StockDivergence,
 } from './types.js';
 
-/** Libro de reservas en memoria: `${tenantId}:${sku}:${referenceId}` -> quantity */
-const reservations = new Map<string, number>();
+// Reservation entity type stored in the snapshot store under entityType 'stock_reservation'.
+// Key: canonicalId = `${tenantId}:${sku}:${referenceId}`
+// This ensures reservations survive restarts and are consistent across replicas.
 
 export class InventoryService implements InventoryModule {
   constructor(
@@ -101,13 +102,55 @@ export class InventoryService implements InventoryModule {
   }
 
   async reserveStock(input: ReserveStockInput): Promise<void> {
-    const key = `${input.tenantId}:${input.sku}:${input.referenceId}`;
-    reservations.set(key, (reservations.get(key) ?? 0) + input.quantity);
+    const canonicalId = `${input.tenantId}:${input.sku}:${input.referenceId}`;
+    const now = new Date();
+    const reservation = {
+      tenantId: input.tenantId,
+      sku: input.sku,
+      referenceId: input.referenceId,
+      quantity: input.quantity,
+      sourceSystem: input.sourceSystem,
+      reservedAt: now.toISOString(),
+    };
+    await this.store.upsert({
+      snapshotId: ulid(),
+      tenantId: input.tenantId,
+      entityType: 'stock_reservation',
+      canonicalId,
+      externalIds: [],
+      payloadHash: hashPayload(reservation),
+      payload: reservation,
+      sourceSystem: input.sourceSystem,
+      updatedAtSource: now,
+      updatedAtSnapshot: now,
+    });
   }
 
   async releaseReservation(input: ReleaseReservationInput): Promise<void> {
-    const key = `${input.tenantId}:${input.sku}:${input.referenceId}`;
-    reservations.delete(key);
+    const canonicalId = `${input.tenantId}:${input.sku}:${input.referenceId}`;
+    // Mark reservation as released by writing a tombstone payload
+    const now = new Date();
+    const tombstone = {
+      tenantId: input.tenantId,
+      sku: input.sku,
+      referenceId: input.referenceId,
+      quantity: 0,
+      sourceSystem: input.sourceSystem,
+      releasedAt: now.toISOString(),
+      released: true,
+    };
+    await this.store.upsert({
+      snapshotId: ulid(),
+      tenantId: input.tenantId,
+      entityType: 'stock_reservation',
+      canonicalId,
+      externalIds: [],
+      payloadHash: hashPayload(tombstone),
+      payload: tombstone,
+      sourceSystem: input.sourceSystem,
+      updatedAtSource: now,
+      updatedAtSnapshot: now,
+    });
   }
 
   async getStock(tenantId: string, sku: string, sourceSystem?: string): Promise<Stock | null> {

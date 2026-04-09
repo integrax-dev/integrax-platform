@@ -67,10 +67,25 @@ export interface EntityConflict<TType extends string = string> {
   detectedAt: Date;
 }
 
+/** Where the platform should route this conflict for resolution */
+export type ConflictRoutingTarget =
+  | 'auto_fix'          // AUTO_FIX action — engine can resolve without human
+  | 'operation_engine'  // Dispatch an operation command to correct the state
+  | 'operator_review'   // Needs human decision
+  | 'alert_channel'     // BLOCK severity — escalate to alerting
+  | 'timeline_only'     // IGNORE — log but take no action
+  | 'no_action';        // PROCEED — clean state
+
 export interface PolicyEvaluationResult<TType extends string = string> {
   conflict: EntityConflict<TType>;
   action: PolicyAction;
   reason: string;
+  /** Whether the platform can fix this automatically without operator input */
+  autoFixable?: boolean;
+  /** Human-readable suggested action for operators or automated workflows */
+  suggestedAction?: string;
+  /** Which platform layer should handle this conflict */
+  routeTo?: ConflictRoutingTarget;
 }
 
 export interface ReconciliationResult<TType extends string = string> {

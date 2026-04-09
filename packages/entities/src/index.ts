@@ -17,3 +17,18 @@ export type { Payment, PaymentStatus, PaymentMethodType } from './payment.js';
 export type { PaymentMethod } from './payment-method.js';
 export type { Subscription, SubscriptionStatus, BillingFrequency } from './subscription.js';
 export type { Refund, RefundStatus, RefundReason } from './refund.js';
+
+// --- Payment provider matrix ------------------------------------------------
+export {
+  PAYMENT_PROVIDER_MATRIX,
+  getProviderMatrix,
+  getProvidersForCapability,
+  getCapabilityStatus,
+} from './payment-provider-matrix.js';
+export type {
+  CapabilityStatus,
+  PaymentCapabilityKey,
+  ProviderCapabilityEntry,
+  ProviderCapabilityRow,
+  ProviderMatrixEntry,
+} from './payment-provider-matrix.js';

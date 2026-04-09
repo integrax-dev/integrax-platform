@@ -422,6 +422,11 @@ export interface BridgeReport {
   driftDetected?: boolean;
   /** Detalle del drift detectado (si driftDetected=true). */
   driftDetail?: DriftDetail;
+  /**
+   * Impact assessment with per-diff remediation hints and routing recommendations.
+   * Populated after compare() — tells callers not just *what* changed but *what to do*.
+   */
+  impactAssessment?: import('./impact-scorer.js').ImpactAssessment;
 }
 
 // ─── Composite mappings ──────────────────────────────────────────────────────
