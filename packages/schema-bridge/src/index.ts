@@ -21,6 +21,8 @@
  */
 
 export { SchemaBridge, createSchemaBridge } from './bridge.js';
+export { assessImpact } from './impact-scorer.js';
+export type { ImpactAssessment, ImpactLabel, RemediationHint, RoutingTarget } from './impact-scorer.js';
 export {
   defaultBusinessTypeProviders,
   defaultBusinessTypeWeights,

@@ -30,6 +30,7 @@ import { createMappingMemoryOntologyProvider, updateMemoryEntry, computeSignalWe
 import { runLlmEscalations } from './llm-escalation.js';
 import { detectCompositeMappings } from './composite-mapper.js';
 import { detectDrift } from './drift-detector.js';
+import { assessImpact } from './impact-scorer.js';
 import type { OntologyProvider } from './types.js';
 
 export class SchemaBridge {
@@ -275,6 +276,9 @@ export class SchemaBridge {
       ...(driftDetail ? { driftDetected: true, driftDetail } : {}),
       generatedAt: new Date().toISOString(),
     };
+
+    // ── 8. Impact assessment + remediation hints ──────────────────────────────
+    report.impactAssessment = assessImpact(report);
 
     this.logger.info({
       id,

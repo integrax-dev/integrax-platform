@@ -15,6 +15,13 @@ export {
   maxSeverity,
   aggregateAction,
 } from './shared/types.js';
+export type { ConflictRoutingTarget } from './shared/types.js';
+
+export {
+  enrichWithActionability,
+  suggestOperationCommand,
+  classifyReconciliationSeverity,
+} from './shared/actionability.js';
 
 export { normalizeSku, normalizeTitle, normalizeCuit } from './shared/normalize.js';
 export { levenshteinSimilarity, jaccardSimilarity, combinedSimilarity } from './shared/similarity.js';

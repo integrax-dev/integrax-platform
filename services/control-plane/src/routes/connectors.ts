@@ -20,21 +20,11 @@ import {
   saveTenantConnector,
   deleteTenantConnector,
 } from '../store/tenant-connectors.js';
+import { CONNECTOR_TESTERS, type TestConnectionResult } from '../store/connector-testers.js';
 
-// Funciones de test de conectores — importaciones dinámicas para evitar dependencias circulares
-interface TestConnectionResult {
-  success: boolean;
-  testedAt: Date;
-  latencyMs: number;
-  error?: { code: string; message: string };
-  details?: Record<string, unknown>;
-}
+// Connector testers moved to src/store/connector-testers.ts
 
-type ConnectorTester = (credentials: Record<string, string>) => Promise<TestConnectionResult>;
-
-/**
- * Prueba la conexión con MercadoPago
- */
+// LEGACY_BLOCK_START — safe to delete after verifying no other caller uses these
 async function testMercadoPago(credentials: Record<string, string>): Promise<TestConnectionResult> {
   const startTime = Date.now();
   const accessToken = credentials.access_token || credentials.accessToken;
@@ -379,16 +369,9 @@ async function testTiendaNube(credentials: Record<string, string>): Promise<Test
   }
 }
 
-// Registro de testers por conector
-const CONNECTOR_TESTERS: Record<string, ConnectorTester> = {
-  mercadopago: testMercadoPago,
-  whatsapp: testWhatsApp,
-  email: testEmail,
-  'google-sheets': testGoogleSheets,
-  contabilium: testContabilium,
-  'afip-wsfe': testAfipWsfe,
-  tiendanube: testTiendaNube,
-};
+// LEGACY_BLOCK_END
+
+// CONNECTOR_TESTERS now imported from '../store/connector-testers.js' above
 
 const router: Router = Router();
 

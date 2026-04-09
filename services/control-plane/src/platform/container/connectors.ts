@@ -21,6 +21,9 @@ import afipWsfeManifest from '../../../../../connectors/implementations/afip-wsf
 import googleSheetsManifest from '../../../../../connectors/implementations/google-sheets/connector.manifest.js';
 import emailManifest from '../../../../../connectors/implementations/email/connector.manifest.js';
 import whatsappManifest from '../../../../../connectors/implementations/whatsapp/connector.manifest.js';
+import paywayManifest from '../../../../../connectors/implementations/payway/connector.manifest.js';
+import mobbexManifest from '../../../../../connectors/implementations/mobbex/connector.manifest.js';
+import decidirManifest from '../../../../../connectors/implementations/decidir/connector.manifest.js';
 
 // ─── Facade factories ─────────────────────────────────────────────────────────
 
@@ -30,6 +33,9 @@ import { createAfipWsfeFacade } from '../../../../../connectors/implementations/
 import { createGoogleSheetsFacade } from '../../../../../connectors/implementations/google-sheets/facade/facade.js';
 import { createEmailFacade } from '../../../../../connectors/implementations/email/facade/facade.js';
 import { createWhatsAppFacade } from '../../../../../connectors/implementations/whatsapp/facade/facade.js';
+import { createPaywayFacade } from '../../../../../connectors/implementations/payway/facade/facade.js';
+import { createMobbexFacade } from '../../../../../connectors/implementations/mobbex/facade/facade.js';
+import { createDecidirFacade } from '../../../../../connectors/implementations/decidir/facade/facade.js';
 
 // ─── ConnectorManifestRegistry ───────────────────────────────────────────────
 
@@ -87,6 +93,24 @@ connectorRegistry.register({
   }),
 });
 
+connectorRegistry.register({
+  connectorId: 'payway',
+  manifest: paywayManifest as unknown as ConnectorManifest,
+  createFacade: (credentials, tenantId) => createPaywayFacade(credentials, tenantId),
+});
+
+connectorRegistry.register({
+  connectorId: 'mobbex',
+  manifest: mobbexManifest as unknown as ConnectorManifest,
+  createFacade: (credentials, tenantId) => createMobbexFacade(credentials, tenantId),
+});
+
+connectorRegistry.register({
+  connectorId: 'decidir',
+  manifest: decidirManifest as unknown as ConnectorManifest,
+  createFacade: (credentials, tenantId) => createDecidirFacade(credentials, tenantId),
+});
+
 // ─── FacadeResolver ───────────────────────────────────────────────────────────
 // CredentialProvider loads real credentials from the tenant_connectors table.
 
@@ -113,3 +137,6 @@ facadeResolver.register('whatsapp', (creds) => createWhatsAppFacade({
   phoneNumberId: creds['phoneNumberId'] ?? '',
   accessToken: creds['accessToken'] ?? '',
 }));
+facadeResolver.register('payway', (creds, tenantId) => createPaywayFacade(creds, tenantId));
+facadeResolver.register('mobbex', (creds, tenantId) => createMobbexFacade(creds, tenantId));
+facadeResolver.register('decidir', (creds, tenantId) => createDecidirFacade(creds, tenantId));
