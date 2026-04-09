@@ -25,7 +25,7 @@ export type ModuleActionHandler = (
 
 export interface DispatcherConfig {
   /** Returns a facade for the given (connectorId, tenantId). */
-  resolveFacade: (connectorId: string, tenantId: string) => DispatchableFacade | undefined;
+  resolveFacade: (connectorId: string, tenantId: string) => DispatchableFacade | undefined | Promise<DispatchableFacade | undefined>;
   /** Module action handlers keyed by systemId. */
   moduleHandlers?: Record<string, ModuleActionHandler>;
 }
@@ -47,7 +47,7 @@ export class Dispatcher {
     target: ExecutionTarget,
   ): Promise<DispatchResult> {
     if (target.kind === 'facade') {
-      const facade = this.config.resolveFacade(target.connectorId, tenantId);
+      const facade = await this.config.resolveFacade(target.connectorId, tenantId);
       if (!facade) {
         return {
           error: makeError(

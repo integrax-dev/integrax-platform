@@ -20,16 +20,18 @@ import type { CatalogItem, Cart } from '../types.js';
 function makeCatalogItem(overrides: Partial<CatalogItem> = {}): CatalogItem {
   return {
     id: 'item-001',
+    tenantId: 'T1',
     externalIds: [{ system: 'shopify', id: 'ext-001' }],
     title: 'Test Widget',
     description: 'A widget',
-    status: 'active',
+    handle: 'test-widget',
+    status: 'published',
     variants: [{
       id: 'var-001',
+      catalogItemId: 'item-001',
       title: 'Default',
       sku: 'SKU-001',
-      prices: [{ currency: 'ARS', amount: 1000, externalId: 'p1' }],
-      inventoryQuantity: 10,
+      prices: [{ id: 'price-001', variantId: 'var-001', currency: 'ARS', amount: 1000 }],
     }],
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-01'),
@@ -42,13 +44,15 @@ function makeCart(overrides: Partial<Cart> = {}): Cart {
     id: 'cart-001',
     tenantId: 'T1',
     currency: 'ARS',
-    items: [],
+    lineItems: [],
     total: 0,
     subtotal: 0,
     discountTotal: 0,
     taxTotal: 0,
     shippingTotal: 0,
     discounts: [],
+    createdAt: new Date('2024-01-01'),
+    updatedAt: new Date('2024-01-01'),
     ...overrides,
   };
 }

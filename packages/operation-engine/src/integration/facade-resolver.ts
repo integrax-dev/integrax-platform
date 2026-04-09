@@ -21,7 +21,7 @@ export interface FacadeRegistration {
 export type CredentialProvider = (
   tenantId: string,
   connectorId: string,
-) => Record<string, string> | undefined;
+) => Record<string, string> | undefined | Promise<Record<string, string> | undefined>;
 
 export class FacadeResolver {
   private readonly factories = new Map<string, FacadeFactory>();
@@ -33,7 +33,7 @@ export class FacadeResolver {
     this.factories.set(connectorId, factory);
   }
 
-  resolve(connectorId: string, tenantId: string): DispatchableFacade | undefined {
+  async resolve(connectorId: string, tenantId: string): Promise<DispatchableFacade | undefined> {
     const cacheKey = `${tenantId}:${connectorId}`;
     const cached = this.cache.get(cacheKey);
     if (cached) return cached;
@@ -41,7 +41,7 @@ export class FacadeResolver {
     const factory = this.factories.get(connectorId);
     if (!factory) return undefined;
 
-    const credentials = this.credentialProvider(tenantId, connectorId);
+    const credentials = await this.credentialProvider(tenantId, connectorId);
     if (!credentials) return undefined;
 
     const facade = factory(credentials, tenantId);
