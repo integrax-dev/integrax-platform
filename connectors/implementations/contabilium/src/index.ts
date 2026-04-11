@@ -54,16 +54,20 @@ export class ContabiliumConnector extends BaseConnector {
     });
   }
 
+  private formatErrorMessage(code: string, message: string): string {
+    return `${code}: ${message}`;
+  }
+
   // ============================================
   // BaseConnector Implementations
   // ============================================
 
   protected registerActions(): void {
-    // Actions are registered automatically via getActions or we can register them here.
+    // Las acciones se registran automaticamente via getActions o se pueden registrar aca.
     const actions = this.getActions();
     for (const action of actions) {
       this.registerAction(action.id, async (input: any) => {
-        // Simple dispatcher since the old code didn't use registerAction
+        // Despachador simple porque el codigo anterior no usaba registerAction.
         const method = action.id as keyof this;
         if (typeof this[method] === 'function') {
           return (this as any)[method](input);
@@ -92,7 +96,7 @@ export class ContabiliumConnector extends BaseConnector {
   async testConnection(credentials: ResolvedCredentials): Promise<import('@integrax/connector-sdk').TestConnectionResult> {
     try {
       await this.authenticate();
-      // Try to get user info or make a simple API call
+      // Intenta traer informacion del usuario o hacer una llamada simple a la API.
       await this.request('GET', '/v2/usuarios/me');
       return { success: true, testedAt: new Date(), latencyMs: 0 };
     } catch (error) {
@@ -195,27 +199,27 @@ export class ContabiliumConnector extends BaseConnector {
   }
 
   // ============================================
-  // Authentication
+  // Autenticacion
   // ============================================
 
   private async authenticate(): Promise<string> {
-    // Check if we have a valid token
+    // Verifica si ya tenemos un token valido.
     if (this.credentials.accessToken && this.credentials.expiresAt) {
       if (Date.now() < this.credentials.expiresAt - 60000) {
         return this.credentials.accessToken;
       }
     }
 
-    // Try to refresh token
+    // Intenta refrescar el token.
     if (this.credentials.refreshToken) {
       try {
         return await this.refreshAccessToken();
       } catch (error) {
-        // Refresh failed, get new token
+        // Si falla el refresh, pide uno nuevo.
       }
     }
 
-    // Get new token
+    // Pide un token nuevo.
     return await this.getAccessToken();
   }
 
@@ -237,7 +241,7 @@ export class ContabiliumConnector extends BaseConnector {
       const error = await response.text();
       throw new ConnectorError(
         'AUTHENTICATION_FAILED',
-        `Contabilium authentication failed: ${error}`
+        this.formatErrorMessage('AUTHENTICATION_FAILED', `Contabilium authentication failed: ${error}`)
       );
     }
 
@@ -263,7 +267,11 @@ export class ContabiliumConnector extends BaseConnector {
     });
 
     if (!response.ok) {
-      throw new Error('Token refresh failed');
+      const error = await response.text().catch(() => 'Token refresh failed');
+      throw new ConnectorError(
+        'AUTHENTICATION_FAILED',
+        this.formatErrorMessage('AUTHENTICATION_FAILED', `Contabilium token refresh failed: ${error}`),
+      );
     }
 
     const data = (await response.json()) as ContabiliumTokenResponse;
@@ -275,7 +283,7 @@ export class ContabiliumConnector extends BaseConnector {
   }
 
   // ============================================
-  // API Request Helper
+  // Utilidad para requests a la API
   // ============================================
 
   private async request<T>(
@@ -296,9 +304,16 @@ export class ContabiliumConnector extends BaseConnector {
 
     if (!response.ok) {
       const error = (await response.json().catch(() => ({ Message: response.statusText }))) as any;
+      const message = String(error.Message || response.statusText || '');
+      const code =
+        response.status === 404 ||
+        response.statusText === 'Not Found' ||
+        /not found/i.test(message)
+          ? 'NOT_FOUND'
+          : 'API_ERROR';
       throw new ConnectorError(
-        response.status === 404 ? 'NOT_FOUND' : 'API_ERROR',
-        `Contabilium API error: ${error.Message || response.statusText}`,
+        code,
+        this.formatErrorMessage(code, `Contabilium API error: ${message}`),
         false,
         { status: response.status, error }
       );
@@ -347,7 +362,7 @@ export class ContabiliumConnector extends BaseConnector {
   }
 
   // ============================================
-  // Productos (Products)
+  // Productos
   // ============================================
 
   async getProducto(id: number): Promise<ProductoResponse> {
@@ -381,7 +396,7 @@ export class ContabiliumConnector extends BaseConnector {
   }
 
   // ============================================
-  // Comprobantes (Invoices)
+  // Comprobantes
   // ============================================
 
   async getComprobante(id: number): Promise<ComprobanteResponse> {
@@ -418,7 +433,7 @@ export class ContabiliumConnector extends BaseConnector {
   async createComprobante(comprobante: Comprobante): Promise<ComprobanteResponse> {
     const validated = ComprobanteSchema.parse(comprobante);
 
-    // Use default punto de venta if not specified
+    // Usa el punto de venta por defecto si no viene informado.
     if (!validated.PuntoVenta && this.config.defaultPuntoVenta) {
       validated.PuntoVenta = this.config.defaultPuntoVenta;
     }
@@ -427,7 +442,7 @@ export class ContabiliumConnector extends BaseConnector {
   }
 
   async facturarComprobante(id: number): Promise<ComprobanteResponse> {
-    // This sends the comprobante to AFIP and gets the CAE
+    // Esto envia el comprobante a AFIP y obtiene el CAE.
     return this.request<ComprobanteResponse>('POST', `/v2/comprobantes/${id}/facturar`, {});
   }
 
@@ -438,12 +453,18 @@ export class ContabiliumConnector extends BaseConnector {
   }
 
   // ============================================
-  // Pagos (Payments)
+  // Pagos
   // ============================================
 
   async registrarPago(pago: Pago): Promise<PagoResponse> {
     const validated = PagoSchema.parse(pago);
-    return this.request<PagoResponse>('POST', '/v2/pagos', validated);
+    const response = await this.request<PagoResponse>('POST', '/v2/pagos', validated);
+    const formaPago = response.FormaPago ?? response.MedioPago ?? validated.FormaPago;
+    return {
+      ...response,
+      FormaPago: formaPago,
+      MedioPago: response.MedioPago ?? formaPago,
+    };
   }
 
   async getPagosComprobante(comprobanteId: number): Promise<PagoResponse[]> {
@@ -455,24 +476,24 @@ export class ContabiliumConnector extends BaseConnector {
   }
 
   // ============================================
-  // Utility Methods
+  // Metodos utilitarios
   // ============================================
 
   /**
    * Crea una factura completa: cliente + items + facturación AFIP
    */
   async crearFacturaCompleta(data: {
-    cliente: Cliente | number; // Cliente data or existing ID
+    cliente: Cliente | number; // Datos del cliente o ID existente
     items: Comprobante['Items'];
     tipo: Comprobante['Tipo'];
     observaciones?: string;
   }): Promise<ComprobanteResponse> {
-    // 1. Get or create cliente
+    // 1. Obtiene o crea el cliente.
     let clienteId: number;
     if (typeof data.cliente === 'number') {
       clienteId = data.cliente;
     } else {
-      // Check if cliente exists by CUIT
+      // Revisa si ya existe un cliente con ese CUIT.
       const existing = await this.getClienteByCuit(data.cliente.NumeroDocumento);
       if (existing) {
         clienteId = existing.Id;
@@ -482,7 +503,7 @@ export class ContabiliumConnector extends BaseConnector {
       }
     }
 
-    // 2. Create comprobante
+    // 2. Crea el comprobante.
     const comprobante = await this.createComprobante({
       ClienteId: clienteId,
       Tipo: data.tipo,
@@ -495,7 +516,7 @@ export class ContabiliumConnector extends BaseConnector {
       Pagado: false,
     });
 
-    // 3. Facturar (get CAE from AFIP)
+    // 3. Factura y obtiene el CAE desde AFIP.
     if (['FacturaA', 'FacturaB', 'FacturaC'].includes(data.tipo)) {
       return await this.facturarComprobante(comprobante.Id);
     }
@@ -504,10 +525,10 @@ export class ContabiliumConnector extends BaseConnector {
   }
 }
 
-// Export types
+// Exporta tipos
 export * from './types.js';
 
-// Factory function
+// Funcion factory
 export function createContabiliumConnector(config: ContabiliumConfig): ContabiliumConnector {
   return new ContabiliumConnector(config);
 }

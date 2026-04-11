@@ -5,6 +5,7 @@
  * Soporta mensajes de texto, templates, media y mensajes interactivos.
  */
 
+import { createHmac, timingSafeEqual } from 'crypto';
 import {
   BaseConnector,
   ConnectorSpec,
@@ -441,11 +442,19 @@ export class WhatsAppConnector extends BaseConnector {
     payload: WebhookPayload,
     secret: string
   ): Promise<boolean> {
-    // WhatsApp usa X-Hub-Signature-256
-    const signature = payload.headers['x-hub-signature-256'];
-    if (!signature) return false;
-    // TODO: Implementar validación HMAC con el APP SECRET de Meta
-    return true;
+    // WhatsApp uses X-Hub-Signature-256 = sha256=<hmac-hex>
+    const header = payload.headers['x-hub-signature-256'];
+    if (!header || typeof header !== 'string') return false;
+
+    const rawBody = payload.rawBody ?? JSON.stringify(payload.body);
+    const expected = createHmac('sha256', secret)
+      .update(typeof rawBody === 'string' ? rawBody : Buffer.from(rawBody))
+      .digest('hex');
+
+    const expectedHeader = `sha256=${expected}`;
+    // timingSafeEqual prevents timing attacks
+    if (header.length !== expectedHeader.length) return false;
+    return timingSafeEqual(Buffer.from(header), Buffer.from(expectedHeader));
   }
 
   /**

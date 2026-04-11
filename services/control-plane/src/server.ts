@@ -7,12 +7,45 @@ import helmet from 'helmet';
 import { tenantsRouter } from './routes/tenants.js';
 import { connectorsRouter } from './routes/connectors.js';
 import { workflowsRouter } from './routes/workflows.js';
-import { temporalWorkflowsRouter } from './routes/workflows-temporal.js';
+import { schemasRouter } from './routes/schemas.js';
+import { adminRouter } from './routes/admin.js';
+import { reconciliationRouter } from './routes/reconciliation.js';
+import { webhooksRouter } from './routes/webhooks.js';
+import { snapshotsRouter } from './routes/snapshots.js';
+import { platformRouter } from './routes/platform.js';
+import { timelineRouter } from './routes/timeline.js';
+import { operationsRouter } from './routes/operations.js';
 import { getAuditLogs } from './middleware/audit.js';
 import { requireAuth, requireRole } from './middleware/auth.js';
 import { createLogger, requestLogger } from '@integrax/logger';
 import { createHealthManager } from '@integrax/health';
 import { metricsMiddleware } from '@integrax/metrics';
+import { pool } from './store/db.js';
+
+// ─── DEUDA TÉCNICA: Cache distribuido para mapping memory ─────────────────────
+//
+// POR QUÉ ESTÁ DESACTIVADO:
+//   El control-plane corre como una sola instancia. MemoryCacheAdapter (Map
+//   in-process, LRU 500 entradas, TTL 60 s) es suficiente y no tiene overhead.
+//
+// CUÁNDO ACTIVAR:
+//   Cuando el control-plane escale a 2+ réplicas detrás de un load balancer.
+//   En ese momento cada réplica tiene su propio Map → feedback de un operador
+//   en la réplica A no se refleja en la réplica B hasta que venza el TTL (60 s).
+//   Con Redis compartido, la invalidación es inmediata en todas las réplicas.
+//
+// CÓMO ACTIVAR (una sola línea de config en el env):
+//   Descomentar el bloque de abajo. No requiere ningún otro cambio de código.
+//   Asegurar que REDIS_URL esté seteado en el entorno de producción.
+//
+// import { Redis } from 'ioredis';
+// import { RedisCacheAdapter } from './store/redis-cache-adapter.js';
+// import { setCacheAdapter } from './store/mapping-memory-repository.js';
+//
+// if (process.env.REDIS_URL) {
+//   setCacheAdapter(new RedisCacheAdapter(new Redis(process.env.REDIS_URL)));
+// }
+// ─────────────────────────────────────────────────────────────────────────────
 
 const app: express.Application = express();
 
@@ -29,21 +62,19 @@ if (!process.env.JWT_SECRET) {
 // Logger
 const logger = createLogger({ service: 'control-plane', version: '0.1.0' });
 
-// Security middleware
+// Middleware de seguridad
 app.use(helmet());
 app.use(express.json({ limit: '10mb' }));
 
-// Structured request logging (skips /health and /ready)
+// Logging estructurado de requests (omite /health y /ready)
 app.use(requestLogger(logger));
 
-// Prometheus HTTP metrics
+// Métricas HTTP de Prometheus
 app.use(metricsMiddleware({ excludePaths: ['/health', '/ready', '/metrics'] }));
 
 // Health & Readiness
 const health = createHealthManager('0.1.0');
-// TODO: register dependency checks when connections are available
-// health.register('redis', async () => { await redis.ping(); });
-// health.register('postgres', async () => { await pool.query('SELECT 1'); });
+health.register('postgres', async () => { await pool.query('SELECT 1'); });
 app.use(health.router());
 
 // API info
@@ -62,13 +93,26 @@ app.get('/api', (req, res) => {
   });
 });
 
-// API Routes
+// Rutas de la API
+app.use('/api/admin', adminRouter);
 app.use('/api/tenants', tenantsRouter);
 app.use('/api/connectors', connectorsRouter);
 app.use('/api/workflows', workflowsRouter);
-app.use('/api/workflows/temporal', temporalWorkflowsRouter);
+app.use('/api/schemas', schemasRouter);
+app.use('/api/reconciliation', reconciliationRouter);
 
-// Audit logs endpoint
+// ─── Nueva arquitectura orientada a eventos ──────────────────────────────────
+// Webhooks: /webhooks/:connectorId
+app.use('/webhooks', webhooksRouter);
+// Snapshots: /api/tenants/:tenantId/snapshots/:entityType[/:canonicalId]
+app.use('/api/tenants/:tenantId/snapshots', snapshotsRouter);
+// Platform modules: /api/tenants/:tenantId/{orders,stock,invoices,products,consistency,...}
+app.use('/api', platformRouter);
+// Timeline: /api/tenants/:tenantId/timeline[/:id]
+app.use('/api/tenants', timelineRouter);
+app.use('/api/tenants/:tenantId/operations', operationsRouter);
+
+// Endpoint de logs de auditoría
 app.get(
   '/api/audit',
   requireAuth,
@@ -76,7 +120,7 @@ app.get(
   (req, res) => {
     const { tenantId, userId, action, startDate, endDate, limit, offset } = req.query;
 
-    // Tenant admins can only see their own tenant's logs
+    // Los tenant admins solo pueden ver los logs de su propio tenant
     const effectiveTenantId =
       req.user?.role === 'tenant_admin' ? req.tenantId : (tenantId as string);
 
@@ -102,7 +146,7 @@ app.get(
   }
 );
 
-// Metrics endpoint (placeholder)
+// Endpoint de métricas (placeholder)
 app.get(
   '/api/metrics',
   requireAuth,
@@ -133,7 +177,7 @@ app.get(
   }
 );
 
-// Error handling
+// Manejo de errores
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   logger.error({ err, path: req.path, method: req.method }, 'Unhandled error');
 
@@ -157,10 +201,10 @@ app.use((req, res) => {
   });
 });
 
-// Start server
+// Iniciar servidor
 const PORT = parsePositiveInt(process.env.PORT, 3000);
 
-// ESM entry point check
+// Verificación de entry point ESM
 const isMainModule = import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}`;
 if (isMainModule || process.env.START_SERVER === 'true') {
   app.listen(PORT, () => {

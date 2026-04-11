@@ -14,7 +14,7 @@
 
 import { appendFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { EvidencePack, DriftReport } from '../../connector-watchdog/src/types.js';
+import type { EvidencePack, DriftReport } from '@integrax/connector-watchdog';
 
 // ─── Feature flag guard ───────────────────────────────────────────────────────
 
@@ -108,7 +108,7 @@ export class DriftAnalyzer {
 
   constructor(private readonly config: DriftAnalyzerConfig) {
     this.anthropicApiKey = config.anthropicApiKey;
-    this.model = config.model ?? 'claude-sonnet-4-6';
+    this.model = config.model ?? process.env.ANTHROPIC_MODEL ?? 'claude-3-5-sonnet-20241022';
     this.maxTokens = config.maxTokens ?? 1024;
     this.auditLogDir = config.auditLogDir ?? './audit';
   }
@@ -199,6 +199,10 @@ Respond with just the one-sentence summary, no JSON.`;
   // ─── Private helpers ────────────────────────────────────────────────────────
 
   private async callClaude(prompt: string): Promise<string> {
+    if (!this.anthropicApiKey) {
+      throw new Error('Anthropic API Key is required when LLM drift analysis is enabled.');
+    }
+
     // Dynamic import to avoid hard dependency when LLM is disabled
     const { default: Anthropic } = await import('@anthropic-ai/sdk');
     const client = new Anthropic({ apiKey: this.anthropicApiKey });
@@ -215,24 +219,22 @@ Respond with just the one-sentence summary, no JSON.`;
 
   private parseResponse(response: string): Omit<DriftAnalysis, 'analysisModel' | 'analyzedAt' | 'isExecutable'> | null {
     try {
-      // Extract JSON from response (LLM may wrap in markdown)
+      // Intentar limpiar el JSON (puede venir en un bloque de markdown)
+      let jsonStr = response;
       const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) return null;
+      if (jsonMatch) {
+         jsonStr = jsonMatch[0];
+      }
 
-      const parsed = JSON.parse(jsonMatch[0]) as {
-        summary?: string;
-        rootCauseHypotheses?: string[];
-        recommendedActions?: string[];
-        estimatedImpact?: string;
-        confidenceScore?: number;
-      };
+      const rawParsed = JSON.parse(jsonStr);
 
+      // Usar un subset manual temporal (evitamos dependencia Zod por si falla el pnpm add en monorepos complejos)
       return {
-        summary: parsed.summary ?? 'No summary available',
-        rootCauseHypotheses: Array.isArray(parsed.rootCauseHypotheses) ? parsed.rootCauseHypotheses : [],
-        recommendedActions: Array.isArray(parsed.recommendedActions) ? parsed.recommendedActions : [],
-        estimatedImpact: (['high', 'medium', 'low'].includes(parsed.estimatedImpact ?? '') ? parsed.estimatedImpact : 'medium') as DriftAnalysis['estimatedImpact'],
-        confidenceScore: typeof parsed.confidenceScore === 'number' ? Math.min(1, Math.max(0, parsed.confidenceScore)) : 0.5,
+        summary: typeof rawParsed.summary === 'string' ? rawParsed.summary : 'No summary available',
+        rootCauseHypotheses: Array.isArray(rawParsed.rootCauseHypotheses) ? rawParsed.rootCauseHypotheses.filter((v:any) => typeof v === 'string') : [],
+        recommendedActions: Array.isArray(rawParsed.recommendedActions) ? rawParsed.recommendedActions.filter((v:any) => typeof v === 'string') : [],
+        estimatedImpact: (['high', 'medium', 'low'].includes(rawParsed.estimatedImpact) ? rawParsed.estimatedImpact : 'medium') as DriftAnalysis['estimatedImpact'],
+        confidenceScore: typeof rawParsed.confidenceScore === 'number' ? Math.min(1, Math.max(0, rawParsed.confidenceScore)) : 0.5,
       };
     } catch {
       return null;

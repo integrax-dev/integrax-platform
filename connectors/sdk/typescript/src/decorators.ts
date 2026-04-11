@@ -3,7 +3,7 @@
  * These can be used to add cross-cutting concerns like logging, metrics, etc.
  */
 
-import type { ActionResult, ExecutionContext } from './types/index.js';
+import type { ExecutionContext } from './types/index.js';
 import type { Logger, MetricsRecorder } from './observability.js';
 
 /**

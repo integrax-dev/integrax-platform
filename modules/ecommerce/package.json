@@ -1,0 +1,33 @@
+{
+  "name": "@integrax/module-ecommerce",
+  "version": "0.1.0",
+  "description": "Ecommerce capability module — reuses Medusa behind an adapter boundary",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest"
+  },
+  "keywords": ["integrax", "module", "ecommerce", "medusa"],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@integrax/entities": "workspace:*",
+    "@integrax/event-bus": "workspace:*",
+    "@integrax/snapshot-store": "workspace:*",
+    "@integrax/timeline": "workspace:*",
+    "@integrax/module-orders": "workspace:*",
+    "@integrax/module-inventory": "workspace:*",
+    "@integrax/module-catalog": "workspace:*",
+    "@integrax/module-payments": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  },
+  "peerDependencies": {
+    "@medusajs/medusa": ">=1.20.0"
+  },
+  "peerDependenciesOptional": {
+    "@medusajs/medusa": true
+  }
+}

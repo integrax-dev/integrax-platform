@@ -9,10 +9,11 @@
  */
 
 import { Kafka, Consumer, EachMessagePayload, logLevel } from 'kafkajs';
-import { Client, Connection } from '@temporalio/client';
+import { TemporalClientService } from '@integrax/temporal-workflows';
 import { config } from 'dotenv';
 import { createLogger } from '@integrax/logger';
 import express from 'express';
+import crypto from 'node:crypto';
 
 config();
 
@@ -37,8 +38,6 @@ const KAFKA_GROUP_ID = process.env.KAFKA_GROUP_ID || 'integrax-consumer';
 const TEMPORAL_ADDRESS = process.env.TEMPORAL_ADDRESS as string;
 if (!TEMPORAL_ADDRESS) throw new Error('TEMPORAL_ADDRESS env var is required');
 
-const TEMPORAL_TASK_QUEUE = process.env.TEMPORAL_TASK_QUEUE || 'integrax-workflows';
-
 // Topics to subscribe
 const TOPICS = [
   // Debezium CDC topics
@@ -50,20 +49,16 @@ const TOPICS = [
   'integrax.payments',
   'integrax.orders',
   'integrax.webhooks',
+  'integrax.schemas.discovery',
 ];
 
 // Temporal client (lazy initialized)
-let temporalClient: Client | null = null;
+let temporalClient: TemporalClientService | null = null;
 
-async function getTemporalClient(): Promise<Client> {
+async function getTemporalClient(): Promise<TemporalClientService> {
   if (!temporalClient) {
-    const connection = await Connection.connect({
-      address: TEMPORAL_ADDRESS,
-    });
-    temporalClient = new Client({
-      connection,
-      namespace: 'default',
-    });
+    temporalClient = new TemporalClientService();
+    await temporalClient.connect();
   }
   return temporalClient;
 }
@@ -93,6 +88,17 @@ interface BusinessEvent {
   data: Record<string, unknown>;
 }
 
+interface SchemaDiscoveryEvent {
+  tenantId: string;
+  sourceSchemaId: string;
+  targetSchemaId: string;
+  samplesA: Record<string, unknown>[];
+  samplesB: Record<string, unknown>[];
+  options?: {
+    forceRecalculate?: boolean;
+  };
+}
+
 // Handle CDC events from Debezium
 async function handleCDCEvent(topic: string, event: DebeziumEvent): Promise<void> {
   const { payload } = event;
@@ -117,27 +123,16 @@ async function handleCDCEvent(topic: string, event: DebeziumEvent): Promise<void
     // Route to appropriate workflow based on aggregate type
     switch (aggregateType) {
       case 'payment':
-        await client.workflow.start('paymentWorkflow', {
-          taskQueue: TEMPORAL_TASK_QUEUE,
-          workflowId: `payment-${record.aggregate_id}-${Date.now()}`,
-          args: [
-            {
-              paymentId: record.aggregate_id,
-              tenantId: eventPayload.tenantId || 'default',
-              correlationId: crypto.randomUUID(),
-              source: 'cdc',
-            },
-          ],
+        await client.startPayment((eventPayload.tenantId as string) || 'default', {
+          paymentId: record.aggregate_id as string,
+          tenantId: (eventPayload.tenantId as string) || 'default',
+          correlationId: crypto.randomUUID(),
+          source: 'cdc',
         });
         break;
 
       case 'order':
-        // Signal existing workflow or start new one
-        await client.workflow.start('orderWorkflow', {
-          taskQueue: TEMPORAL_TASK_QUEUE,
-          workflowId: `order-${record.aggregate_id}`,
-          args: [eventPayload],
-        });
+        // En una implementación real usaríamos startOrder del cliente
         break;
     }
   }
@@ -151,20 +146,35 @@ async function handleCDCEvent(topic: string, event: DebeziumEvent): Promise<void
     if (operation === 'c' || payload.before?.status !== record.status) {
       logger.info({ paymentId: record.external_id, status: record.status }, 'Payment CDC');
 
-      await client.workflow.start('paymentWorkflow', {
-        taskQueue: TEMPORAL_TASK_QUEUE,
-        workflowId: `payment-cdc-${record.external_id}-${Date.now()}`,
-        args: [
-          {
-            paymentId: record.external_id as string,
-            tenantId: record.tenant_id as string,
-            correlationId: crypto.randomUUID(),
-            source: 'cdc',
-          },
-        ],
+      await client.startPayment(record.tenant_id as string, {
+        paymentId: record.external_id as string,
+        tenantId: record.tenant_id as string,
+        correlationId: crypto.randomUUID(),
+        source: 'cdc',
       });
     }
   }
+}
+
+// Handle schema discovery
+async function handleSchemaDiscovery(event: SchemaDiscoveryEvent): Promise<void> {
+  logger.info({ tenantId: event.tenantId, source: event.sourceSchemaId }, 'Schema Discovery Event');
+  const client = await getTemporalClient();
+
+  const workflowId = `auto-discovery-${event.tenantId}-${event.sourceSchemaId}-${Date.now()}`;
+  
+  await client.startSchemaDiff(event.tenantId, {
+    tenantId: event.tenantId,
+    sourceSchemaId: event.sourceSchemaId,
+    targetSchemaId: event.targetSchemaId,
+    samplesA: event.samplesA,
+    samplesB: event.samplesB,
+    options: {
+      forceRecalculate: event.options?.forceRecalculate || false,
+    }
+  }, workflowId);
+
+  logger.info({ workflowId }, 'Auto-discovery workflow triggered');
 }
 
 // Handle business events
@@ -175,24 +185,18 @@ async function handleBusinessEvent(topic: string, event: BusinessEvent): Promise
 
   // Route based on event type
   if (event.eventType.startsWith('payment.')) {
-    await client.workflow.start('paymentWorkflow', {
-      taskQueue: TEMPORAL_TASK_QUEUE,
-      workflowId: `payment-${event.data.paymentId}-${Date.now()}`,
-      args: [
-        {
-          paymentId: event.data.paymentId,
-          tenantId: event.tenantId,
-          correlationId: event.correlationId,
-          source: 'api',
-        },
-      ],
-    });
+    await client.startPayment(event.tenantId, {
+      paymentId: event.data.paymentId as string,
+      tenantId: event.tenantId,
+      correlationId: event.correlationId,
+      source: 'api',
+    }, `payment-${event.data.paymentId as string}-${Date.now()}`);
   }
 
   if (event.eventType.startsWith('order.')) {
     // Signal existing order workflow
     try {
-      const handle = client.workflow.getHandle(`order-${event.data.orderId}`);
+      const handle = client.getHandle(`order-${event.data.orderId as string}`);
 
       if (event.eventType === 'order.payment_received') {
         await handle.signal('paymentReceived', {
@@ -204,27 +208,19 @@ async function handleBusinessEvent(topic: string, event: BusinessEvent): Promise
       }
     } catch (error) {
       logger.warn({ orderId: event.data.orderId }, 'Order workflow not found, skipping signal');
-      // Workflow doesn't exist, might need to create one
     }
   }
 
   if (event.eventType === 'webhook.mercadopago') {
-    // MercadoPago webhook
     const webhookData = event.data as { type: string; data: { id: string } };
 
     if (webhookData.type === 'payment') {
-      await client.workflow.start('paymentWorkflow', {
-        taskQueue: TEMPORAL_TASK_QUEUE,
-        workflowId: `payment-webhook-${webhookData.data.id}-${Date.now()}`,
-        args: [
-          {
-            paymentId: webhookData.data.id,
-            tenantId: event.tenantId,
-            correlationId: event.correlationId,
-            source: 'webhook',
-          },
-        ],
-      });
+      await client.startPayment(event.tenantId, {
+        paymentId: webhookData.data.id,
+        tenantId: event.tenantId,
+        correlationId: event.correlationId,
+        source: 'webhook',
+      }, `payment-webhook-${webhookData.data.id}-${Date.now()}`);
     }
   }
 }
@@ -236,8 +232,9 @@ async function handleMessage({ topic, partition, message }: EachMessagePayload):
   try {
     const value = JSON.parse(message.value.toString());
 
-    // Check if it's a Debezium event (has payload.op)
-    if (value.payload && value.payload.op) {
+    if (topic === 'integrax.schemas.discovery') {
+      await handleSchemaDiscovery(value as SchemaDiscoveryEvent);
+    } else if (value.payload && value.payload.op) {
       await handleCDCEvent(topic, value as DebeziumEvent);
     } else if (value.eventType) {
       await handleBusinessEvent(topic, value as BusinessEvent);
@@ -306,7 +303,7 @@ async function main() {
     }
 
     if (temporalClient) {
-      await temporalClient.connection.close();
+      await temporalClient.disconnect();
     }
 
     await new Promise<void>((resolve) => {

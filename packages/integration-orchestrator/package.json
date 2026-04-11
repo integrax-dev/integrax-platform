@@ -1,0 +1,26 @@
+{
+  "name": "@integrax/integration-orchestrator",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Closes the runtime loop: webhook/poll → canonicalize → snapshot → event-bus → timeline",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@integrax/connector-sdk": "workspace:*",
+    "@integrax/entities": "workspace:*",
+    "@integrax/platform-kernel": "workspace:*",
+    "@integrax/event-bus": "workspace:*",
+    "@integrax/snapshot-store": "workspace:*",
+    "@integrax/timeline": "workspace:*",
+    "@integrax/polling-scheduler": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.6.1"
+  }
+}

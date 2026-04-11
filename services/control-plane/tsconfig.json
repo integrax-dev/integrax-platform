@@ -4,17 +4,34 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "lib": ["ES2022"],
+    "rootDir": "../..",
     "outDir": "./dist",
-    "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "declaration": true,
-    "declarationMap": true,
     "sourceMap": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "paths": {
+      "@integrax/entities": ["../../packages/entities/src/index.ts"],
+      "@integrax/event-bus": ["../../packages/event-bus/src/index.ts"],
+      "@integrax/snapshot-store": ["../../packages/snapshot-store/src/index.ts"],
+      "@integrax/platform-kernel": ["../../packages/platform-kernel/src/index.ts"],
+      "@integrax/webhook-ingestion": ["../../packages/webhook-ingestion/src/index.ts"],
+      "@integrax/polling-scheduler": ["../../packages/polling-scheduler/src/index.ts"],
+      "@integrax/timeline": ["../../packages/timeline/src/index.ts"],
+      "@integrax/module-orders": ["../../modules/orders/src/index.ts"],
+      "@integrax/module-inventory": ["../../modules/inventory/src/index.ts"],
+      "@integrax/module-billing": ["../../modules/billing/src/index.ts"],
+      "@integrax/module-catalog": ["../../modules/catalog/src/index.ts"],
+      "@integrax/module-consistency-inspector": ["../../modules/consistency-inspector/src/index.ts"],
+      "@integrax/reconciliation-engine": ["../../packages/reconciliation-engine/src/index.ts"],
+      "@integrax/integration-orchestrator": ["../../packages/integration-orchestrator/src/index.ts"],
+      "@integrax/connector-sdk": ["../../connectors/sdk/typescript/src/index.ts"],
+      "@integrax/operation-engine": ["../../packages/operation-engine/src/index.ts"],
+      "@integrax/module-payments": ["../../modules/payments/src/index.ts"]
+    }
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  "exclude": ["node_modules", "dist"]
 }

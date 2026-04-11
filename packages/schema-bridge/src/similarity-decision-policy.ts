@@ -1,0 +1,145 @@
+import type {
+  SimilarityDecision,
+  SimilarityDecisionPolicyConfig,
+  SimilarityEvidenceBreakdown,
+  SimilarityMatchRule,
+  SimilarityScore,
+} from './types.js';
+
+const DEFAULT_AUTO_ACCEPT_THRESHOLD = 0.95;
+const DEFAULT_REVIEW_THRESHOLD = 0.70;
+const DEFAULT_MIN_MARGIN = 0.15;
+
+function fallbackBreakdown(): SimilarityEvidenceBreakdown {
+  return {
+    lexical: 0,
+    value: 0,
+    structural: 0,
+    businessType: 0,
+    ontology: 0,
+    sufficiency: 0,
+  };
+}
+
+/**
+ * Five explicit auto-accept rules, each with a single clear rationale.
+ * Ordered from strongest evidence to weakest — first match wins.
+ *
+ * Rule 1 — Golden path
+ *   Very high combined score + sufficient margin + multi-channel evidence.
+ *   The "normal" auto-accept: high confidence from at least two independent
+ *   channels (value+structural, or a lexical/ontology anchor + structural).
+ *
+ * Rule 2 — Value-dominant
+ *   Strong combined (≥0.84) + both-sided margins clear + value signal ≥ 0.70
+ *   + structural ≥ 0.70. Value overlap is the primary signal when the field
+ *   names are opaque (e.g. SAP ABAP codes), validated by structural consistency.
+ *
+ * Rule 3 — Margin-dominant
+ *   Combined ≥ 0.80 + extremely unambiguous winner (min-margin ≥ 0.40 OR
+ *   dominant-margin ≥ 0.60 with min-margin ≥ 0.12) + moderate evidence.
+ *   When the best match is far ahead of all others, lower raw combined is OK.
+ *
+ * Rule 4 — Semantic certainty
+ *   Combined ≥ 0.80 + ontology or business-type anchor at ≥ 0.90 + value
+ *   corroboration ≥ 0.25 + structural ≥ 0.70. Domain knowledge overrides
+ *   lexical distance (e.g. "importe" ↔ "amount" with matching currency values).
+ *
+ * Rule 5 — Review
+ *   Combined ≥ review threshold + any meaningful signal (margin, value, or
+ *   semantic anchor). Goes to human/LLM review instead of being silently rejected.
+ */
+export class SimilarityDecisionPolicy {
+  private readonly autoAcceptThreshold: number;
+  private readonly reviewThreshold: number;
+  private readonly minConfidenceMargin: number;
+
+  constructor(config: SimilarityDecisionPolicyConfig = {}) {
+    this.autoAcceptThreshold = config.autoAcceptThreshold ?? DEFAULT_AUTO_ACCEPT_THRESHOLD;
+    this.reviewThreshold = config.reviewThreshold ?? DEFAULT_REVIEW_THRESHOLD;
+    this.minConfidenceMargin = config.minConfidenceMargin ?? DEFAULT_MIN_MARGIN;
+  }
+
+  evaluate(score: SimilarityScore): SimilarityDecision {
+    return this.evaluateWithRule(score).decision;
+  }
+
+  evaluateWithRule(score: SimilarityScore): { decision: SimilarityDecision; rule: SimilarityMatchRule } {
+    const sourceMargin  = score.margin           ?? 0;
+    const targetMargin  = score.reciprocalMargin ?? 0;
+    const minMargin     = Math.min(sourceMargin, targetMargin);
+    const dominantMargin = Math.max(sourceMargin, targetMargin);
+    const b             = score.evidenceBreakdown ?? fallbackBreakdown();
+
+    // Regla 0 — Memoria Histórica (Human-in-the-loop)
+    // Si la ontología (MappingMemory) aporta una señal fuerte (≥0.85) debido a iteraciones
+    // previas aceptadas, y la opción es clara (minMargin > 0.05), auto-aceptamos relajando
+    // drásticamente los requisitos estructurales y de valor. El feedback humano manda.
+    if (
+      b.ontology >= 0.85 &&
+      minMargin >= 0.05 &&
+      score.combined >= 0.60
+    ) return { decision: 'auto_accept', rule: 'rule0_memory' };
+
+    // Regla 1 — Camino dorado
+    if (
+      score.combined >= Math.max(0.90, this.autoAcceptThreshold) &&
+      minMargin >= this.minConfidenceMargin &&
+      b.sufficiency >= 0.65 &&
+      (
+        (b.value >= 0.70 && b.structural >= 0.50) ||
+        (Math.max(b.lexical, b.ontology) >= 0.90 && b.structural >= 0.40)
+      )
+    ) return { decision: 'auto_accept', rule: 'rule1_golden' };
+
+    // Regla 2 — Dominancia de valor (funciona con nombres de campo opacos)
+    if (
+      score.combined >= Math.max(0.84, this.autoAcceptThreshold - 0.04) &&
+      minMargin >= 0.25 &&
+      b.value >= 0.70 &&
+      b.structural >= 0.70 &&
+      b.sufficiency >= 0.65
+    ) return { decision: 'auto_accept', rule: 'rule2_value' };
+
+    // Regla 3 — Dominancia de margen (ganador inequívoco)
+    if (
+      score.combined >= Math.max(0.80, this.autoAcceptThreshold - 0.08) &&
+      (minMargin >= 0.40 || (dominantMargin >= 0.60 && minMargin >= 0.12)) &&
+      b.value >= 0.50 &&
+      b.structural >= 0.50 &&
+      b.sufficiency >= 0.60
+    ) return { decision: 'auto_accept', rule: 'rule3_margin' };
+
+    // Regla 4 — Certeza semántica (ancla de ontología/tipo de negocio)
+    if (
+      score.combined >= Math.max(0.80, this.autoAcceptThreshold - 0.08) &&
+      minMargin >= 0.12 &&
+      Math.max(b.businessType, b.ontology) >= 0.90 &&
+      b.value >= 0.25 &&
+      b.structural >= 0.70
+    ) return { decision: 'auto_accept', rule: 'rule4_semantic' };
+
+    // Regla 5 — Revisión (score aceptable, alguna señal positiva)
+    if (
+      score.combined >= this.reviewThreshold &&
+      (
+        minMargin >= Math.max(0.08, this.minConfidenceMargin * 0.5) ||
+        b.value >= 0.70 ||
+        Math.max(b.businessType, b.ontology) >= 0.90
+      )
+    ) return { decision: 'review', rule: 'rule5_review' };
+
+    return { decision: 'reject', rule: 'reject' };
+  }
+
+  annotate(score: SimilarityScore): SimilarityScore {
+    const { decision, rule } = this.evaluateWithRule(score);
+    return { ...score, decision, matchRule: rule };
+  }
+}
+
+export function createSimilarityDecisionPolicy(
+  config: SimilarityDecisionPolicyConfig = {},
+): SimilarityDecisionPolicy {
+  return new SimilarityDecisionPolicy(config);
+}

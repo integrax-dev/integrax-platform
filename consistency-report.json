@@ -1,0 +1,13 @@
+{
+  "totalEvaluated": 50,
+  "autoMatched": 50,
+  "sentToReview": 0,
+  "noMatches": 0,
+  "conflictsDetected": {
+    "CRITICAL": 5,
+    "HIGH": 0,
+    "MEDIUM": 33,
+    "LOW": 10
+  },
+  "sampleReviews": []
+}
