@@ -68,6 +68,8 @@ const CompareProductsSchema = z.object({
   productA: CanonicalProductSchema,
   systemB: z.string().min(1),
   productB: CanonicalProductSchema,
+  sourceSystemTypeA: z.enum(['api', 'sql', 'csv', 'parquet']).default('api'),
+  sourceSystemTypeB: z.enum(['api', 'sql', 'csv', 'parquet']).default('api'),
   tolerances: z.object({
     pricePct: z.number().min(0).max(1).optional(),
     stockAbs: z.number().min(0).optional(),

@@ -16,6 +16,7 @@ import type { ManualLink } from '../../shared/entity-helpers.js';
 import { hasManualLink, findExternalIdOverlap } from '../../shared/entity-helpers.js';
 import { normalizeCuit, normalizeTitle } from '../../shared/normalize.js';
 import { combinedSimilarity } from '../../shared/similarity.js';
+import { evaluateFuzzyIdentity } from '../../shared/fuzzy-identity.js';
 
 export type { ManualLink };
 
@@ -63,6 +64,12 @@ export function matchCustomer(
     if (score >= NAME_SIMILARITY_THRESHOLD) {
       return { decision: 'review', confidence: score, reason: 'name_similarity' };
     }
+  }
+
+  // 7. Fuzzy Identity (probabilistic evaluation of weak signals)
+  const fuzzy = evaluateFuzzyIdentity(a, b);
+  if (fuzzy.decision !== 'no_match') {
+    return fuzzy;
   }
 
   return { decision: 'no_match', confidence: 0, reason: 'no_signal' };

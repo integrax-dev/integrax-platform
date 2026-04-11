@@ -8,7 +8,8 @@
  *   - suggestOperationCommand() returns known commands for supported types
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect as _expect } from 'vitest';
+const expect = _expect as any;
 import {
   enrichWithActionability,
   classifyReconciliationSeverity,

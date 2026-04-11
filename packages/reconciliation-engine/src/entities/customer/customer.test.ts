@@ -68,8 +68,8 @@ describe('matchCustomer', () => {
   });
 
   it('name similarity: "Empresa Ejemplo S.A." vs "Empresa Ejemplo SA" → review', () => {
-    const a = customer({ taxId: '', externalIds: [{ system: 'a', id: '1' }], name: 'Empresa Ejemplo S.A.' });
-    const b = customer({ taxId: '', externalIds: [{ system: 'b', id: '2' }], name: 'Empresa Ejemplo SA' });
+    const a = customer({ taxId: '', email: 'a@corp.com', externalIds: [{ system: 'a', id: '1' }], name: 'Empresa Ejemplo S.A.' });
+    const b = customer({ taxId: '', email: 'b@corp.com', externalIds: [{ system: 'b', id: '2' }], name: 'Empresa Ejemplo SA' });
     const r = matchCustomer(a, b);
     // normalizeTitle strips punctuation — these should be highly similar
     expect(r.decision).toBe('review');
@@ -78,8 +78,8 @@ describe('matchCustomer', () => {
   });
 
   it('completely different customers → no_match', () => {
-    const a = customer({ taxId: '', externalIds: [{ system: 'a', id: '1' }], name: 'Acme Corp' });
-    const b = customer({ taxId: '', externalIds: [{ system: 'b', id: '2' }], name: 'Empresa XYZ Ltda' });
+    const a = customer({ taxId: '', email: 'a@corp.com', externalIds: [{ system: 'a', id: '1' }], name: 'Acme Corp' });
+    const b = customer({ taxId: '', email: 'b@xyz.com', externalIds: [{ system: 'b', id: '2' }], name: 'Empresa XYZ Ltda' });
     expect(matchCustomer(a, b).decision).toBe('no_match');
   });
 });

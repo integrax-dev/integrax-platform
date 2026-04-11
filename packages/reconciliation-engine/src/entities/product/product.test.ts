@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect as _expect } from 'vitest';
+const expect = _expect as any;
 import { matchProduct } from './identity.js';
 import { diffProducts } from './diff.js';
 import { evaluateProductConflicts, productRecommendation } from './policy.js';
