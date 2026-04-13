@@ -28,7 +28,9 @@ function field(name: string, nullable = false): ParsedField {
  * @example parseCsv('id,"full name",email\n1,Alice,a@b.com') → ['id','full name','email']
  */
 export function parseCsv(raw: string): ParsedField[] {
-  const header = raw.split('\n').find(l => l.trim().length > 0) ?? '';
+  // Normalize CRLF → LF so Windows/Metabase exports work correctly
+  const normalized = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const header = normalized.split('\n').find(l => l.trim().length > 0) ?? '';
   const cols = header
     .split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/)   // split on commas outside quotes
     .map(c => c.trim().replace(/^"|"$/g, ''));

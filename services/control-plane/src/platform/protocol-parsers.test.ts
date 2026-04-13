@@ -46,6 +46,20 @@ describe('parseCsv', () => {
       'Devoluciones', 'Ventas netas', 'Impuestos',
     ]);
   });
+
+  it('handles Windows CRLF line endings (Metabase on Windows)', () => {
+    const csv = 'id,name,amount\r\n1,Alice,100\r\n2,Bob,200';
+    expect(names(parseCsv(csv))).toEqual(['id', 'name', 'amount']);
+  });
+
+  it('returns every field with correct ParsedField shape', () => {
+    const fields = parseCsv('id,name');
+    for (const f of fields) {
+      expect(f.types).toEqual(['string']);
+      expect(f.nullable).toBe(false);
+      expect(f.frequency).toBe(1);
+    }
+  });
 });
 
 // ─── JSONL ────────────────────────────────────────────────────────────────────
@@ -67,6 +81,11 @@ describe('parseJsonl', () => {
 
   it('returns empty array for empty input', () => {
     expect(parseJsonl('')).toEqual([]);
+  });
+
+  it('returns empty for a JSON array (wrong format — use parseAvro or parseCsv instead)', () => {
+    // A JSON array is not JSONL — each line must be a standalone object
+    expect(parseJsonl('[{"id":1},{"id":2}]')).toEqual([]);
   });
 });
 
@@ -140,6 +159,15 @@ describe('parseXml', () => {
     const result = names(parseXml(xml));
     expect(result.filter(n => n === 'item')).toHaveLength(1);
   });
+
+  it('returns empty array for empty input', () => {
+    expect(parseXml('')).toEqual([]);
+  });
+
+  it('handles self-closing tags', () => {
+    const xml = '<schema><field name="id" type="int"/><field name="ts" type="timestamp"/></schema>';
+    expect(names(parseXml(xml))).toEqual(expect.arrayContaining(['field', 'schema', 'name', 'type']));
+  });
 });
 
 // ─── GraphQL SDL ──────────────────────────────────────────────────────────────
@@ -185,6 +213,37 @@ type B {
   id: ID
 }`;
     expect(names(parseGraphql(sdl)).filter(n => n === 'id')).toHaveLength(1);
+  });
+
+  it('extracts fields from interface types', () => {
+    const sdl = `
+interface Node {
+  id: ID!
+  createdAt: String
+}`;
+    expect(names(parseGraphql(sdl))).toEqual(expect.arrayContaining(['id', 'createdAt']));
+  });
+
+  it('does not include enum values as fields', () => {
+    // Enum values are at 2+ spaces indent and could match fieldName: Type
+    // but they have no `:` so they won't be caught by the regex
+    const sdl = `
+enum Status {
+  OPEN
+  CLOSED
+  PENDING
+}
+type Order {
+  status: Status
+}`;
+    const result = names(parseGraphql(sdl));
+    expect(result).not.toContain('OPEN');
+    expect(result).not.toContain('CLOSED');
+    expect(result).toContain('status');
+  });
+
+  it('returns empty array for empty input', () => {
+    expect(parseGraphql('')).toEqual([]);
   });
 });
 
@@ -235,6 +294,13 @@ message sales_schema {
 
   it('returns empty array for empty input', () => {
     expect(parseParquet('')).toEqual([]);
+  });
+
+  it('supports field_name key (alternative to name)', () => {
+    const schema = JSON.stringify({
+      columns: [{ field_name: 'created_at', type: 'timestamp' }, { field_name: 'amount', type: 'decimal' }],
+    });
+    expect(names(parseParquet(schema))).toEqual(['created_at', 'amount']);
   });
 
   // Metabase Parquet export would have these column names
@@ -307,5 +373,32 @@ message B {
 
   it('returns empty array for empty input', () => {
     expect(parseProtobuf('')).toEqual([]);
+  });
+
+  it('does not extract map field type parameters as field names', () => {
+    // map<K,V> fields: the current regex-based parser does not extract these
+    // (map<string, int32> doesn't match the type-name pattern) — documented behavior
+    const proto = `
+message Labels {
+  map<string, string> attributes = 1;
+  string name = 2;
+}`;
+    const result = names(parseProtobuf(proto));
+    // map field is not extracted — known limitation of regex approach
+    expect(result).not.toContain('string');
+    expect(result).not.toContain('attributes');
+    // regular fields still work
+    expect(result).toContain('name');
+  });
+
+  it('handles google.protobuf well-known types as field types', () => {
+    const proto = `
+message Event {
+  google.protobuf.Timestamp occurred_at = 1;
+  google.protobuf.StringValue label = 2;
+}`;
+    expect(names(parseProtobuf(proto))).toEqual(
+      expect.arrayContaining(['occurred_at', 'label']),
+    );
   });
 });
