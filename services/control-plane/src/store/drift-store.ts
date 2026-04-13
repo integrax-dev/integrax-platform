@@ -186,6 +186,78 @@ export async function updateDriftIncidentStatus(
   );
 }
 
+/**
+ * Find the most recent open or investigating incident for a (sourceId, protocol) pair.
+ * Used by ingest() to deduplicate: if drift is re-detected on the same source before
+ * the previous incident is resolved, update it instead of creating a duplicate.
+ */
+export async function findOpenIncident(
+  sourceId: string,
+  protocol: DriftProtocol,
+): Promise<DriftIncident | null> {
+  const result = await pool.query<IncidentRow>(
+    `SELECT * FROM drift_incidents
+     WHERE source_id = $1 AND protocol = $2 AND status IN ('open','investigating')
+     ORDER BY detected_at DESC
+     LIMIT 1`,
+    [sourceId, protocol],
+  );
+  return result.rows.length ? toIncident(result.rows[0]) : null;
+}
+
+/**
+ * Update the bridge report + scoring fields on an existing incident.
+ * Used when drift is re-detected while the previous incident is still open —
+ * the report is refreshed in-place rather than creating a duplicate.
+ */
+export async function updateDriftIncidentReport(
+  id: string,
+  updates: Pick<DriftIncident, 'bridgeReport' | 'impactScore' | 'severity' | 'routingTarget' | 'remediationHints' | 'affectedTenants'>,
+): Promise<void> {
+  await pool.query(
+    `UPDATE drift_incidents
+     SET bridge_report     = $1,
+         impact_score      = $2,
+         severity          = $3,
+         routing_target    = $4,
+         remediation_hints = $5,
+         affected_tenants  = $6,
+         updated_at        = NOW()
+     WHERE id = $7`,
+    [
+      updates.bridgeReport ? JSON.stringify(updates.bridgeReport) : null,
+      updates.impactScore,
+      updates.severity,
+      updates.routingTarget,
+      JSON.stringify(updates.remediationHints),
+      updates.affectedTenants,
+      id,
+    ],
+  );
+}
+
+/**
+ * Resolve all open/investigating incidents for a given (sourceId, protocol).
+ * Called automatically when a new baseline is captured — the operator has
+ * accepted the current schema as the new reference point, so prior incidents
+ * no longer represent real drift.
+ */
+export async function resolveOpenIncidentsBySource(
+  sourceId: string,
+  protocol: DriftProtocol,
+): Promise<number> {
+  const result = await pool.query<{ count: string }>(
+    `UPDATE drift_incidents
+     SET status     = 'resolved',
+         resolved_at = NOW(),
+         updated_at  = NOW()
+     WHERE source_id = $1 AND protocol = $2 AND status IN ('open','investigating')
+     RETURNING id`,
+    [sourceId, protocol],
+  );
+  return result.rowCount ?? 0;
+}
+
 // ─── Baselines ────────────────────────────────────────────────────────────────
 
 export async function getBaseline(sourceId: string, protocol: DriftProtocol): Promise<DriftBaseline | null> {

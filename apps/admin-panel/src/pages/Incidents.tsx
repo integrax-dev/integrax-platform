@@ -20,7 +20,7 @@ import './Pages.css';
 type DriftSeverity  = 'critical' | 'major' | 'minor';
 type IncidentStatus = 'open' | 'investigating' | 'resolved' | 'dismissed';
 type RoutingTarget  = 'operator_review' | 'incident_alert' | 'timeline_trace' | 'auto_resolved';
-type DriftProtocol  = 'sql' | 'openapi' | 'avro' | 'csv' | 'soap' | 'graphql';
+type DriftProtocol  = 'sql' | 'openapi' | 'avro' | 'csv' | 'jsonl' | 'xml' | 'soap' | 'graphql' | 'parquet' | 'protobuf';
 type DiffKind       = 'field_removed' | 'field_added' | 'type_changed' | 'rename_candidate' | string;
 type ConflictClass  = 'auto_resolved' | 'human_review' | 'ambiguous' | string;
 
@@ -105,12 +105,16 @@ const STATUS_COLOR: Record<IncidentStatus, string> = {
 };
 
 const PROTOCOL_COLOR: Record<DriftProtocol, string> = {
-  sql:     '#7c3aed',
-  openapi: '#0284c7',
-  avro:    '#0891b2',
-  csv:     '#059669',
-  soap:    '#d97706',
-  graphql: '#e11d48',
+  sql:      '#7c3aed',
+  openapi:  '#0284c7',
+  avro:     '#0891b2',
+  csv:      '#059669',
+  jsonl:    '#0d9488',
+  xml:      '#ea580c',
+  soap:     '#d97706',
+  graphql:  '#e11d48',
+  parquet:  '#7c2d12',
+  protobuf: '#1d4ed8',
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -551,7 +555,7 @@ export function Incidents() {
         <div>
           <h1>Schema Drift Incidents</h1>
           <p className="page-subtitle">
-            Detected by schema-bridge · SQL · OpenAPI · Avro · CSV · SOAP · GraphQL
+            Detected by schema-bridge · SQL · OpenAPI · Avro · CSV · JSONL · XML · SOAP · GraphQL · Parquet · Protobuf
           </p>
         </div>
         <button
@@ -594,7 +598,7 @@ export function Incidents() {
           { label: 'STATUS',   value: filterStatus,   setter: setFilterStatus,
             options: [['all','All statuses'],['open','Open'],['investigating','Investigating'],['resolved','Resolved'],['dismissed','Dismissed']] },
           { label: 'PROTOCOL', value: filterProtocol, setter: setFilterProtocol,
-            options: [['all','All protocols'],['sql','SQL'],['openapi','OpenAPI'],['avro','Avro'],['csv','CSV'],['soap','SOAP'],['graphql','GraphQL']] },
+            options: [['all','All protocols'],['sql','SQL'],['openapi','OpenAPI'],['avro','Avro'],['csv','CSV'],['jsonl','JSONL'],['xml','XML'],['soap','SOAP'],['graphql','GraphQL'],['parquet','Parquet'],['protobuf','Protobuf']] },
         ] as const).map(({ label, value, setter, options }) => (
           <div key={label}>
             <label style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', display: 'block', marginBottom: 4, letterSpacing: '0.05em' }}>

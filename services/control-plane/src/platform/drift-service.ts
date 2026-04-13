@@ -33,6 +33,9 @@ import {
   saveDriftIncident,
   saveDriftLlmAnalysis,
   updateDriftIncidentStatus,
+  updateDriftIncidentReport,
+  findOpenIncident,
+  resolveOpenIncidentsBySource,
   listBaselines,
   type DriftProtocol,
   type DriftIncident,
@@ -142,6 +145,53 @@ async function callLlm(promptSeed: string): Promise<Omit<LLMAnalysisResult, 'esc
   }
 }
 
+// ─── Outbound notifications ───────────────────────────────────────────────────
+//
+// Fire-and-forget. Reads env vars at call time so they can be set after startup.
+//   SLACK_WEBHOOK_URL  — Slack incoming webhook
+//   DRIFT_WEBHOOK_URL  — generic HTTP POST target (your own alerting stack)
+//
+// Only fires for critical/major incidents. Never blocks the ingest response.
+
+function notifyInBackground(incident: DriftIncident): void {
+  const slackUrl  = process.env.SLACK_WEBHOOK_URL;
+  const driftUrl  = process.env.DRIFT_WEBHOOK_URL;
+  if (!slackUrl && !driftUrl) return;
+
+  const severityEmoji = incident.severity === 'critical' ? '🔴' : '🟡';
+  const text = `${severityEmoji} *Schema drift detected* — \`${incident.sourceId}\` (${incident.protocol.toUpperCase()})\n` +
+    `Severity: *${incident.severity}* · Impact: ${Math.round((incident.impactScore ?? 0) * 100)}% · ` +
+    `Blast radius: ${incident.affectedTenants.length} tenant(s)\n` +
+    `Incident ID: \`${incident.id}\``;
+
+  const run = async () => {
+    if (slackUrl) {
+      await fetch(slackUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+    }
+    if (driftUrl) {
+      await fetch(driftUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event: 'drift.incident.created',
+          severity: incident.severity,
+          sourceId: incident.sourceId,
+          protocol: incident.protocol,
+          incidentId: incident.id,
+          impactScore: incident.impactScore,
+          affectedTenants: incident.affectedTenants,
+          detectedAt: incident.detectedAt,
+        }),
+      });
+    }
+  };
+  run().catch(err => logger.warn({ err, incidentId: incident.id }, 'Drift notification failed'));
+}
+
 // ─── DriftService ─────────────────────────────────────────────────────────────
 
 export class DriftService {
@@ -153,6 +203,8 @@ export class DriftService {
 
   /**
    * Capture the current schema as the baseline for future comparisons.
+   * Auto-resolves any open incidents for this source — the operator has
+   * accepted the current schema as the new reference point.
    */
   async captureBaseline(
     sourceId: string,
@@ -161,7 +213,13 @@ export class DriftService {
   ): Promise<void> {
     const schema = toSchema(protocol, raw);
     await saveBaseline(sourceId, protocol, schema as unknown as Record<string, unknown>);
-    logger.info({ sourceId, protocol }, 'Baseline captured');
+
+    const resolved = await resolveOpenIncidentsBySource(sourceId, protocol);
+    if (resolved > 0) {
+      logger.info({ sourceId, protocol, resolved }, 'Baseline captured — auto-resolved open incidents');
+    } else {
+      logger.info({ sourceId, protocol }, 'Baseline captured');
+    }
   }
 
   /**
@@ -200,36 +258,65 @@ export class DriftService {
     }
 
     const assessment = assessImpact(report);
-    const now = new Date();
+    const severity   = scoreToDriftSeverity(assessment.impactScore);
+    const routing    = mapRouting(assessment.primaryRoutingTarget);
+    const hints      = assessment.remediationHints.map(h => h.description);
+    const score      = assessment.impactScore / 100;  // normalise 0-100 → 0-1 for display
 
-    const incident: DriftIncident = {
-      id: ulid(),
-      sourceId,
-      protocol,
-      severity: scoreToDriftSeverity(assessment.impactScore),
-      status: 'open',
-      bridgeReport: report,
-      impactScore: assessment.impactScore / 100,   // normalise 0-100 → 0-1 for display
-      routingTarget: mapRouting(assessment.primaryRoutingTarget),
-      remediationHints: assessment.remediationHints.map(h => h.description),
-      affectedTenants,
-      llmAnalysis: [],
-      detectedAt: now,
-      resolvedAt: null,
-      createdAt: now,
-      updatedAt: now,
-    };
+    // ── Deduplication: reuse the existing open incident if one exists ───────────
+    // If drift on the same source was already reported and not yet resolved,
+    // refresh its report in-place instead of creating a duplicate incident.
+    const existing = await findOpenIncident(sourceId, protocol);
+    let incident: DriftIncident;
 
-    await saveDriftIncident(incident);
-    logger.warn(
-      { sourceId, protocol, severity: incident.severity, score: assessment.impactScore },
-      'Drift incident saved',
-    );
+    if (existing) {
+      await updateDriftIncidentReport(existing.id, {
+        bridgeReport: report,
+        impactScore: score,
+        severity,
+        routingTarget: routing,
+        remediationHints: hints,
+        affectedTenants,
+      });
+      incident = { ...existing, bridgeReport: report, impactScore: score, severity, routingTarget: routing, remediationHints: hints, affectedTenants };
+      logger.warn(
+        { sourceId, protocol, severity, score: assessment.impactScore, incidentId: existing.id },
+        'Drift incident updated (existing open incident refreshed)',
+      );
+    } else {
+      const now = new Date();
+      incident = {
+        id: ulid(),
+        sourceId,
+        protocol,
+        severity,
+        status: 'open',
+        bridgeReport: report,
+        impactScore: score,
+        routingTarget: routing,
+        remediationHints: hints,
+        affectedTenants,
+        llmAnalysis: [],
+        detectedAt: now,
+        resolvedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      await saveDriftIncident(incident);
+      logger.warn(
+        { sourceId, protocol, severity, score: assessment.impactScore },
+        'Drift incident created',
+      );
+    }
 
-    // Auto-analyze with LLM for critical incidents that have unresolved escalations.
-    // Fires in the background — does not block the ingest response.
+    // ── Notifications (Slack / generic webhook) — fire-and-forget ────────────
+    if (severity === 'critical' || severity === 'major') {
+      notifyInBackground(incident);
+    }
+
+    // ── Auto LLM analysis for critical incidents ──────────────────────────────
     const escalations = (report as any).requirementsReport?.llmEscalations ?? [];
-    if (incident.severity === 'critical' && escalations.length > 0 && process.env.ANTHROPIC_API_KEY) {
+    if (severity === 'critical' && escalations.length > 0 && process.env.ANTHROPIC_API_KEY) {
       this.analyzeEscalationsInBackground(incident.id, escalations);
     }
 
