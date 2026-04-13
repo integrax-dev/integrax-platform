@@ -10,7 +10,17 @@ import type { BridgeReport } from '@integrax/schema-bridge';
 
 // ─── Domain types ─────────────────────────────────────────────────────────────
 
-export type DriftProtocol = 'sql' | 'openapi' | 'avro' | 'csv' | 'soap' | 'graphql';
+export type DriftProtocol =
+  | 'sql'       // CREATE TABLE DDL
+  | 'openapi'   // OpenAPI YAML/JSON
+  | 'avro'      // Avro schema JSON
+  | 'csv'       // CSV header row + optional sample rows
+  | 'jsonl'     // Newline-delimited JSON (JSONL / NDJSON)
+  | 'xml'       // Generic XML (element/attribute names as fields)
+  | 'soap'      // WSDL/XSD — alias for xml with SOAP context
+  | 'graphql'   // GraphQL SDL
+  | 'parquet'   // Parquet schema JSON (column definitions)
+  | 'protobuf'; // Protocol Buffer .proto (message field definitions)
 export type DriftSeverity  = 'critical' | 'major' | 'minor';
 export type DriftStatus    = 'open' | 'investigating' | 'resolved' | 'dismissed';
 export type RoutingTarget  =

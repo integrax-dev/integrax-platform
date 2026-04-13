@@ -229,7 +229,7 @@ driftRouter.post(
       const { sourceId, protocol, schema, connectorId } = req.body as {
         sourceId: string;
         protocol: DriftProtocol;
-        schema: string;     // raw DDL, OpenAPI YAML/JSON, CSV header row, Avro JSON, WSDL, etc.
+        schema: string;     // DDL, OpenAPI YAML/JSON, CSV, JSONL, XML/SOAP, GraphQL SDL, Parquet schema JSON, .proto
         connectorId?: string;
       };
 

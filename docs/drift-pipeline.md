@@ -107,14 +107,18 @@ Stored in `drift_incidents.llm_analysis` as an array indexed by `escalationIndex
 
 ### Supported protocols
 
-| Protocol | Input format | Adapter |
-|----------|-------------|---------|
-| `sql` | Raw DDL string | `SqlDdlAdapter` |
-| `openapi` | OpenAPI YAML or JSON string | `OpenApiAdapter` |
-| `avro` | Avro schema as JSON string | Generic inferrer |
-| `csv` | Header row + optional sample rows | Generic inferrer |
-| `soap` | WSDL/XSD XML | Generic inferrer |
-| `graphql` | GraphQL SDL string | Generic inferrer |
+| Protocol | Input format | Parser |
+|----------|-------------|--------|
+| `sql` | Raw DDL string (`CREATE TABLE …`) | `SqlDdlAdapter` (full) |
+| `openapi` | OpenAPI YAML or JSON string | `OpenApiAdapter` (full) |
+| `avro` | Avro schema JSON `{ fields: [{ name, type }] }` | Dedicated Avro parser |
+| `csv` | Header row + optional sample rows | CSV header parser (quoted cols) |
+| `jsonl` | Newline-delimited JSON (JSONL / NDJSON) | First-record field inferrer |
+| `xml` | Generic XML document | Regex tag/attribute extractor |
+| `soap` | WSDL/XSD XML | Same XML extractor, SOAP label |
+| `graphql` | GraphQL SDL string | Regex field extractor (no AST) |
+| `parquet` | Parquet schema JSON or DDL (`required binary name;`) | JSON + DDL dual parser |
+| `protobuf` | Protocol Buffer `.proto` message definition | Regex field extractor |
 
 ## Database tables
 

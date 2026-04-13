@@ -6,12 +6,16 @@
  * a fully-enriched DriftIncident ready for the UI and the Temporal workflow.
  *
  * Supported protocols:
- *   sql     — raw DDL string  (CREATE TABLE …)
- *   openapi — OpenAPI YAML or JSON string
- *   avro    — Avro schema JSON string (parsed to JSON object array)
- *   csv     — CSV header row + optional sample rows
- *   soap    — WSDL/XSD XML (treated as JSON samples after basic parsing)
- *   graphql — GraphQL SDL (treated as JSON samples after basic parsing)
+ *   sql      — raw DDL string  (CREATE TABLE …)
+ *   openapi  — OpenAPI YAML or JSON string
+ *   avro     — Avro schema JSON: { fields: [{ name, type }] }
+ *   csv      — CSV header row + optional sample rows
+ *   jsonl    — Newline-delimited JSON (JSONL / NDJSON) — schema inferred from first record
+ *   xml      — Generic XML document — element/attribute names extracted as fields
+ *   soap     — WSDL/XSD XML — same XML extraction, SOAP context label
+ *   graphql  — GraphQL SDL — type fields extracted via regex (no AST dependency)
+ *   parquet  — Parquet schema JSON: { columns: [{ name, type }] } or Spark-style schema
+ *   protobuf — Protocol Buffer .proto — message field names/types extracted via regex
  */
 
 import { ulid } from 'ulid';
@@ -37,7 +41,17 @@ import {
   type LLMAnalysisResult,
 } from '../store/drift-store.js';
 
+import {
+  parseCsv, parseJsonl, parseAvro, parseXml,
+  parseGraphql, parseParquet, parseProtobuf,
+  type ParsedField,
+} from './protocol-parsers.js';
+
 const logger = createLogger({ service: 'drift-service' });
+
+function makeSchema(fields: ParsedField[], sampleCount = 1): InferredJsonSchema {
+  return { fields, fingerprint: ulid(), sampleCount } as unknown as InferredJsonSchema;
+}
 
 // ─── Normalize raw input to InferredJsonSchema ─────────────────────────────────
 
@@ -47,44 +61,31 @@ function toSchema(protocol: DriftProtocol, raw: string): InferredJsonSchema {
       return new SqlDdlAdapter(raw).adapt();
 
     case 'openapi': {
-      // Detect JSON vs YAML by first non-whitespace char
       const fmt = raw.trimStart().startsWith('{') ? 'json' : 'yaml';
       return new OpenApiAdapter(raw, fmt).adapt();
     }
 
-    default: {
-      // avro / csv / soap / graphql — try to parse as JSON array of records,
-      // fall back to splitting lines into single-field records.
-      let samples: Record<string, unknown>[];
-      try {
-        const parsed = JSON.parse(raw);
-        samples = Array.isArray(parsed) ? parsed : [parsed as Record<string, unknown>];
-      } catch {
-        // Treat each non-empty line as { value: <line> } — gives schema-bridge
-        // enough signal to build a basic field list for comparison purposes.
-        samples = raw
-          .split('\n')
-          .map(l => l.trim())
-          .filter(Boolean)
-          .map((l, i) => ({ [`field_${i}`]: l }));
-      }
-      // Use the bridge's inferrer via a tiny compare — but we only need the
-      // inferred schema, so we instantiate a throw-away inferrer directly.
-      // SchemaInferrer is not exported, so we use the bridge adapter path:
-      // adapt() from SqlDdlAdapter returns InferredJsonSchema with { fields, fingerprint }.
-      // For generic protocols we build a minimal InferredJsonSchema from samples.
-      const fields = Object.keys(samples[0] ?? {}).map(name => ({
-        name,
-        types: ['string' as const],
-        nullable: false,
-        frequency: 1,
-      }));
-      return {
-        fields,
-        fingerprint: ulid(),
-        sampleCount: samples.length,
-      } as unknown as InferredJsonSchema;
-    }
+    case 'csv':
+      return makeSchema(parseCsv(raw));
+
+    case 'jsonl':
+      return makeSchema(parseJsonl(raw));
+
+    case 'avro':
+      return makeSchema(parseAvro(raw));
+
+    case 'xml':
+    case 'soap':
+      return makeSchema(parseXml(raw));
+
+    case 'graphql':
+      return makeSchema(parseGraphql(raw));
+
+    case 'parquet':
+      return makeSchema(parseParquet(raw));
+
+    case 'protobuf':
+      return makeSchema(parseProtobuf(raw));
   }
 }
 
