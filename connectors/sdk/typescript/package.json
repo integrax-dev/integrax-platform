@@ -2,9 +2,21 @@
     "name":  "@integrax/connector-sdk",
     "version":  "1.0.0",
     "description":  "SDK para desarrollar conectores de IntegraX",
-    "main":  "dist/index.js",
-    "types":  "dist/index.d.ts",
-    "scripts":  {
+    "main": "dist/index.js",
+    "module": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
+        },
+        "./connector": {
+            "types": "./dist/connector.d.ts",
+            "import": "./dist/connector.js"
+        }
+    },
+    "scripts": {
                     "build":  "tsc",
                     "dev":  "tsc --watch",
                     "test":  "vitest",

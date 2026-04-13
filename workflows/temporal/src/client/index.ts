@@ -140,6 +140,26 @@ export class TemporalClientService {
   }
 
   /**
+   * Start remediation workflow
+   */
+  async startRemediation(
+    tenantId: string,
+    workflowId?: string
+  ): Promise<WorkflowHandle<any>> {
+    const client = this.ensureConnected();
+    const id = workflowId || `${tenantId}-remediate-${Date.now()}`;
+
+    const handle = await client.workflow.start('remediateTenantWorkflow', {
+      taskQueue: this.config.taskQueue,
+      workflowId: id,
+      args: [{ tenantId }],
+    });
+
+    logger.info(`[Temporal] Started remediation workflow ${id} for tenant ${tenantId}`);
+    return handle;
+  }
+
+  /**
    * Get workflow handle by ID
    */
   getHandle(workflowId: string): WorkflowHandle {

@@ -41,7 +41,9 @@ export {
 export { detectCompositeMappings } from './composite-mapper.js';
 export { detectDrift } from './drift-detector.js';
 export { SqlDdlAdapter } from './adapters/sql-adapter.js';
+export { OpenApiAdapter } from './adapters/openapi-adapter.js';
 export type { SchemaAdapter } from './adapters/sql-adapter.js';
+
 export { AvroSchemaAdapter, createAvroSchemaAdapter } from './adapters/avro-adapter.js';
 export { SchemaInferrer, createSchemaInferrer } from './schema-inferrer.js';
 export { SchemaDiffer, createSchemaDiffer } from './schema-differ.js';

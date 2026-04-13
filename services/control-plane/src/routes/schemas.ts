@@ -310,20 +310,26 @@ router.post(
         collectedAt: String(report['created_at'] ?? new Date().toISOString()),
       };
 
-      const { DriftAnalyzer } = await import('../../llm-orchestrator/src/drift-analyzer.js');
-      const analyzer = new DriftAnalyzer({
-        anthropicApiKey: process.env.ANTHROPIC_API_KEY,
-        model: 'claude-haiku-4-5-20251001', // use cheapest model for batch explanations
-      });
-
-      const analysis = await analyzer.analyze(evidencePack as any);
+      // DriftAnalyzer lives in llm-orchestrator which may not be co-deployed.
+      // We load it dynamically so the control-plane starts even without it.
+      let analysis: unknown = null;
+      try {
+        const mod = await import('../../llm-orchestrator/src/drift-analyzer.js' as string);
+        const analyzer = new (mod as any).DriftAnalyzer({
+          anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+          model: 'claude-haiku-4-5-20251001',
+        });
+        analysis = await analyzer.analyze(evidencePack);
+      } catch {
+        // llm-orchestrator not available — fall through to 503
+      }
 
       if (!analysis) {
         return res.status(503).json({
           success: false,
           error: {
             code: 'LLM_UNAVAILABLE',
-            message: 'LLM analysis is disabled (ENABLE_LLM_DRIFT_ANALYSIS is not set to true) or call failed.',
+            message: 'LLM analysis is disabled or llm-orchestrator is not available.',
           },
         });
       }
@@ -334,7 +340,7 @@ router.post(
         [JSON.stringify(analysis), id, tenantId],
       );
 
-      logger.info({ reportId: id, tenantId, model: analysis.analysisModel }, 'Drift explanation generated');
+      logger.info({ reportId: id, tenantId, model: (analysis as Record<string, unknown>)['analysisModel'] }, 'Drift explanation generated');
 
       res.json({ success: true, data: analysis, cached: false });
     } catch (error) {

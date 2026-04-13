@@ -6,6 +6,7 @@
   "license": "Apache-2.0",
   "scripts": {
     "build": "pnpm -r build",
+    "dev:control-plane": "pnpm --filter @integrax/control-plane dev",
     "dev:worker": "pnpm --filter @integrax/worker dev",
     "dev:temporal": "pnpm --filter @integrax/temporal-workflows dev",
     "dev:kafka-consumer": "pnpm --filter @integrax/kafka-consumer dev",

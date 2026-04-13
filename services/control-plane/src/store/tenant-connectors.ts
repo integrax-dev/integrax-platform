@@ -50,6 +50,14 @@ export async function findTenantConnector(
   return result.rows.length > 0 ? rowToTenantConnector(result.rows[0]) : null;
 }
 
+export async function listTenantsByConnector(connectorId: string): Promise<string[]> {
+  const result = await pool.query<{ tenant_id: string }>(
+    'SELECT tenant_id FROM tenant_connectors WHERE connector_id = $1 AND status = $2',
+    [connectorId, 'active'],
+  );
+  return result.rows.map((r) => r.tenant_id);
+}
+
 export async function listTenantConnectors(tenantId: string): Promise<TenantConnector[]> {
   const result = await pool.query<TenantConnectorRow>(
     'SELECT * FROM tenant_connectors WHERE tenant_id = $1 ORDER BY created_at ASC',

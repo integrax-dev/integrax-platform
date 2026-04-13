@@ -9,7 +9,7 @@ import { z } from 'zod';
 export const TenantPlanSchema = z.enum(['free', 'starter', 'professional', 'enterprise']);
 export type TenantPlan = z.infer<typeof TenantPlanSchema>;
 
-export const TenantStatusSchema = z.enum(['active', 'suspended', 'pending', 'cancelled']);
+export const TenantStatusSchema = z.enum(['active', 'suspended', 'pending', 'cancelled', 'maintenance']);
 export type TenantStatus = z.infer<typeof TenantStatusSchema>;
 
 export const TenantLimitsSchema = z.object({
@@ -110,6 +110,16 @@ export interface TenantConnector {
   lastTestedAt: Date | null;
   lastTestResult: 'success' | 'failed' | null;
   createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface TenantModuleConfig {
+  id: string;
+  tenantId: string;
+  moduleId: string;
+  status: 'active' | 'disabled';
+  config: Record<string, string>;
+  enabledAt: Date;
   updatedAt: Date;
 }
 

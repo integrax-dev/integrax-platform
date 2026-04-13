@@ -29,7 +29,7 @@ export class PgTimelineStore implements TimelineStore {
     const now = new Date();
 
     // Extract top-level fields; the rest goes into data JSONB
-    const { kind, occurredAt, note, ...rest } = entry as TimelineEntry & Record<string, unknown>;
+    const { kind, occurredAt, note, ...rest } = entry as unknown as TimelineEntry & Record<string, unknown>;
     const entityType = (rest['entityType'] as string | undefined) ?? null;
     const entityId = (rest['canonicalId'] as string | undefined) ?? null;
 

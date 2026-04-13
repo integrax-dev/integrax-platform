@@ -2,6 +2,8 @@
  * IntegraX Control Plane Server
  */
 
+import 'dotenv/config'; // must be first — loads .env before any other module initializes
+
 import express from 'express';
 import helmet from 'helmet';
 import { tenantsRouter } from './routes/tenants.js';
@@ -15,6 +17,8 @@ import { snapshotsRouter } from './routes/snapshots.js';
 import { platformRouter } from './routes/platform.js';
 import { timelineRouter } from './routes/timeline.js';
 import { operationsRouter } from './routes/operations.js';
+import { modulesRouter } from './routes/modules.js';
+import { driftRouter } from './routes/drift.js';
 import { getAuditLogs } from './middleware/audit.js';
 import { requireAuth, requireRole } from './middleware/auth.js';
 import { createLogger, requestLogger } from '@integrax/logger';
@@ -111,6 +115,8 @@ app.use('/api', platformRouter);
 // Timeline: /api/tenants/:tenantId/timeline[/:id]
 app.use('/api/tenants', timelineRouter);
 app.use('/api/tenants/:tenantId/operations', operationsRouter);
+app.use('/api/tenants', modulesRouter);
+app.use('/api/drift', requireAuth, driftRouter);
 
 // Endpoint de logs de auditoría
 app.get(
