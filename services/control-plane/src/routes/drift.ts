@@ -15,9 +15,39 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { driftService } from '../platform/drift-service.js';
-import { getDriftIncident, listDriftIncidents, saveDriftLlmAnalysis, type DriftProtocol } from '../store/drift-store.js';
+import { getDriftIncident, listDriftIncidents, saveDriftLlmAnalysis, updateDriftIncidentStatus, type DriftProtocol } from '../store/drift-store.js';
 import { listTenantsByConnector } from '../store/tenant-connectors.js';
 import { TemporalClientService } from '@integrax/temporal-workflows';
+import { createLogger } from '@integrax/logger';
+
+const logger = createLogger({ service: 'drift-routes' });
+
+// ─── Rate limiter for /analyze — prevents accidental Anthropic cost spikes ────
+// Simple in-memory token bucket: 20 calls per user per 60-second window.
+// Not distributed — sufficient for a single control-plane instance (MVP).
+
+const ANALYZE_WINDOW_MS = 60_000;
+const ANALYZE_MAX       = 20;
+
+const analyzeRateMap = new Map<string, { count: number; windowStart: number }>();
+
+function checkAnalyzeRateLimit(userId: string): { allowed: boolean; retryAfterMs: number } {
+  const now    = Date.now();
+  const bucket = analyzeRateMap.get(userId);
+
+  if (!bucket || now - bucket.windowStart >= ANALYZE_WINDOW_MS) {
+    analyzeRateMap.set(userId, { count: 1, windowStart: now });
+    return { allowed: true, retryAfterMs: 0 };
+  }
+
+  if (bucket.count >= ANALYZE_MAX) {
+    const retryAfterMs = ANALYZE_WINDOW_MS - (now - bucket.windowStart);
+    return { allowed: false, retryAfterMs };
+  }
+
+  bucket.count += 1;
+  return { allowed: true, retryAfterMs: 0 };
+}
 
 // Lazy singleton — only connects if TEMPORAL_ADDRESS is set
 let _temporalPromise: Promise<TemporalClientService | null> | null = null;
@@ -102,8 +132,7 @@ driftRouter.post(
 // Claude Haiku. Returns a structured recommendation so the operator doesn't
 // have to copy-paste the prompt anywhere.
 //
-// The control-plane calls Anthropic directly here (same pattern as /schemas/reports/:id/explain).
-// Rate-limited: 20 req/min to avoid accidental cost spikes.
+// Rate-limited: 20 req/min per user to avoid accidental Anthropic cost spikes.
 
 driftRouter.post(
   '/incidents/:id/analyze',
@@ -111,6 +140,17 @@ driftRouter.post(
   requireRole('platform_admin', 'tenant_admin', 'operator'),
   async (req, res, next) => {
     try {
+      // Enforce rate limit before any DB or LLM work
+      const userId = (req as any).user?.id ?? (req as any).user?.sub ?? req.ip ?? 'anonymous';
+      const { allowed, retryAfterMs } = checkAnalyzeRateLimit(userId);
+      if (!allowed) {
+        res.setHeader('Retry-After', String(Math.ceil(retryAfterMs / 1000)));
+        return res.status(429).json({
+          success: false,
+          error: `Rate limit exceeded — max ${ANALYZE_MAX} LLM calls per minute. Retry in ${Math.ceil(retryAfterMs / 1000)}s.`,
+        });
+      }
+
       const { escalationIndex } = req.body as { escalationIndex: number };
 
       if (typeof escalationIndex !== 'number') {
@@ -205,11 +245,40 @@ driftRouter.post(
         return res.status(503).json({ success: false, error: 'Temporal is not configured (TEMPORAL_ADDRESS missing)' });
       }
 
-      const results = await Promise.allSettled(
+      const startResults = await Promise.allSettled(
         incident.affectedTenants.map(tenantId => temporal.startRemediation(tenantId)),
       );
-      const started = results.filter(r => r.status === 'fulfilled').length;
-      const failed  = results.filter(r => r.status === 'rejected').length;
+      const started = startResults.filter(r => r.status === 'fulfilled').length;
+      const failed  = startResults.filter(r => r.status === 'rejected').length;
+
+      if (started > 0) {
+        // Move incident to 'investigating' immediately so the operator knows work is in progress
+        await updateDriftIncidentStatus(incident.id, 'investigating');
+
+        // Wait for all started workflows in background — auto-resolve if all succeed
+        const handles = startResults
+          .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof temporal.startRemediation>>> => r.status === 'fulfilled')
+          .map(r => r.value);
+
+        const incidentId = incident.id;
+        const resolveWhenDone = async () => {
+          try {
+            const outcomes = await Promise.allSettled(handles.map(h => h.result()));
+            const allOk = outcomes.every(
+              o => o.status === 'fulfilled' && (o.value as any)?.success === true,
+            );
+            if (allOk) {
+              await updateDriftIncidentStatus(incidentId, 'resolved');
+              logger.info({ incidentId }, 'Remediation complete — incident auto-resolved');
+            } else {
+              logger.warn({ incidentId }, 'One or more remediation workflows failed — incident left in investigating');
+            }
+          } catch (err) {
+            logger.warn({ err, incidentId }, 'Error awaiting remediation outcomes');
+          }
+        };
+        void resolveWhenDone();
+      }
 
       res.json({ success: true, data: { started, failed, total: incident.affectedTenants.length } });
     } catch (err) {
@@ -271,8 +340,12 @@ driftRouter.post(
         return res.status(400).json({ success: false, error: 'sourceId, protocol, and schema are required' });
       }
 
-      await driftService.captureBaseline(sourceId, protocol, schema);
-      res.json({ success: true, message: `Baseline captured for ${sourceId} (${protocol})` });
+      const resolved = await driftService.captureBaseline(sourceId, protocol, schema);
+      res.json({
+        success: true,
+        message: `Baseline captured for ${sourceId} (${protocol})`,
+        data: { resolved },
+      });
     } catch (err) {
       next(err);
     }

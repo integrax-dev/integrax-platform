@@ -205,12 +205,14 @@ export class DriftService {
    * Capture the current schema as the baseline for future comparisons.
    * Auto-resolves any open incidents for this source — the operator has
    * accepted the current schema as the new reference point.
+   *
+   * @returns number of open incidents that were auto-resolved (0 = no prior drift)
    */
   async captureBaseline(
     sourceId: string,
     protocol: DriftProtocol,
     raw: string,
-  ): Promise<void> {
+  ): Promise<number> {
     const schema = toSchema(protocol, raw);
     await saveBaseline(sourceId, protocol, schema as unknown as Record<string, unknown>);
 
@@ -220,6 +222,7 @@ export class DriftService {
     } else {
       logger.info({ sourceId, protocol }, 'Baseline captured');
     }
+    return resolved;
   }
 
   /**
