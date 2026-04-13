@@ -14,7 +14,7 @@
 
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth.js';
-import { driftService } from '../platform/drift-service.js';
+import { driftService, driftEventEmitter } from '../platform/drift-service.js';
 import { getDriftIncident, listDriftIncidents, saveDriftLlmAnalysis, updateDriftIncidentStatus, type DriftProtocol } from '../store/drift-store.js';
 import { listTenantsByConnector } from '../store/tenant-connectors.js';
 import { TemporalClientService } from '@integrax/temporal-workflows';
@@ -64,6 +64,51 @@ function getTemporalClient(): Promise<TemporalClientService | null> {
 }
 
 export const driftRouter = Router();
+
+// ─── SSE stream — real-time incident push ─────────────────────────────────────
+//
+// Clients connect once and receive events as they happen, no polling needed.
+// Uses fetch-based SSE (not EventSource) so Bearer auth works normally.
+// Each incident.created / incident.updated emits one SSE event.
+// A heartbeat comment is sent every 25s to keep proxies from closing the socket.
+
+driftRouter.get(
+  '/stream',
+  requireAuth,
+  requireRole('platform_admin', 'tenant_admin', 'operator', 'viewer'),
+  (req, res) => {
+    res.setHeader('Content-Type',  'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection',    'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // disable nginx buffering
+    res.flushHeaders();
+
+    // Send connected confirmation
+    res.write('event: connected\ndata: {"connected":true}\n\n');
+
+    const sendEvent = (event: string, data: unknown) => {
+      if (res.writableEnded) return;
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+
+    const onCreated = (incident: unknown) => sendEvent('incident.created', incident);
+    const onUpdated = (incident: unknown) => sendEvent('incident.updated', incident);
+
+    driftEventEmitter.on('incident.created', onCreated);
+    driftEventEmitter.on('incident.updated', onUpdated);
+
+    // Heartbeat every 25s — prevents proxies / load-balancers from closing idle connections
+    const heartbeat = setInterval(() => {
+      if (!res.writableEnded) res.write(': heartbeat\n\n');
+    }, 25_000);
+
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      driftEventEmitter.off('incident.created', onCreated);
+      driftEventEmitter.off('incident.updated', onUpdated);
+    });
+  },
+);
 
 // ─── List incidents ────────────────────────────────────────────────────────────
 

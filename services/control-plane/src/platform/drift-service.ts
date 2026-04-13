@@ -19,6 +19,7 @@
  */
 
 import { ulid } from 'ulid';
+import { EventEmitter } from 'events';
 import {
   SqlDdlAdapter,
   OpenApiAdapter,
@@ -144,6 +145,14 @@ async function callLlm(promptSeed: string): Promise<Omit<LLMAnalysisResult, 'esc
     return null;
   }
 }
+
+// ─── In-process event bus for SSE streaming ───────────────────────────────────
+//
+// Connected SSE clients subscribe to this emitter.
+// Events: 'incident.created' | 'incident.updated' — payload: DriftIncident
+
+export const driftEventEmitter = new EventEmitter();
+driftEventEmitter.setMaxListeners(200); // one per connected admin tab
 
 // ─── Outbound notifications ───────────────────────────────────────────────────
 //
@@ -311,6 +320,9 @@ export class DriftService {
         'Drift incident created',
       );
     }
+
+    // ── Push to SSE clients ───────────────────────────────────────────────────
+    driftEventEmitter.emit(existing ? 'incident.updated' : 'incident.created', incident);
 
     // ── Notifications (Slack / generic webhook) — fire-and-forget ────────────
     if (severity === 'critical' || severity === 'major') {
