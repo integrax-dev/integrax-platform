@@ -8,7 +8,7 @@ export default defineConfig({
     proxy: {
       // Forward /api/* to control-plane in dev when VITE_ADMIN_API_BASE_URL is not set.
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3001',
         changeOrigin: true,
       },
     },
