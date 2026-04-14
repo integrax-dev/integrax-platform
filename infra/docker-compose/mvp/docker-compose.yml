@@ -147,7 +147,7 @@ services:
       - ../../../infra/observability/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
       - loki_data:/loki
     ports:
-      - "3100:3100"
+      - "9100:3100"
     networks:
       - integrax
 
@@ -162,7 +162,7 @@ services:
       - ../../../infra/observability/grafana/provisioning:/etc/grafana/provisioning:ro
       - grafana_data:/var/lib/grafana
     ports:
-      - "3000:3000"
+      - "9091:3000"
     depends_on:
       - prometheus
       - loki
