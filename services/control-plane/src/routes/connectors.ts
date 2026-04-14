@@ -21,6 +21,7 @@ import {
   deleteTenantConnector,
 } from '../store/tenant-connectors.js';
 import { CONNECTOR_TESTERS, type TestConnectionResult } from '../store/connector-testers.js';
+import { emitPlatformEvent } from '../platform/platform-emitter.js';
 
 // Connector testers moved to src/store/connector-testers.ts
 
@@ -674,6 +675,9 @@ router.post(
     };
 
     const storedId = await saveTenantConnector(tenantConnector);
+    emitPlatformEvent(existing ? 'connector.updated' : 'connector.created', {
+      id: storedId, connectorId, tenantId: tenantConnector.tenantId, status: tenantConnector.status,
+    });
 
     res.status(existing ? 200 : 201).json({
       success: true,
@@ -735,6 +739,10 @@ router.post(
     tenantConnector.status = testResult.success ? 'configured' : 'error';
     tenantConnector.updatedAt = new Date();
     await saveTenantConnector(tenantConnector);
+    emitPlatformEvent('connector.updated', {
+      id: tenantConnector.id, connectorId: tenantConnector.connectorId,
+      tenantId: tenantConnector.tenantId, status: tenantConnector.status,
+    });
 
     res.json({
       success: true,
@@ -772,6 +780,9 @@ router.delete(
     }
 
     await deleteTenantConnector(req.params.id);
+    emitPlatformEvent('connector.deleted', {
+      id: req.params.id, tenantId: tenantConnector.tenantId,
+    });
 
     res.json({
       success: true,

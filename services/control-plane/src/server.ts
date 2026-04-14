@@ -19,6 +19,7 @@ import { timelineRouter } from './routes/timeline.js';
 import { operationsRouter } from './routes/operations.js';
 import { modulesRouter } from './routes/modules.js';
 import { driftRouter } from './routes/drift.js';
+import { streamRouter } from './routes/stream.js';
 import { getAuditLogs } from './middleware/audit.js';
 import { requireAuth, requireRole } from './middleware/auth.js';
 import { createLogger, requestLogger } from '@integrax/logger';
@@ -117,6 +118,7 @@ app.use('/api/tenants', timelineRouter);
 app.use('/api/tenants/:tenantId/operations', operationsRouter);
 app.use('/api/tenants', modulesRouter);
 app.use('/api/drift', requireAuth, driftRouter);
+app.use('/api/stream', streamRouter);
 
 // Endpoint de logs de auditoría
 app.get(

@@ -1,76 +1,79 @@
 import './Pages.css';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { fetchAdminJson } from '../lib/adminApi';
+import { useAuthStore } from '../stores/auth';
+import { usePlatformStream, type PlatformEvent } from '../lib/usePlatformStream';
 import { allowDemoFallbacks } from '../lib/runtime';
 
-type Event = {
+type EventStatus = 'processed' | 'pending' | 'failed' | 'dlq';
+
+type PlatformEvt = {
   id: string;
   type: string;
   tenant: string;
   connector: string;
-  status: string;
+  status: EventStatus;
   time: string;
   error?: string;
 };
 
-const MOCK_EVENTS: Event[] = [
-  {
-    id: 'evt_001',
-    type: 'order.created',
-    tenant: 'Acme SA',
-    connector: 'Shopify',
-    status: 'processed',
-    time: 'hace 1 min',
-  },
-  {
-    id: 'evt_002',
-    type: 'payment.updated',
-    tenant: 'Globex',
-    connector: 'MercadoPago',
-    status: 'pending',
-    time: 'hace 3 min',
-  },
-  {
-    id: 'evt_003',
-    type: 'invoice.created',
-    tenant: 'Umbrella',
-    connector: 'AFIP',
-    status: 'failed',
-    time: 'hace 7 min',
-    error: 'Timeout en servicio externo',
-  },
-  {
-    id: 'evt_004',
-    type: 'message.sent',
-    tenant: 'Acme SA',
-    connector: 'WhatsApp',
-    status: 'dlq',
-    time: 'hace 10 min',
-    error: 'Payload inválido',
-  },
+const MOCK_EVENTS: PlatformEvt[] = [
+  { id: 'evt_001', type: 'order.created',   tenant: 'Acme SA',   connector: 'Shopify',     status: 'processed', time: 'hace 1 min' },
+  { id: 'evt_002', type: 'payment.updated', tenant: 'Globex',    connector: 'MercadoPago', status: 'pending',   time: 'hace 3 min' },
+  { id: 'evt_003', type: 'invoice.created', tenant: 'Umbrella',  connector: 'AFIP',        status: 'failed',    time: 'hace 7 min',  error: 'Timeout en servicio externo' },
+  { id: 'evt_004', type: 'message.sent',    tenant: 'Acme SA',   connector: 'WhatsApp',    status: 'dlq',       time: 'hace 10 min', error: 'Payload inválido' },
 ];
 
-export function Events() {
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string|null>(null);
+const STATUS_LABEL: Record<EventStatus, string> = {
+  processed: '✓ Procesado',
+  pending:   '○ Pendiente',
+  failed:    '✗ Fallido',
+  dlq:       '⚠ DLQ',
+};
 
+const STATUS_BADGE: Record<EventStatus, string> = {
+  processed: 'success',
+  pending:   'info',
+  failed:    'error',
+  dlq:       'warning',
+};
+
+// ─── Live indicator ───────────────────────────────────────────────────────────
+
+function LiveDot({ active }: { active: boolean }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: active ? '#16a34a' : '#94a3b8' }}>
+      <span style={{
+        display: 'inline-block', width: 7, height: 7, borderRadius: '50%',
+        background: active ? '#16a34a' : '#94a3b8',
+        boxShadow: active ? '0 0 0 2px #bbf7d0' : 'none',
+      }} />
+      {active ? 'En vivo' : 'Desconectado'}
+    </span>
+  );
+}
+
+export function Events() {
+  const [events,      setEvents]      = useState<PlatformEvt[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState<string | null>(null);
+  const [connected,   setConnected]   = useState(false);
+  const [filterStatus,   setFilterStatus]   = useState<EventStatus | 'all'>('all');
+  const [filterConnector, setFilterConnector] = useState<string>('all');
+  const [newCount,    setNewCount]    = useState(0);
+
+  // Initial load
   useEffect(() => {
     let cancelled = false;
-
     const load = async () => {
       setLoading(true);
       setError(null);
-
       try {
-        const data = await fetchAdminJson<{ events: Event[] }>('/api/admin/events');
-        if (!cancelled) setEvents(data.events || []);
+        const data = await fetchAdminJson<{ events: PlatformEvt[] }>('/api/admin/events');
+        if (!cancelled) setEvents(data.events ?? []);
       } catch {
-        if (allowDemoFallbacks) {
-          if (!cancelled) {
-            setEvents(MOCK_EVENTS);
-            setError(null);
-          }
+        if (allowDemoFallbacks && !cancelled) {
+          setEvents(MOCK_EVENTS);
         } else if (!cancelled) {
           setError('No se pudo cargar eventos');
         }
@@ -78,34 +81,87 @@ export function Events() {
         if (!cancelled) setLoading(false);
       }
     };
-
     load();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
+
+  // ── Real-time stream ────────────────────────────────────────────────────────
+  const getToken = useCallback(() => useAuthStore.getState().token, []);
+
+  usePlatformStream({
+    getToken,
+    handlers: useMemo(() => ({
+      'event.processed': (env: PlatformEvent) => {
+        const evt = env.data as PlatformEvt;
+        setEvents(prev => [{ ...evt, status: 'processed' }, ...prev.slice(0, 199)]);
+        setNewCount(n => n + 1);
+        setConnected(true);
+      },
+      'event.failed': (env: PlatformEvent) => {
+        const evt = env.data as PlatformEvt;
+        setEvents(prev => [{ ...evt, status: 'failed' }, ...prev.slice(0, 199)]);
+        setNewCount(n => n + 1);
+        setConnected(true);
+      },
+      'event.dlq': (env: PlatformEvent) => {
+        const evt = env.data as PlatformEvt;
+        setEvents(prev => [{ ...evt, status: 'dlq' }, ...prev.slice(0, 199)]);
+        setNewCount(n => n + 1);
+        setConnected(true);
+      },
+    }), []),
+  });
+
+  const filtered = events.filter(e => {
+    if (filterStatus    !== 'all' && e.status    !== filterStatus)    return false;
+    if (filterConnector !== 'all' && e.connector !== filterConnector) return false;
+    return true;
+  });
+
+  const connectors = useMemo(
+    () => Array.from(new Set(events.map(e => e.connector))).sort(),
+    [events],
+  );
 
   return (
     <div className="page">
       <div className="page-header">
         <div>
           <h1>Eventos</h1>
-          <p className="text-secondary">Eventos recibidos y procesados</p>
+          <p className="text-secondary" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            Eventos recibidos y procesados
+            <LiveDot active={connected} />
+            {newCount > 0 && (
+              <span
+                style={{ fontSize: 11, fontWeight: 700, background: '#3b82f6', color: '#fff', padding: '1px 7px', borderRadius: 10, cursor: 'pointer' }}
+                onClick={() => setNewCount(0)}
+              >
+                +{newCount} nuevos
+              </span>
+            )}
+          </p>
         </div>
         <div className="flex gap-md">
-          <select className="input" style={{ width: 'auto' }}>
-            <option>Todos los estados</option>
-            <option>Procesados</option>
-            <option>Pendientes</option>
-            <option>Fallidos</option>
-            <option>En DLQ</option>
+          <select
+            className="input"
+            style={{ width: 'auto' }}
+            value={filterStatus}
+            onChange={e => setFilterStatus(e.target.value as EventStatus | 'all')}
+          >
+            <option value="all">Todos los estados</option>
+            <option value="processed">Procesados</option>
+            <option value="pending">Pendientes</option>
+            <option value="failed">Fallidos</option>
+            <option value="dlq">En DLQ</option>
           </select>
-          <select className="input" style={{ width: 'auto' }}>
-            <option>Todos los conectores</option>
-            <option>MercadoPago</option>
-            <option>AFIP</option>
-            <option>WhatsApp</option>
+          <select
+            className="input"
+            style={{ width: 'auto' }}
+            value={filterConnector}
+            onChange={e => setFilterConnector(e.target.value)}
+          >
+            <option value="all">Todos los conectores</option>
+            {connectors.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
       </div>
@@ -127,24 +183,18 @@ export function Events() {
             {loading ? (
               <tr><td colSpan={7}>Cargando...</td></tr>
             ) : error ? (
-              <tr><td colSpan={7} style={{color:'red'}}>{error}</td></tr>
-            ) : events.length === 0 ? (
+              <tr><td colSpan={7} style={{ color: 'red' }}>{error}</td></tr>
+            ) : filtered.length === 0 ? (
               <tr><td colSpan={7}>No hay eventos</td></tr>
-            ) : events.map((event) => (
+            ) : filtered.map(event => (
               <tr key={event.id}>
                 <td><code className="text-xs">{event.id}</code></td>
                 <td><code className="event-type">{event.type}</code></td>
                 <td>{event.tenant}</td>
                 <td>{event.connector}</td>
                 <td>
-                  <span className={`badge badge-${
-                    event.status === 'processed' ? 'success' :
-                    event.status === 'failed' ? 'error' :
-                    event.status === 'dlq' ? 'warning' : 'info'
-                  }`}>
-                    {event.status === 'processed' ? '✓ Procesado' :
-                     event.status === 'failed' ? '✗ Fallido' :
-                     event.status === 'dlq' ? '⚠ DLQ' : '○ Pendiente'}
+                  <span className={`badge badge-${STATUS_BADGE[event.status]}`}>
+                    {STATUS_LABEL[event.status]}
                   </span>
                 </td>
                 <td className="text-muted">{event.time}</td>

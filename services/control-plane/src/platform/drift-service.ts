@@ -50,6 +50,7 @@ import {
   parseGraphql, parseParquet, parseProtobuf,
   type ParsedField,
 } from './protocol-parsers.js';
+import { emitPlatformEvent } from './platform-emitter.js';
 
 const logger = createLogger({ service: 'drift-service' });
 
@@ -321,8 +322,10 @@ export class DriftService {
       );
     }
 
-    // ── Push to SSE clients ───────────────────────────────────────────────────
-    driftEventEmitter.emit(existing ? 'incident.updated' : 'incident.created', incident);
+    // ── Push to SSE clients (both local drift emitter and central platform bus) ─
+    const driftEventType = existing ? 'incident.updated' : 'incident.created';
+    driftEventEmitter.emit(driftEventType, incident);
+    emitPlatformEvent(driftEventType, incident);
 
     // ── Notifications (Slack / generic webhook) — fire-and-forget ────────────
     if (severity === 'critical' || severity === 'major') {

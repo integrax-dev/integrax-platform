@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import './Pages.css';
 import { fetchAdminJson } from '../lib/adminApi';
+import { useAuthStore } from '../stores/auth';
+import { usePlatformStream, type PlatformEvent } from '../lib/usePlatformStream';
 import { allowDemoFallbacks } from '../lib/runtime';
 
 
@@ -29,6 +31,47 @@ export function Tenants() {
   const [newEmail, setNewEmail] = useState('');
   const [newOwnerName, setNewOwnerName] = useState('');
   const [newPlan, setNewPlan] = useState('starter');
+
+  // ── Real-time stream ──────────────────────────────────────────────────────
+  const getToken = useCallback(() => useAuthStore.getState().token, []);
+
+  usePlatformStream({
+    getToken,
+    handlers: useMemo(() => ({
+      'tenant.created': (env: PlatformEvent) => {
+        const t = env.data as Tenant & { createdAt?: string };
+        setTenants(prev => {
+          if (prev.find(x => x.id === t.id)) return prev;
+          return [{
+            id: t.id,
+            name: t.name,
+            plan: t.plan ?? 'starter',
+            status: t.status ?? 'active',
+            events: 0,
+            created: t.createdAt ? t.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
+          }, ...prev];
+        });
+      },
+      'tenant.updated': (env: PlatformEvent) => {
+        const t = env.data as Partial<Tenant> & { id: string };
+        setTenants(prev => prev.map(x =>
+          x.id === t.id ? { ...x, ...t } : x,
+        ));
+      },
+      'tenant.suspended': (env: PlatformEvent) => {
+        const t = env.data as { id: string };
+        setTenants(prev => prev.map(x =>
+          x.id === t.id ? { ...x, status: 'suspended' } : x,
+        ));
+      },
+      'tenant.activated': (env: PlatformEvent) => {
+        const t = env.data as { id: string };
+        setTenants(prev => prev.map(x =>
+          x.id === t.id ? { ...x, status: 'active' } : x,
+        ));
+      },
+    }), []),
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -76,9 +119,7 @@ export function Tenants() {
       setNewEmail('');
       setNewOwnerName('');
       setNewPlan('starter');
-      // Reload list
-      const data = await fetchAdminJson<{ tenants: Tenant[] }>('/api/admin/tenants');
-      setTenants(data.tenants || []);
+      // SSE tenant.created event will prepend the new tenant automatically
     } catch {
       // Keep modal open on error so the user can retry
     } finally {

@@ -17,6 +17,7 @@ import { requireAuth, requireRole } from '../middleware/auth.js';
 import { audit } from '../middleware/audit.js';
 import { validate } from '../middleware/validate.js';
 import { getTenant, saveTenant, listTenants } from '../store/tenants.js';
+import { emitPlatformEvent } from '../platform/platform-emitter.js';
 
 const router: Router = Router();
 
@@ -88,6 +89,7 @@ router.post(
     };
 
     await saveTenant(tenant);
+    emitPlatformEvent('tenant.created', { ...tenant, apiKeyHash: undefined });
 
     res.status(201).json({
       success: true,
@@ -201,6 +203,7 @@ router.patch(
 
     tenant.updatedAt = new Date();
     await saveTenant(tenant);
+    emitPlatformEvent('tenant.updated', { ...tenant, apiKeyHash: undefined });
 
     res.json({
       success: true,
@@ -230,6 +233,7 @@ router.post(
     tenant.status = 'suspended';
     tenant.updatedAt = new Date();
     await saveTenant(tenant);
+    emitPlatformEvent('tenant.suspended', { ...tenant, apiKeyHash: undefined });
 
     res.json({
       success: true,
@@ -259,6 +263,7 @@ router.post(
     tenant.status = 'active';
     tenant.updatedAt = new Date();
     await saveTenant(tenant);
+    emitPlatformEvent('tenant.activated', { ...tenant, apiKeyHash: undefined });
 
     res.json({
       success: true,

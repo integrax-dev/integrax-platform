@@ -11,10 +11,10 @@
  *   - Start Remediation CTA for critical incidents with affected tenants
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { fetchAdminJson } from '../lib/adminApi';
 import { useAuthStore } from '../stores/auth';
-import { useDriftStream } from '../lib/useDriftStream';
+import { usePlatformStream, type PlatformEvent } from '../lib/usePlatformStream';
 import { ToastContainer, type ToastItem } from '../components/Toast';
 import './Pages.css';
 
@@ -483,32 +483,35 @@ export function Incidents() {
   // ── SSE: real-time incident push ─────────────────────────────────────────────
   const getToken = useCallback(() => useAuthStore.getState().token, []);
 
-  useDriftStream({
+  usePlatformStream({
     getToken,
-    onEvent: (type, data) => {
-      const incident = data as DriftIncident;
-
-      // Upsert the incident into the list
-      setIncidents(prev => {
-        const idx = prev.findIndex(i => i.id === incident.id);
-        if (idx === -1) return [incident, ...prev];
-        const next = [...prev];
-        next[idx] = incident;
-        return next;
-      });
-
-      // Show a toast for critical/major new incidents
-      if (type === 'incident.created' &&
-          (incident.severity === 'critical' || incident.severity === 'major')) {
-        const toast: ToastItem = {
-          id: incident.id + '-' + Date.now(),
-          severity: incident.severity,
-          title: `${incident.severity === 'critical' ? 'Critical' : 'Major'} drift — ${incident.sourceId}`,
-          body: `${incident.protocol.toUpperCase()} · ${incident.affectedTenants.length} tenant(s) affected`,
-        };
-        setToasts(prev => [...prev, toast]);
-      }
-    },
+    handlers: useMemo(() => ({
+      'incident.created': (env: PlatformEvent) => {
+        const incident = env.data as DriftIncident;
+        setIncidents(prev => {
+          if (prev.find(i => i.id === incident.id)) return prev;
+          return [incident, ...prev];
+        });
+        if (incident.severity === 'critical' || incident.severity === 'major') {
+          setToasts(prev => [...prev, {
+            id: incident.id + '-' + Date.now(),
+            severity: incident.severity,
+            title: `${incident.severity === 'critical' ? 'Critical' : 'Major'} drift — ${incident.sourceId}`,
+            body: `${incident.protocol.toUpperCase()} · ${incident.affectedTenants.length} tenant(s) affected`,
+          } satisfies ToastItem]);
+        }
+      },
+      'incident.updated': (env: PlatformEvent) => {
+        const incident = env.data as DriftIncident;
+        setIncidents(prev => {
+          const idx = prev.findIndex(i => i.id === incident.id);
+          if (idx === -1) return prev;
+          const next = [...prev];
+          next[idx] = incident;
+          return next;
+        });
+      },
+    }), []),
   });
 
   const dismissToast = useCallback((id: string) => {
