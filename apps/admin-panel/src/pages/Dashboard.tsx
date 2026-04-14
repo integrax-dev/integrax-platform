@@ -5,6 +5,7 @@ import {
 import './Dashboard.css';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { fetchAdminJson } from '../lib/adminApi';
 import { useAuthStore } from '../stores/auth';
 import { usePlatformStream, type PlatformEvent } from '../lib/usePlatformStream';
@@ -75,6 +76,7 @@ function LiveBadge({ count }: { count: number }) {
 }
 
 export function Dashboard() {
+  const { t } = useTranslation();
   const [data,    setData]    = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
@@ -100,7 +102,7 @@ export function Dashboard() {
         if (allowDemoFallbacks && !cancelled) {
           setData(MOCK_DASHBOARD_DATA);
         } else if (!cancelled) {
-          setError('No se pudo cargar el dashboard');
+          setError(t('dashboard.loadError'));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -157,9 +159,9 @@ export function Dashboard() {
     }), []),
   });
 
-  if (loading) return <div className="dashboard">Cargando...</div>;
+  if (loading) return <div className="dashboard">{t('common.loading')}</div>;
   if (error)   return <div className="dashboard" style={{ color: 'red' }}>{error}</div>;
-  if (!data)   return <div className="dashboard">Sin datos</div>;
+  if (!data)   return <div className="dashboard">{t('common.noData')}</div>;
 
   const recentEvents = liveRecent.length > 0
     ? [...liveRecent, ...data.recentEvents].slice(0, 8)
@@ -168,8 +170,8 @@ export function Dashboard() {
   return (
     <div className="dashboard">
       <div className="page-header">
-        <h1>Dashboard</h1>
-        <p className="text-secondary">Resumen de la plataforma IntegraX — actualizaciones en tiempo real</p>
+        <h1>{t('dashboard.title')}</h1>
+        <p className="text-secondary">{t('dashboard.subtitle')}</p>
       </div>
 
       {/* Stats Cards */}
@@ -179,7 +181,7 @@ export function Dashboard() {
           <div className="stat-icon blue">🏢</div>
           <div className="stat-content">
             <span className="stat-value">{data.stats.tenants}</span>
-            <span className="stat-label">Tenants Activos</span>
+            <span className="stat-label">{t('dashboard.activeTenants')}</span>
           </div>
           <span className="stat-change positive">{data.stats.tenantsChange}</span>
         </div>
@@ -189,7 +191,7 @@ export function Dashboard() {
           <div className="stat-icon green">⚡</div>
           <div className="stat-content">
             <span className="stat-value">{data.stats.eventsToday.toLocaleString()}</span>
-            <span className="stat-label">Eventos Hoy</span>
+            <span className="stat-label">{t('dashboard.eventsToday')}</span>
           </div>
           <span className="stat-change positive">{data.stats.eventsChange}</span>
         </div>
@@ -199,7 +201,7 @@ export function Dashboard() {
           <div className="stat-icon purple">🔌</div>
           <div className="stat-content">
             <span className="stat-value">{data.stats.connectors}</span>
-            <span className="stat-label">Conectores Configurados</span>
+            <span className="stat-label">{t('dashboard.configuredConnectors')}</span>
           </div>
           <span className="stat-change positive">{data.stats.connectorsChange}</span>
         </div>
@@ -209,44 +211,44 @@ export function Dashboard() {
           <div className="stat-icon orange">📊</div>
           <div className="stat-content">
             <span className="stat-value">{data.stats.uptime}%</span>
-            <span className="stat-label">Uptime</span>
+            <span className="stat-label">{t('dashboard.uptime')}</span>
           </div>
-          <span className="stat-change neutral">Últimos 30 días</span>
+          <span className="stat-change neutral">{t('dashboard.last30days')}</span>
         </div>
       </div>
 
       {/* Charts Row */}
       <div className="charts-row">
         <div className="chart-card">
-          <h3>Eventos por Hora</h3>
+          <h3>{t('dashboard.eventsPerHour')}</h3>
           <div className="chart-container">
             <ResponsiveContainer width="100%" height={250}>
               <AreaChart data={data.eventsData}>
                 <defs>
                   <linearGradient id="colorEvents" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="name" stroke="#64748b" fontSize={12} />
-                <YAxis stroke="#64748b" fontSize={12} />
-                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }} />
-                <Area type="monotone" dataKey="events" stroke="#3b82f6" fillOpacity={1} fill="url(#colorEvents)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} />
+                <YAxis stroke="#94a3b8" fontSize={11} />
+                <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: 12 }} />
+                <Area type="monotone" dataKey="events" stroke="#6366f1" strokeWidth={2} fillOpacity={1} fill="url(#colorEvents)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         <div className="chart-card">
-          <h3>Uso por Conector</h3>
+          <h3>{t('dashboard.connectorUsage')}</h3>
           <div className="chart-container">
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={data.connectorUsage} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis type="number" stroke="#64748b" fontSize={12} />
-                <YAxis dataKey="name" type="category" stroke="#64748b" fontSize={12} width={100} />
-                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis type="number" stroke="#94a3b8" fontSize={11} />
+                <YAxis dataKey="name" type="category" stroke="#94a3b8" fontSize={11} width={100} />
+                <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: 12 }} />
                 <Bar dataKey="calls" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -258,22 +260,22 @@ export function Dashboard() {
       <div className="card">
         <div className="card-header">
           <h3>
-            Eventos Recientes
+            {t('dashboard.recentEvents')}
             {liveRecent.length > 0 && (
-              <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 600, color: '#16a34a', background: '#f0fdf4', padding: '2px 7px', borderRadius: 4, border: '1px solid #bbf7d0' }}>
-                ● en vivo
+              <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 600, color: '#10b981', background: 'rgba(16,185,129,0.1)', padding: '2px 7px', borderRadius: 4, border: '1px solid rgba(16,185,129,0.25)' }}>
+                ● {t('common.live')}
               </span>
             )}
           </h3>
-          <a href="/events" className="text-sm">Ver todos →</a>
+          <a href="/events" className="text-sm">{t('common.viewAll')}</a>
         </div>
         <table className="table">
           <thead>
             <tr>
-              <th>Tipo</th>
-              <th>Tenant</th>
-              <th>Estado</th>
-              <th>Tiempo</th>
+              <th>{t('common.type')}</th>
+              <th>{t('common.tenant')}</th>
+              <th>{t('common.status')}</th>
+              <th>{t('common.time')}</th>
             </tr>
           </thead>
           <tbody>
@@ -283,7 +285,7 @@ export function Dashboard() {
                 <td>{event.tenant}</td>
                 <td>
                   <span className={`badge badge-${event.status === 'success' ? 'success' : 'error'}`}>
-                    {event.status === 'success' ? '✓ Éxito' : '✗ Error'}
+                    {event.status === 'success' ? t('dashboard.success') : t('dashboard.failed')}
                   </span>
                 </td>
                 <td className="text-muted">{event.time}</td>

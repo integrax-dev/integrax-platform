@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { fetchAdminJson } from '../lib/adminApi';
 import { allowDemoFallbacks } from '../lib/runtime';
 import './Pages.css';
@@ -109,6 +110,7 @@ interface FeedbackPayload {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function SchemaDiffs() {
+  const { t } = useTranslation();
   const [reports, setReports] = useState<DiffReport[]>([]);
   const [selectedReport, setSelectedReport] = useState<DiffReport | null>(null);
   const [loading, setLoading] = useState(false);
@@ -209,8 +211,8 @@ export function SchemaDiffs() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1 className="page-title">Schema Diffs</h1>
-        <p className="page-subtitle">Reportes de comparación entre esquemas de conectores</p>
+        <h1 className="page-title">{t('schemaDiffs.title')}</h1>
+        <p className="page-subtitle">{t('schemaDiffs.subtitle')}</p>
       </div>
 
       {error && (
@@ -224,7 +226,7 @@ export function SchemaDiffs() {
             <div className="card-header">
               <h2 className="card-title">Reportes</h2>
               <button className="btn btn-secondary btn-sm" onClick={loadReports} disabled={loading}>
-                Actualizar
+                {t('common.retry')}
               </button>
             </div>
             {loading && !selectedReport && (

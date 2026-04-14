@@ -116,7 +116,7 @@ driftRouter.get(
   '/incidents',
   requireAuth,
   requireRole('platform_admin', 'tenant_admin', 'operator', 'viewer'),
-  async (req, res, next) => {
+  async (req, res, _next) => {
     try {
       const status   = req.query['status']   ? (req.query['status']   as string).split(',') as any[] : undefined;
       const protocol = req.query['protocol'] ? (req.query['protocol'] as string).split(',') as any[] : undefined;
@@ -128,7 +128,9 @@ driftRouter.get(
       const incidents = await listDriftIncidents({ status, protocol, severity, sourceId, limit, offset });
       res.json({ success: true, data: incidents });
     } catch (err) {
-      next(err);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[drift/incidents] ERROR:', msg);
+      res.status(500).json({ success: false, error: msg });
     }
   },
 );
@@ -183,7 +185,7 @@ driftRouter.post(
   '/incidents/:id/analyze',
   requireAuth,
   requireRole('platform_admin', 'tenant_admin', 'operator'),
-  async (req, res, next) => {
+  async (req, res, _next) => {
     try {
       // Enforce rate limit before any DB or LLM work
       const userId = (req as any).user?.id ?? (req as any).user?.sub ?? req.ip ?? 'anonymous';
@@ -213,7 +215,11 @@ driftRouter.post(
       }
 
       if (!process.env.ANTHROPIC_API_KEY) {
-        return res.status(503).json({ success: false, error: 'ANTHROPIC_API_KEY not configured' });
+        return res.status(503).json({
+          success: false,
+          error: 'LLM analysis unavailable: add ANTHROPIC_API_KEY to services/control-plane/.env and restart',
+          code: 'MISSING_API_KEY',
+        });
       }
 
       // Dynamic import keeps the control-plane startable even without the SDK installed
@@ -221,7 +227,11 @@ driftRouter.post(
       try {
         sdk = await import('@anthropic-ai/sdk');
       } catch {
-        return res.status(503).json({ success: false, error: '@anthropic-ai/sdk not available in this environment' });
+        return res.status(503).json({
+          success: false,
+          error: 'LLM analysis unavailable: run `pnpm add @anthropic-ai/sdk` in services/control-plane',
+          code: 'MISSING_SDK',
+        });
       }
 
       const client = new sdk.default({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -264,7 +274,16 @@ Respond with exactly this JSON shape (no markdown, no extra text):
 
       res.json({ success: true, data: analysis });
     } catch (err) {
-      next(err);
+      const msg = err instanceof Error ? err.message : String(err);
+      const status = (err as any)?.status ?? (err as any)?.statusCode ?? 500;
+      if (status === 401) {
+        return res.status(503).json({ success: false, error: 'ANTHROPIC_API_KEY inválida o expirada' });
+      }
+      if (status === 429) {
+        return res.status(503).json({ success: false, error: 'Rate limit de Anthropic — reintentá en unos segundos' });
+      }
+      console.error('[drift/analyze] LLM error:', msg);
+      return res.status(500).json({ success: false, error: `LLM call failed: ${msg}` });
     }
   },
 );

@@ -1,0 +1,181 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "tenants": "Tenants",
+    "connectors": "Conectores",
+    "workflows": "Workflows",
+    "events": "Eventos",
+    "audit": "Auditoria",
+    "incidents": "Incidentes",
+    "schemaDiffs": "Schema Diffs",
+    "mappingMemory": "Mapping Memory",
+    "settings": "Configurações"
+  },
+  "common": {
+    "loading": "Carregando...",
+    "noData": "Sem dados",
+    "error": "Erro",
+    "retry": "Tentar novamente",
+    "view": "Ver",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "delete": "Excluir",
+    "edit": "Editar",
+    "create": "Criar",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "all": "Todos",
+    "status": "Status",
+    "actions": "Ações",
+    "type": "Tipo",
+    "tenant": "Tenant",
+    "connector": "Conector",
+    "time": "Tempo",
+    "id": "ID",
+    "name": "Nome",
+    "now": "agora",
+    "logout": "Sair",
+    "live": "ao vivo",
+    "disconnected": "Desconectado",
+    "viewAll": "Ver todos →",
+    "newItems": "+{{count}} novos"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Visão geral da plataforma IntegraX — atualizações em tempo real",
+    "activeTenants": "Tenants Ativos",
+    "eventsToday": "Eventos Hoje",
+    "configuredConnectors": "Conectores Configurados",
+    "uptime": "Uptime",
+    "last30days": "Últimos 30 dias",
+    "eventsPerHour": "Eventos por Hora",
+    "connectorUsage": "Uso por Conector",
+    "recentEvents": "Eventos Recentes",
+    "success": "✓ Sucesso",
+    "failed": "✗ Falha",
+    "loadError": "Não foi possível carregar o dashboard"
+  },
+  "events": {
+    "title": "Eventos",
+    "subtitle": "Eventos recebidos e processados",
+    "allStatuses": "Todos os status",
+    "allConnectors": "Todos os conectores",
+    "noEvents": "Sem eventos",
+    "loadError": "Não foi possível carregar eventos",
+    "status": {
+      "processed": "✓ Processado",
+      "pending": "○ Pendente",
+      "failed": "✗ Falha",
+      "dlq": "⚠ DLQ"
+    }
+  },
+  "incidents": {
+    "title": "API Drift Incidents",
+    "subtitle": "Desvio de schema detectado pelo schema-bridge",
+    "criticalActive": "Críticos Ativos",
+    "majorActive": "Maiores Ativos",
+    "totalActive": "Total Ativo",
+    "allStatuses": "Todos os status",
+    "allSeverities": "Todas as severidades",
+    "noIncidents": "Nenhum incidente encontrado",
+    "loadError": "Não foi possível carregar incidentes",
+    "llmUnavailable": "LLM indisponível — adicione ANTHROPIC_API_KEY ao .env do control-plane e reinicie",
+    "analyzeWithLLM": "Analisar com LLM",
+    "analyzing": "Analisando...",
+    "versionDelta": "Delta de versão",
+    "affectedTenants": "Tenants afetados",
+    "impactScore": "Pontuação de impacto",
+    "remediationHints": "Sugestões de remediação",
+    "detectedAt": "Detectado",
+    "resolvedAt": "Resolvido",
+    "autoAnalysis": "auto",
+    "llmAnalysis": "llm",
+    "markResolved": "Marcar resolvido",
+    "dismiss": "Descartar",
+    "status": {
+      "open": "Aberto",
+      "investigating": "Investigando",
+      "resolved": "Resolvido",
+      "dismissed": "Descartado"
+    },
+    "severity": {
+      "critical": "Crítico",
+      "major": "Maior",
+      "minor": "Menor"
+    }
+  },
+  "tenants": {
+    "title": "Tenants",
+    "subtitle": "Gestão de tenants da plataforma",
+    "newTenant": "Novo Tenant",
+    "allPlans": "Todos os planos",
+    "allStatuses": "Todos os status",
+    "noTenants": "Sem tenants",
+    "loadError": "Não foi possível carregar tenants",
+    "plan": "Plano",
+    "createdAt": "Criado",
+    "status": {
+      "active": "Ativo",
+      "suspended": "Suspenso",
+      "pending": "Pendente",
+      "cancelled": "Cancelado"
+    }
+  },
+  "connectors": {
+    "title": "Conectores",
+    "subtitle": "Conectores configurados",
+    "newConnector": "Novo Conector",
+    "noConnectors": "Sem conectores",
+    "loadError": "Não foi possível carregar conectores",
+    "test": "Testar",
+    "protocol": "Protocolo",
+    "version": "Versão"
+  },
+  "workflows": {
+    "title": "Workflows",
+    "subtitle": "Fluxos de integração",
+    "noWorkflows": "Sem workflows",
+    "loadError": "Não foi possível carregar workflows"
+  },
+  "audit": {
+    "title": "Auditoria",
+    "subtitle": "Registro de atividade da plataforma",
+    "noEvents": "Sem eventos de auditoria",
+    "loadError": "Não foi possível carregar o registro de auditoria",
+    "action": "Ação",
+    "user": "Usuário",
+    "resource": "Recurso",
+    "ip": "IP"
+  },
+  "schemaDiffs": {
+    "title": "Schema Diffs",
+    "subtitle": "Diferenças de schema detectadas"
+  },
+  "mappingMemory": {
+    "title": "Mapping Memory",
+    "subtitle": "Memória de mapeamentos aprendidos"
+  },
+  "settings": {
+    "title": "Configurações",
+    "subtitle": "Configurações da plataforma",
+    "language": "Idioma",
+    "theme": "Tema",
+    "notifications": "Notificações"
+  },
+  "login": {
+    "title": "Entrar",
+    "email": "E-mail",
+    "password": "Senha",
+    "submit": "Entrar",
+    "error": "Credenciais inválidas"
+  },
+  "lang": {
+    "label": "Idioma",
+    "es": "Español",
+    "en": "English",
+    "pt": "Português",
+    "fr": "Français",
+    "de": "Deutsch",
+    "zh": "中文"
+  }
+}

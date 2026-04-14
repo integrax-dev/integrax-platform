@@ -1,12 +1,15 @@
+import { useTranslation } from 'react-i18next';
 import './Pages.css';
 
 export function Settings() {
+  const { t } = useTranslation();
+
   return (
     <div className="page">
       <div className="page-header">
         <div>
-          <h1>Configuración</h1>
-          <p className="text-secondary">Configuración de la plataforma</p>
+          <h1>{t('settings.title')}</h1>
+          <p className="text-secondary">{t('settings.subtitle')}</p>
         </div>
       </div>
 
@@ -14,7 +17,7 @@ export function Settings() {
         <div className="card">
           <h3>API Keys</h3>
           <p className="text-secondary text-sm mb-md">
-            Gestiona las API keys para acceso programático
+            Manage API keys for programmatic access
           </p>
 
           <div className="api-key-item">
@@ -24,8 +27,8 @@ export function Settings() {
               <code className="text-xs">ixk_prod_****...****abc123</code>
             </div>
             <div className="action-buttons">
-              <button className="btn btn-secondary btn-sm">Copiar</button>
-              <button className="btn btn-secondary btn-sm">Rotar</button>
+              <button className="btn btn-secondary btn-sm">Copy</button>
+              <button className="btn btn-secondary btn-sm">Rotate</button>
             </div>
           </div>
 
@@ -36,8 +39,8 @@ export function Settings() {
               <code className="text-xs">ixk_test_****...****xyz789</code>
             </div>
             <div className="action-buttons">
-              <button className="btn btn-secondary btn-sm">Copiar</button>
-              <button className="btn btn-secondary btn-sm">Rotar</button>
+              <button className="btn btn-secondary btn-sm">Copy</button>
+              <button className="btn btn-secondary btn-sm">Rotate</button>
             </div>
           </div>
         </div>
@@ -45,7 +48,7 @@ export function Settings() {
         <div className="card">
           <h3>Webhooks</h3>
           <p className="text-secondary text-sm mb-md">
-            Configuración de webhooks entrantes
+            Incoming webhook configuration
           </p>
 
           <div className="form-group">
@@ -66,73 +69,73 @@ export function Settings() {
                 value="whsec_xxxxxxxxxxxx"
                 readOnly
               />
-              <button className="btn btn-secondary">Ver</button>
+              <button className="btn btn-secondary">Show</button>
             </div>
           </div>
         </div>
 
         <div className="card">
-          <h3>Límites del Plan</h3>
+          <h3>Plan Limits</h3>
           <p className="text-secondary text-sm mb-md">
-            Tu plan actual: <span className="badge badge-info">Professional</span>
+            Current plan: <span className="badge badge-info">Professional</span>
           </p>
 
           <div className="limit-item">
-            <span>Requests por minuto</span>
+            <span>Requests per minute</span>
             <span className="font-medium">500 / 500</span>
           </div>
           <div className="limit-item">
-            <span>Jobs por minuto</span>
+            <span>Jobs per minute</span>
             <span className="font-medium">850 / 1000</span>
           </div>
           <div className="limit-item">
-            <span>Workflows activos</span>
+            <span>Active workflows</span>
             <span className="font-medium">12 / 50</span>
           </div>
           <div className="limit-item">
-            <span>Conectores</span>
+            <span>{t('nav.connectors')}</span>
             <span className="font-medium">6 / 20</span>
           </div>
           <div className="limit-item">
-            <span>Retención de datos</span>
-            <span className="font-medium">90 días</span>
+            <span>Data retention</span>
+            <span className="font-medium">90 days</span>
           </div>
 
           <button className="btn btn-primary mt-md">Upgrade Plan</button>
         </div>
 
         <div className="card">
-          <h3>Notificaciones</h3>
+          <h3>{t('settings.notifications')}</h3>
           <p className="text-secondary text-sm mb-md">
-            Configura alertas y notificaciones
+            Configure alerts and notifications
           </p>
 
           <div className="notification-item">
             <label className="flex items-center gap-md">
               <input type="checkbox" defaultChecked />
-              <span>Email cuando un workflow falla</span>
+              <span>Email when a workflow fails</span>
             </label>
           </div>
           <div className="notification-item">
             <label className="flex items-center gap-md">
               <input type="checkbox" defaultChecked />
-              <span>Email cuando se alcanza 80% del límite</span>
+              <span>Email when 80% of limit is reached</span>
             </label>
           </div>
           <div className="notification-item">
             <label className="flex items-center gap-md">
               <input type="checkbox" />
-              <span>Email resumen diario</span>
+              <span>Daily summary email</span>
             </label>
           </div>
           <div className="notification-item">
             <label className="flex items-center gap-md">
               <input type="checkbox" defaultChecked />
-              <span>Alertas de seguridad</span>
+              <span>Security alerts</span>
             </label>
           </div>
 
-          <button className="btn btn-secondary mt-md">Guardar</button>
+          <button className="btn btn-secondary mt-md">{t('common.save')}</button>
         </div>
       </div>
     </div>

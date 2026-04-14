@@ -12,6 +12,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { fetchAdminJson } from '../lib/adminApi';
 import { useAuthStore } from '../stores/auth';
 import { usePlatformStream, type PlatformEvent } from '../lib/usePlatformStream';
@@ -95,16 +96,16 @@ interface DriftIncident {
 // ─── Style constants ──────────────────────────────────────────────────────────
 
 const SEVERITY_COLOR: Record<DriftSeverity, string> = {
-  critical: '#dc2626',
-  major:    '#d97706',
-  minor:    '#2563eb',
+  critical: '#ef4444',
+  major:    '#f59e0b',
+  minor:    '#6366f1',
 };
 
 const STATUS_COLOR: Record<IncidentStatus, string> = {
-  open:          '#dc2626',
-  investigating: '#d97706',
-  resolved:      '#16a34a',
-  dismissed:     '#6b7280',
+  open:          '#ef4444',
+  investigating: '#f59e0b',
+  resolved:      '#10b981',
+  dismissed:     '#94a3b8',
 };
 
 const PROTOCOL_COLOR: Record<DriftProtocol, string> = {
@@ -177,17 +178,17 @@ function ResolutionSummary({ report }: { report: RequirementsReport | undefined 
   return (
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
       {s.resolvedDeterministically > 0 && (
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#16a34a', background: '#f0fdf4', padding: '3px 8px', borderRadius: 4, border: '1px solid #bbf7d0' }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: '#059669', background: 'rgba(16,185,129,0.1)', padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(16,185,129,0.25)' }}>
           ✓ {s.resolvedDeterministically} auto-resolved
         </span>
       )}
       {s.llmEscalationCount > 0 && (
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#7c3aed', background: '#faf5ff', padding: '3px 8px', borderRadius: 4, border: '1px solid #ddd6fe' }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: '#8b5cf6', background: 'rgba(139,92,246,0.1)', padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(139,92,246,0.25)' }}>
           ⚡ {s.llmEscalationCount} pending LLM
         </span>
       )}
       {s.breakingCount > 0 && (
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#dc2626', background: '#fef2f2', padding: '3px 8px', borderRadius: 4, border: '1px solid #fecaca' }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: '#dc2626', background: 'rgba(239,68,68,0.08)', padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(239,68,68,0.2)' }}>
           ✕ {s.breakingCount} breaking
         </span>
       )}
@@ -283,12 +284,12 @@ function DiffTable({ conflicts }: { conflicts: ResolvedConflict[] }) {
                     <div style={{ display: 'flex', gap: 5, alignItems: 'center', padding: '0 10px', flexShrink: 0 }}>
                       <span style={{ fontSize: 10, color: '#94a3b8' }}>{Math.round(rc.confidence * 100)}%</span>
                       {diff.breakingScore > 0.5 && (
-                        <span style={{ fontSize: 10, color: '#dc2626', fontWeight: 700, background: '#fef2f2', padding: '1px 5px', borderRadius: 3 }}>breaking</span>
+                        <span style={{ fontSize: 10, color: '#dc2626', fontWeight: 700, background: 'rgba(239,68,68,0.08)', padding: '1px 5px', borderRadius: 3 }}>breaking</span>
                       )}
                       {rc.llmRequired ? (
                         <span style={{ fontSize: 10, color: '#7c3aed', fontWeight: 700, background: '#faf5ff', padding: '1px 5px', borderRadius: 3 }}>⚡ llm</span>
                       ) : (
-                        <span style={{ fontSize: 10, color: '#16a34a', fontWeight: 700, background: '#f0fdf4', padding: '1px 5px', borderRadius: 3 }}>✓ auto</span>
+                        <span style={{ fontSize: 10, color: '#059669', fontWeight: 700, background: 'rgba(16,185,129,0.1)', padding: '1px 5px', borderRadius: 3 }}>✓ auto</span>
                       )}
                     </div>
                   </div>
@@ -317,9 +318,9 @@ type AIAnalysis = {
 
 const ACTION_LABEL: Record<AIAnalysis['action'], { label: string; color: string; bg: string }> = {
   renamed_to:          { label: '↪ Renamed',        color: '#7c3aed', bg: '#faf5ff' },
-  truly_removed:       { label: '✕ Truly removed',  color: '#dc2626', bg: '#fef2f2' },
-  type_changed:        { label: '~ Type changed',   color: '#d97706', bg: '#fffbeb' },
-  moved_to_nested:     { label: '→ Moved/nested',   color: '#2563eb', bg: '#eff6ff' },
+  truly_removed:       { label: '✕ Truly removed',  color: '#ef4444', bg: 'rgba(239,68,68,0.06)' },
+  type_changed:        { label: '~ Type changed',   color: '#f59e0b', bg: 'rgba(245,158,11,0.06)' },
+  moved_to_nested:     { label: '→ Moved/nested',   color: '#6366f1', bg: 'rgba(99,102,241,0.06)' },
   needs_investigation: { label: '? Unclear',         color: '#6b7280', bg: '#f8fafc' },
 };
 
@@ -359,7 +360,14 @@ function LLMEscalationsSection({
       );
       setAnalyses(prev => ({ ...prev, [index]: result.data }));
     } catch (e) {
-      setErrors(prev => ({ ...prev, [index]: e instanceof Error ? e.message : 'Error' }));
+      const msg = e instanceof Error ? e.message : 'Error';
+      // HTTP_503 fallback if backend didn't return a structured error body
+      const friendly = msg === 'HTTP_503'
+        ? 'LLM unavailable — add ANTHROPIC_API_KEY to control-plane/.env'
+        : msg === 'HTTP_502' || msg === 'HTTP_504'
+          ? 'LLM service not responding'
+          : msg;
+      setErrors(prev => ({ ...prev, [index]: friendly }));
     } finally {
       setLoading(null);
     }
@@ -427,7 +435,7 @@ function LLMEscalationsSection({
                 <div style={{ padding: '10px 14px', borderTop: '1px solid #ede9fe' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', marginBottom: 4 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
                         {analysis.suggestion}
                       </div>
                       <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.5 }}>
@@ -435,7 +443,7 @@ function LLMEscalationsSection({
                       </div>
                     </div>
                     <div style={{ flexShrink: 0, textAlign: 'center' }}>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: analysis.confidence >= 0.75 ? '#16a34a' : analysis.confidence >= 0.5 ? '#d97706' : '#dc2626' }}>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: analysis.confidence >= 0.75 ? '#10b981' : analysis.confidence >= 0.5 ? '#f59e0b' : '#ef4444' }}>
                         {Math.round(analysis.confidence * 100)}%
                       </div>
                       <div style={{ fontSize: 10, color: '#94a3b8' }}>confidence</div>
@@ -452,9 +460,14 @@ function LLMEscalationsSection({
 
               {/* Error */}
               {err && (
-                <div style={{ padding: '8px 12px', fontSize: 12, color: '#dc2626', borderTop: '1px solid #fecaca', background: '#fef2f2' }}>
-                  {err} —{' '}
-                  <button onClick={() => void analyze(i)} style={{ color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>retry</button>
+                <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(239,68,68,0.15)', background: 'rgba(239,68,68,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 14 }}>⚠</span>
+                    <span style={{ fontSize: 12, color: '#dc2626' }}>{err}</span>
+                  </div>
+                  <button onClick={() => void analyze(i)} style={{ fontSize: 11, fontWeight: 600, color: '#7c3aed', background: 'none', border: '1px solid #ddd6fe', borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}>
+                    retry
+                  </button>
                 </div>
               )}
             </div>
@@ -468,6 +481,7 @@ function LLMEscalationsSection({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function Incidents() {
+  const { t } = useTranslation();
   const [incidents, setIncidents]   = useState<DriftIncident[]>([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
@@ -477,7 +491,7 @@ export function Incidents() {
   const [toasts, setToasts]         = useState<ToastItem[]>([]);
 
   const [filterSeverity, setFilterSeverity] = useState<DriftSeverity | 'all'>('all');
-  const [filterStatus,   setFilterStatus]   = useState<IncidentStatus | 'all'>('open');
+  const [filterStatus,   setFilterStatus]   = useState<IncidentStatus | 'all'>('all');
   const [filterProtocol, setFilterProtocol] = useState<DriftProtocol | 'all'>('all');
 
   // ── SSE: real-time incident push ─────────────────────────────────────────────
@@ -576,10 +590,11 @@ export function Incidents() {
     }
   };
 
+  const ACTIVE_STATUSES: IncidentStatus[] = ['open', 'investigating'];
   const summary = {
-    critical: incidents.filter(i => i.severity === 'critical' && i.status === 'open').length,
-    major:    incidents.filter(i => i.severity === 'major'    && i.status === 'open').length,
-    total:    incidents.filter(i => i.status === 'open').length,
+    critical: incidents.filter(i => i.severity === 'critical' && ACTIVE_STATUSES.includes(i.status)).length,
+    major:    incidents.filter(i => i.severity === 'major'    && ACTIVE_STATUSES.includes(i.status)).length,
+    total:    incidents.filter(i => ACTIVE_STATUSES.includes(i.status)).length,
     resolved: incidents.filter(i => i.status === 'resolved').length,
   };
 
@@ -595,61 +610,64 @@ export function Incidents() {
       {/* Header */}
       <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
-          <h1>Schema Drift Incidents</h1>
-          <p className="page-subtitle">
-            Detected by schema-bridge · SQL · OpenAPI · Avro · CSV · JSONL · XML · SOAP · GraphQL · Parquet · Protobuf
-          </p>
+          <h1>{t('incidents.title')}</h1>
+          <p className="page-subtitle">{t('incidents.subtitle')}</p>
         </div>
         <button
           onClick={() => void load()}
           disabled={loading}
-          style={{
-            padding: '8px 16px', borderRadius: 6, border: '1px solid #e2e8f0',
-            background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#374151',
-          }}
+          className="btn btn-secondary"
         >
           {loading ? 'Loading…' : '↺ Refresh'}
         </button>
       </div>
 
       {/* Summary cards */}
-      <div className="stats-grid" style={{ marginBottom: 24 }}>
-        <div className="stat-card" style={{ borderLeft: '4px solid #dc2626' }}>
-          <div className="stat-value" style={{ color: '#dc2626' }}>{summary.critical}</div>
-          <div className="stat-label">Critical Open</div>
-        </div>
-        <div className="stat-card" style={{ borderLeft: '4px solid #d97706' }}>
-          <div className="stat-value" style={{ color: '#d97706' }}>{summary.major}</div>
-          <div className="stat-label">Major Open</div>
-        </div>
-        <div className="stat-card" style={{ borderLeft: '4px solid #6b7280' }}>
-          <div className="stat-value">{summary.total}</div>
-          <div className="stat-label">Total Open</div>
-        </div>
-        <div className="stat-card" style={{ borderLeft: '4px solid #16a34a' }}>
-          <div className="stat-value" style={{ color: '#16a34a' }}>{summary.resolved}</div>
-          <div className="stat-label">Resolved</div>
-        </div>
+      <div className="stats-grid" style={{ marginBottom: 8 }}>
+        {([
+          { labelKey: 'incidents.criticalActive', value: summary.critical, color: '#ef4444' },
+          { labelKey: 'incidents.majorActive',    value: summary.major,    color: '#f59e0b' },
+          { labelKey: 'incidents.totalActive',    value: summary.total,    color: '#6366f1' },
+          { labelKey: 'common.all',               value: summary.resolved, color: '#10b981' },
+        ] as const).map(({ labelKey, value, color }) => (
+          <div key={labelKey} style={{
+            background: '#fff', borderRadius: 10, padding: '16px 20px',
+            border: '1px solid var(--border-color)',
+            borderLeft: `4px solid ${color}`,
+            display: 'flex', flexDirection: 'column' as const, gap: 2,
+          }}>
+            <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1, color }}>
+              {value}
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
+              {t(labelKey)}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         {([
-          { label: 'SEVERITY', value: filterSeverity, setter: setFilterSeverity,
-            options: [['all','All severities'],['critical','Critical'],['major','Major'],['minor','Minor']] },
-          { label: 'STATUS',   value: filterStatus,   setter: setFilterStatus,
-            options: [['all','All statuses'],['open','Open'],['investigating','Investigating'],['resolved','Resolved'],['dismissed','Dismissed']] },
-          { label: 'PROTOCOL', value: filterProtocol, setter: setFilterProtocol,
-            options: [['all','All protocols'],['sql','SQL'],['openapi','OpenAPI'],['avro','Avro'],['csv','CSV'],['jsonl','JSONL'],['xml','XML'],['soap','SOAP'],['graphql','GraphQL'],['parquet','Parquet'],['protobuf','Protobuf']] },
-        ] as const).map(({ label, value, setter, options }) => (
-          <div key={label}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', display: 'block', marginBottom: 4, letterSpacing: '0.05em' }}>
+          { labelKey: 'incidents.severityLabel', label: 'Severity', value: filterSeverity, setter: setFilterSeverity,
+            options: [['all', t('common.all')],['critical','Critical'],['major','Major'],['minor','Minor']] as [string,string][] },
+          { labelKey: 'common.status', label: 'Status', value: filterStatus, setter: setFilterStatus,
+            options: [['all', t('common.all')],['open', t('incidents.status.open')],['investigating', t('incidents.status.investigating')],['resolved', t('incidents.status.resolved')],['dismissed', t('incidents.status.dismissed')]] as [string,string][] },
+          { labelKey: 'incidents.protocolLabel', label: 'Protocol', value: filterProtocol, setter: setFilterProtocol,
+            options: [['all', t('common.all')],['sql','SQL'],['openapi','OpenAPI'],['avro','Avro'],['csv','CSV'],['jsonl','JSONL'],['xml','XML'],['soap','SOAP'],['graphql','GraphQL'],['parquet','Parquet'],['protobuf','Protobuf']] as [string,string][] },
+        ]).map(({ labelKey, label, value, setter, options }) => (
+          <div key={labelKey} style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.02em' }}>
               {label}
             </label>
             <select
               value={value}
               onChange={e => (setter as (v: string) => void)(e.target.value)}
-              style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 13, background: '#fff' }}
+              style={{
+                padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border-color)',
+                fontSize: 13, background: '#fff', color: 'var(--text-primary)',
+                cursor: 'pointer', outline: 'none', minWidth: 110,
+              }}
             >
               {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
@@ -659,7 +677,7 @@ export function Incidents() {
 
       {/* Error */}
       {error && (
-        <div style={{ padding: 16, background: '#fef2f2', borderRadius: 8, border: '1px solid #fecaca', color: '#dc2626', marginBottom: 16, fontSize: 13 }}>
+        <div style={{ padding: 14, background: 'rgba(239,68,68,0.06)', borderRadius: 8, border: '1px solid rgba(239,68,68,0.2)', color: '#dc2626', marginBottom: 16, fontSize: 13 }}>
           {error} —{' '}
           <button onClick={() => void load()} style={{ color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
             retry
@@ -669,11 +687,11 @@ export function Incidents() {
 
       {/* Empty state */}
       {!loading && !error && filtered.length === 0 && (
-        <div style={{ textAlign: 'center', padding: 48, color: '#94a3b8', background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>✓</div>
-          <div style={{ fontWeight: 600 }}>No incidents match the current filters</div>
-          <div style={{ fontSize: 13, marginTop: 4 }}>
-            Submit schemas via <code>POST /api/drift/ingest</code> to start detecting drift
+        <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text-muted)', background: '#fff', borderRadius: 10, border: '1px solid var(--border-color)' }}>
+          <div style={{ fontSize: 28, marginBottom: 10, opacity: 0.6 }}>✓</div>
+          <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--text-secondary)', marginBottom: 6 }}>No incidents match the current filters</div>
+          <div style={{ fontSize: 13 }}>
+            Submit schemas via <code style={{ background: 'var(--bg-tertiary)', padding: '1px 6px', borderRadius: 4, fontSize: 12 }}>POST /api/drift/ingest</code> to start detecting drift
           </div>
         </div>
       )}
@@ -705,77 +723,88 @@ export function Incidents() {
               key={incident.id}
               style={{
                 background: '#fff',
-                borderRadius: 8,
-                border: `1px solid ${isOpen ? sc : '#e2e8f0'}`,
+                borderRadius: 10,
+                border: `1px solid ${isOpen ? sc + '55' : 'var(--border-color)'}`,
                 borderLeft: `4px solid ${sc}`,
                 overflow: 'hidden',
-                boxShadow: isOpen ? '0 2px 10px rgba(0,0,0,0.08)' : 'none',
-                transition: 'box-shadow 0.15s',
+                boxShadow: isOpen ? `0 0 0 3px ${sc}18, 0 4px 12px rgba(0,0,0,0.06)` : '0 1px 3px rgba(0,0,0,0.04)',
+                transition: 'box-shadow 0.15s, border-color 0.15s',
               }}
             >
               {/* Row — click to expand */}
               <div
                 onClick={() => setSelected(isOpen ? null : incident.id)}
-                style={{ padding: '12px 14px', cursor: 'pointer' }}
+                style={{ padding: '14px 16px', cursor: 'pointer' }}
               >
-                {/* Line 1: badges + time */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                {/* Line 1: severity · source · protocol · status · tenants · time */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap', overflow: 'hidden' }}>
                   <Badge label={incident.severity} color={sc} />
 
-                  <span style={{ fontWeight: 700, fontSize: 14, color: '#1e293b' }}>
+                  <span style={{
+                    fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+                    fontWeight: 600, fontSize: 13,
+                    color: 'var(--text-primary)',
+                    flexShrink: 0, whiteSpace: 'nowrap' as const,
+                  }}>
                     {incident.sourceId}
                   </span>
 
                   <Badge label={incident.protocol.toUpperCase()} color={pc} />
                   <Badge label={incident.status} color={STATUS_COLOR[incident.status]} />
 
-                  {incident.impactScore !== null && (
-                    <span style={{
-                      fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 4, flexShrink: 0,
-                      background: '#0f172a', color: '#fff',
-                    }}>
-                      {Math.round(incident.impactScore * 100)}%
-                    </span>
-                  )}
-
                   {incident.affectedTenants.length > 0 && (
                     <span style={{
-                      fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 4, flexShrink: 0,
-                      background: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa',
+                      fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 4, flexShrink: 0,
+                      background: 'rgba(245,158,11,0.1)', color: '#d97706', border: '1px solid rgba(245,158,11,0.22)',
+                      whiteSpace: 'nowrap' as const,
                     }}>
                       ⚠ {incident.affectedTenants.length} tenant{incident.affectedTenants.length !== 1 ? 's' : ''}
                     </span>
                   )}
 
-                  <span style={{ marginLeft: 'auto', fontSize: 12, color: '#94a3b8', flexShrink: 0 }}>
-                    {timeAgo(incident.detectedAt)}
-                  </span>
-                  <span style={{ fontSize: 12, color: '#94a3b8' }}>{isOpen ? '▲' : '▼'}</span>
+                  <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                    <span style={{ fontSize: 12, color: '#94a3b8' }}>
+                      {timeAgo(incident.detectedAt)}
+                    </span>
+                    <span style={{ fontSize: 11, color: '#cbd5e1' }}>{isOpen ? '▲' : '▼'}</span>
+                  </div>
                 </div>
 
                 {/* Line 2: change summary */}
-                <div style={{ marginTop: 5, fontSize: 13, color: '#475569' }}>
+                <div style={{
+                  marginTop: 6, fontSize: 13, color: 'var(--text-secondary)',
+                  lineHeight: 1.4, paddingRight: 8,
+                }}>
                   {changeSummary(conflicts)}
                 </div>
 
-                {/* Line 3: fingerprint delta + resolution stats */}
-                <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                {/* Line 3: version delta chip + resolution stats */}
+                <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   {fpA && fpB && (
-                    <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#94a3b8' }}>
-                      <span style={{ color: '#dc2626' }}>{shortFingerprint(fpA)}</span>
-                      {' → '}
-                      <span style={{ color: '#16a34a' }}>{shortFingerprint(fpB)}</span>
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      fontFamily: "'JetBrains Mono', monospace", fontSize: 11,
+                      background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)',
+                      padding: '2px 8px', borderRadius: 4, color: '#64748b',
+                    }}>
+                      <span style={{ color: '#ef4444' }}>#{shortFingerprint(fpA)}</span>
+                      <span style={{ color: '#94a3b8' }}>→</span>
+                      <span style={{ color: '#10b981' }}>#{shortFingerprint(fpB)}</span>
                     </span>
                   )}
-                  {(autoCount > 0 || llmCount > 0) && (
+                  {autoCount > 0 && (
+                    <span style={{ fontSize: 11, color: '#10b981', fontWeight: 600 }}>
+                      ✓ {autoCount} auto
+                    </span>
+                  )}
+                  {llmCount > 0 && (
+                    <span style={{ fontSize: 11, color: '#8b5cf6', fontWeight: 600 }}>
+                      {incident.llmAnalysis.length >= llmCount ? `⚡ ${llmCount} AI analyzed` : `${llmCount} pending LLM`}
+                    </span>
+                  )}
+                  {incident.impactScore !== null && (
                     <span style={{ fontSize: 11, color: '#94a3b8' }}>
-                      {autoCount > 0 && <span style={{ color: '#16a34a', fontWeight: 600 }}>{autoCount} auto</span>}
-                      {autoCount > 0 && llmCount > 0 && <span style={{ color: '#94a3b8' }}> · </span>}
-                      {llmCount > 0 && (
-                        incident.llmAnalysis.length >= llmCount
-                          ? <span style={{ color: '#7c3aed', fontWeight: 600 }}>⚡ {llmCount} AI analyzed</span>
-                          : <span style={{ color: '#7c3aed', fontWeight: 600 }}>{llmCount} pending LLM</span>
-                      )}
+                      impact <strong style={{ color: 'var(--text-primary)' }}>{Math.round(incident.impactScore * 100)}%</strong>
                     </span>
                   )}
                 </div>
@@ -789,15 +818,15 @@ export function Incidents() {
                   <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
                     {fpA && fpB && (
                       <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#64748b', background: '#f8fafc', padding: '4px 10px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
-                        <span style={{ color: '#dc2626' }}>{shortFingerprint(fpA)}</span>
+                        <span style={{ color: '#ef4444' }}>{shortFingerprint(fpA)}</span>
                         {' → '}
-                        <span style={{ color: '#16a34a' }}>{shortFingerprint(fpB)}</span>
+                        <span style={{ color: '#10b981' }}>{shortFingerprint(fpB)}</span>
                       </div>
                     )}
                     {incident.routingTarget && (
                       <div style={{
                         padding: '4px 10px', borderRadius: 6, background: '#f8fafc',
-                        border: '1px solid #e2e8f0', fontSize: 12, fontWeight: 600, color: '#374151',
+                        border: '1px solid #e2e8f0', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)',
                       }}>
                         {incident.routingTarget === 'incident_alert'  && '🚨 Incident Alert'}
                         {incident.routingTarget === 'operator_review' && '👤 Operator Review'}
@@ -806,7 +835,7 @@ export function Incidents() {
                       </div>
                     )}
                     {incident.affectedTenants.length > 0 && (
-                      <div style={{ fontSize: 12, color: '#64748b', padding: '4px 10px', background: '#fff7ed', borderRadius: 6, border: '1px solid #fed7aa' }}>
+                      <div style={{ fontSize: 12, color: '#d97706', padding: '4px 10px', background: 'rgba(245,158,11,0.08)', borderRadius: 6, border: '1px solid rgba(245,158,11,0.2)' }}>
                         ⚠ {incident.affectedTenants.length} tenant{incident.affectedTenants.length !== 1 ? 's' : ''} in blast radius:{' '}
                         <span style={{ fontFamily: 'monospace', fontSize: 11 }}>{incident.affectedTenants.join(', ')}</span>
                       </div>
@@ -818,13 +847,13 @@ export function Incidents() {
 
                   {/* Remediation hints */}
                   {incident.remediationHints.length > 0 && (
-                    <div style={{ marginTop: 12, padding: 10, background: '#fffbeb', borderRadius: 6, border: '1px solid #fde68a' }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: '#92400e', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <div style={{ marginTop: 12, padding: 10, background: 'rgba(245,158,11,0.06)', borderRadius: 6, border: '1px solid rgba(245,158,11,0.2)' }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#d97706', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         Remediation Hints
                       </div>
                       <ul style={{ margin: 0, paddingLeft: 16 }}>
                         {incident.remediationHints.map((h, i) => (
-                          <li key={i} style={{ fontSize: 12, color: '#78350f', marginBottom: 2 }}>{h}</li>
+                          <li key={i} style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 2 }}>{h}</li>
                         ))}
                       </ul>
                     </div>
@@ -844,8 +873,8 @@ export function Incidents() {
                         disabled={isRemediating}
                         onClick={e => { e.stopPropagation(); void startRemediation(incident.id); }}
                         style={{
-                          padding: '7px 14px', borderRadius: 6, border: '1px solid #dc2626',
-                          background: '#dc2626', color: '#fff', fontSize: 12, fontWeight: 700,
+                          padding: '7px 14px', borderRadius: 6, border: '1px solid #ef4444',
+                          background: '#ef4444', color: '#fff', fontSize: 12, fontWeight: 700,
                           cursor: isRemediating ? 'not-allowed' : 'pointer',
                           opacity: isRemediating ? 0.6 : 1,
                         }}
@@ -859,8 +888,8 @@ export function Incidents() {
                         disabled={isUpdating}
                         onClick={e => { e.stopPropagation(); void updateStatus(incident.id, 'investigating'); }}
                         style={{
-                          padding: '6px 12px', borderRadius: 6, border: '1px solid #d97706',
-                          background: '#fffbeb', color: '#d97706', fontSize: 12, fontWeight: 600,
+                          padding: '6px 12px', borderRadius: 6, border: '1px solid rgba(245,158,11,0.4)',
+                          background: 'rgba(245,158,11,0.08)', color: '#d97706', fontSize: 12, fontWeight: 600,
                           cursor: isUpdating ? 'not-allowed' : 'pointer', opacity: isUpdating ? 0.6 : 1,
                         }}
                       >
@@ -872,8 +901,8 @@ export function Incidents() {
                         disabled={isUpdating}
                         onClick={e => { e.stopPropagation(); void updateStatus(incident.id, 'resolved'); }}
                         style={{
-                          padding: '6px 12px', borderRadius: 6, border: '1px solid #16a34a',
-                          background: '#f0fdf4', color: '#16a34a', fontSize: 12, fontWeight: 600,
+                          padding: '6px 12px', borderRadius: 6, border: '1px solid rgba(16,185,129,0.4)',
+                          background: 'rgba(16,185,129,0.08)', color: '#059669', fontSize: 12, fontWeight: 600,
                           cursor: isUpdating ? 'not-allowed' : 'pointer', opacity: isUpdating ? 0.6 : 1,
                         }}
                       >

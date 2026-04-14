@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/auth';
 import { allowDemoFallbacks } from '../lib/runtime';
 import './Login.css';
 
 export function Login() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -22,7 +24,7 @@ export function Login() {
       await login(email, password);
       navigate('/');
     } catch {
-      setError('Credenciales inválidas');
+      setError(t('login.error'));
     } finally {
       setLoading(false);
     }
@@ -36,12 +38,12 @@ export function Login() {
             <span className="logo-icon">⚡</span>
             <span className="logo-text">IntegraX</span>
           </div>
-          <p className="login-subtitle">Panel de Administración</p>
+          <p className="login-subtitle">{t('login.title')}</p>
         </div>
 
         <form className="login-form" onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="label" htmlFor="email">Email</label>
+            <label className="label" htmlFor="email">{t('login.email')}</label>
             <input
               type="email"
               id="email"
@@ -54,7 +56,7 @@ export function Login() {
           </div>
 
           <div className="form-group">
-            <label className="label" htmlFor="password">Contraseña</label>
+            <label className="label" htmlFor="password">{t('login.password')}</label>
             <input
               type="password"
               id="password"
@@ -73,15 +75,15 @@ export function Login() {
             className="btn btn-primary login-btn"
             disabled={loading}
           >
-            {loading ? 'Ingresando...' : 'Ingresar'}
+            {loading ? t('common.loading') : t('login.submit')}
           </button>
         </form>
 
         {allowDemoFallbacks && (
           <div className="login-footer">
             <p className="demo-hint">
-              Demo: usa cualquier email/contraseña.<br />
-              Incluye "admin" en el email para rol de administrador.
+              Demo: use any email/password.<br />
+              Include "admin" in email for admin role.
             </p>
           </div>
         )}

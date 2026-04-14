@@ -27,6 +27,18 @@ export async function fetchAdminJson<T>(path: string, init?: RequestInit): Promi
   }
 
   if (!response.ok) {
+    const ct = response.headers.get('content-type') ?? '';
+    if (ct.includes('application/json')) {
+      try {
+        const errBody = await response.json() as { error?: string | { message?: string; code?: string } };
+        const errMsg = typeof errBody.error === 'string'
+          ? errBody.error
+          : errBody.error?.message ?? null;
+        if (errMsg) throw new Error(errMsg);
+      } catch (parseErr) {
+        if (parseErr instanceof Error && !/JSON|Unexpected|SyntaxError/.test(parseErr.message)) throw parseErr;
+      }
+    }
     throw new Error(`HTTP_${response.status}`);
   }
 

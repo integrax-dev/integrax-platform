@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import './Pages.css';
 
 const mockWorkflows = [
@@ -32,17 +33,18 @@ const mockWorkflows = [
 ];
 
 export function Workflows() {
+  const { t } = useTranslation();
   const [showModal, setShowModal] = useState(false);
 
   return (
     <div className="page">
       <div className="page-header">
         <div>
-          <h1>Workflows</h1>
-          <p className="text-secondary">Automatizaciones entre conectores</p>
+          <h1>{t('workflows.title')}</h1>
+          <p className="text-secondary">{t('workflows.subtitle')}</p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-          + Nuevo Workflow
+          + {t('workflows.newWorkflow') ?? 'New Workflow'}
         </button>
       </div>
 
@@ -55,7 +57,9 @@ export function Workflows() {
                 <span className="text-xs text-muted">v{workflow.version} • {workflow.id}</span>
               </div>
               <span className={`badge badge-${workflow.status === 'active' ? 'success' : 'warning'}`}>
-                {workflow.status === 'active' ? '● Activo' : '◐ Pausado'}
+                {workflow.status === 'active'
+                  ? `● ${t('workflows.active') ?? 'Active'}`
+                  : `◐ ${t('workflows.paused') ?? 'Paused'}`}
               </span>
             </div>
 
@@ -78,18 +82,18 @@ export function Workflows() {
 
             <div className="workflow-stats">
               <span className="text-sm">
-                <span className="text-success">{workflow.runs.success}</span> éxitos •{' '}
-                <span className="text-error">{workflow.runs.failed}</span> fallos
+                <span className="text-success">{workflow.runs.success}</span> {t('workflows.successes') ?? 'successes'} •{' '}
+                <span className="text-error">{workflow.runs.failed}</span> {t('workflows.failures') ?? 'failures'}
               </span>
             </div>
 
             <div className="connector-actions">
-              <button className="btn btn-secondary btn-sm">Editar</button>
-              <button className="btn btn-secondary btn-sm">Ver Runs</button>
+              <button className="btn btn-secondary btn-sm">{t('common.edit')}</button>
+              <button className="btn btn-secondary btn-sm">{t('workflows.viewRuns') ?? 'View Runs'}</button>
               {workflow.status === 'active' ? (
-                <button className="btn btn-secondary btn-sm">Pausar</button>
+                <button className="btn btn-secondary btn-sm">{t('workflows.pause') ?? 'Pause'}</button>
               ) : (
-                <button className="btn btn-primary btn-sm">Activar</button>
+                <button className="btn btn-primary btn-sm">{t('workflows.activate') ?? 'Activate'}</button>
               )}
             </div>
           </div>
@@ -99,30 +103,30 @@ export function Workflows() {
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>Nuevo Workflow</h2>
+            <h2>{t('workflows.newWorkflow') ?? 'New Workflow'}</h2>
             <form className="modal-form">
               <div className="form-group">
-                <label className="label">Nombre</label>
-                <input className="input" placeholder="ej: Facturar pago" />
+                <label className="label">{t('common.name')}</label>
+                <input className="input" placeholder="e.g. Invoice payment" />
               </div>
               <div className="form-group">
                 <label className="label">Trigger</label>
                 <select className="input">
-                  <option value="webhook">Webhook (evento externo)</option>
-                  <option value="schedule">Schedule (programado)</option>
-                  <option value="manual">Manual</option>
+                  <option value="webhook">Webhook</option>
+                  <option value="schedule">Schedule</option>
+                  <option value="manual">{t('workflows.manual') ?? 'Manual'}</option>
                 </select>
               </div>
               <div className="form-group">
-                <label className="label">Descripción</label>
-                <input className="input" placeholder="Describe qué hace este workflow" />
+                <label className="label">Description</label>
+                <input className="input" placeholder="Describe what this workflow does" />
               </div>
               <div className="modal-actions">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
-                  Cancelar
+                  {t('common.cancel')}
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Crear Workflow
+                  {t('common.create')} Workflow
                 </button>
               </div>
             </form>

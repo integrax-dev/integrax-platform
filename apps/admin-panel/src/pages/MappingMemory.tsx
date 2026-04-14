@@ -7,6 +7,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { fetchAdminJson } from '../lib/adminApi';
 import { allowDemoFallbacks } from '../lib/runtime';
 import './Pages.css';
@@ -54,6 +55,7 @@ interface MappingMemoryEntry {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function MappingMemory() {
+  const { t } = useTranslation();
   const [connectorAId, setConnectorAId] = useState('');
   const [connectorBId, setConnectorBId] = useState('');
   const [entries, setEntries] = useState<MappingMemoryEntry[]>([]);
@@ -100,10 +102,8 @@ export function MappingMemory() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1 className="page-title">Mapping Memory</h1>
-        <p className="page-subtitle">
-          Memoria acumulada de decisiones de operadores para pares de conectores
-        </p>
+        <h1 className="page-title">{t('mappingMemory.title')}</h1>
+        <p className="page-subtitle">{t('mappingMemory.subtitle')}</p>
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}

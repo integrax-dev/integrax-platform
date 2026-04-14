@@ -1,5 +1,6 @@
 import './Pages.css';
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { fetchAdminJson } from '../lib/adminApi';
 import { useAuthStore } from '../stores/auth';
 import { usePlatformStream, type PlatformEvent } from '../lib/usePlatformStream';
@@ -24,13 +25,6 @@ const MOCK_EVENTS: PlatformEvt[] = [
   { id: 'evt_004', type: 'message.sent',    tenant: 'Acme SA',   connector: 'WhatsApp',    status: 'dlq',       time: 'hace 10 min', error: 'Payload inválido' },
 ];
 
-const STATUS_LABEL: Record<EventStatus, string> = {
-  processed: '✓ Procesado',
-  pending:   '○ Pendiente',
-  failed:    '✗ Fallido',
-  dlq:       '⚠ DLQ',
-};
-
 const STATUS_BADGE: Record<EventStatus, string> = {
   processed: 'success',
   pending:   'info',
@@ -40,20 +34,21 @@ const STATUS_BADGE: Record<EventStatus, string> = {
 
 // ─── Live indicator ───────────────────────────────────────────────────────────
 
-function LiveDot({ active }: { active: boolean }) {
+function LiveDot({ active, liveLabel, disconnectedLabel }: { active: boolean; liveLabel: string; disconnectedLabel: string }) {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: active ? '#16a34a' : '#94a3b8' }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: active ? '#10b981' : '#94a3b8' }}>
       <span style={{
         display: 'inline-block', width: 7, height: 7, borderRadius: '50%',
-        background: active ? '#16a34a' : '#94a3b8',
-        boxShadow: active ? '0 0 0 2px #bbf7d0' : 'none',
+        background: active ? '#10b981' : '#94a3b8',
+        boxShadow: active ? '0 0 0 2px rgba(16,185,129,0.3)' : 'none',
       }} />
-      {active ? 'En vivo' : 'Desconectado'}
+      {active ? liveLabel : disconnectedLabel}
     </span>
   );
 }
 
 export function Events() {
+  const { t } = useTranslation();
   const [events,      setEvents]      = useState<PlatformEvt[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [error,       setError]       = useState<string | null>(null);
@@ -127,16 +122,16 @@ export function Events() {
     <div className="page">
       <div className="page-header">
         <div>
-          <h1>Eventos</h1>
+          <h1>{t('events.title')}</h1>
           <p className="text-secondary" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            Eventos recibidos y procesados
-            <LiveDot active={connected} />
+            {t('events.subtitle')}
+            <LiveDot active={connected} liveLabel={t('common.live')} disconnectedLabel={t('common.disconnected')} />
             {newCount > 0 && (
               <span
-                style={{ fontSize: 11, fontWeight: 700, background: '#3b82f6', color: '#fff', padding: '1px 7px', borderRadius: 10, cursor: 'pointer' }}
+                style={{ fontSize: 11, fontWeight: 700, background: '#6366f1', color: '#fff', padding: '1px 7px', borderRadius: 10, cursor: 'pointer' }}
                 onClick={() => setNewCount(0)}
               >
-                +{newCount} nuevos
+                +{newCount} {t('common.newItems', { count: '' }).replace('+', '').trim()}
               </span>
             )}
           </p>
@@ -148,11 +143,11 @@ export function Events() {
             value={filterStatus}
             onChange={e => setFilterStatus(e.target.value as EventStatus | 'all')}
           >
-            <option value="all">Todos los estados</option>
-            <option value="processed">Procesados</option>
-            <option value="pending">Pendientes</option>
-            <option value="failed">Fallidos</option>
-            <option value="dlq">En DLQ</option>
+            <option value="all">{t('events.allStatuses')}</option>
+            <option value="processed">{t('events.status.processed')}</option>
+            <option value="pending">{t('events.status.pending')}</option>
+            <option value="failed">{t('events.status.failed')}</option>
+            <option value="dlq">{t('events.status.dlq')}</option>
           </select>
           <select
             className="input"
@@ -160,7 +155,7 @@ export function Events() {
             value={filterConnector}
             onChange={e => setFilterConnector(e.target.value)}
           >
-            <option value="all">Todos los conectores</option>
+            <option value="all">{t('events.allConnectors')}</option>
             {connectors.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
@@ -170,22 +165,22 @@ export function Events() {
         <table className="table">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Tipo</th>
-              <th>Tenant</th>
-              <th>Conector</th>
-              <th>Estado</th>
-              <th>Tiempo</th>
-              <th>Acciones</th>
+              <th>{t('common.id')}</th>
+              <th>{t('common.type')}</th>
+              <th>{t('common.tenant')}</th>
+              <th>{t('common.connector')}</th>
+              <th>{t('common.status')}</th>
+              <th>{t('common.time')}</th>
+              <th>{t('common.actions')}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7}>Cargando...</td></tr>
+              <tr><td colSpan={7}>{t('common.loading')}</td></tr>
             ) : error ? (
               <tr><td colSpan={7} style={{ color: 'red' }}>{error}</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={7}>No hay eventos</td></tr>
+              <tr><td colSpan={7}>{t('events.noEvents')}</td></tr>
             ) : filtered.map(event => (
               <tr key={event.id}>
                 <td><code className="text-xs">{event.id}</code></td>
@@ -194,15 +189,15 @@ export function Events() {
                 <td>{event.connector}</td>
                 <td>
                   <span className={`badge badge-${STATUS_BADGE[event.status]}`}>
-                    {STATUS_LABEL[event.status]}
+                    {t(`events.status.${event.status}`)}
                   </span>
                 </td>
                 <td className="text-muted">{event.time}</td>
                 <td>
                   <div className="action-buttons">
-                    <button className="btn btn-secondary btn-sm">Ver</button>
+                    <button className="btn btn-secondary btn-sm">{t('common.view')}</button>
                     {(event.status === 'failed' || event.status === 'dlq') && (
-                      <button className="btn btn-primary btn-sm">Reintentar</button>
+                      <button className="btn btn-primary btn-sm">{t('common.retry')}</button>
                     )}
                   </div>
                 </td>

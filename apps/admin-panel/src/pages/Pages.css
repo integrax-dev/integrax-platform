@@ -14,6 +14,12 @@
   margin-bottom: var(--spacing-xs);
 }
 
+.page-subtitle {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
 /* Tenant Name Cell */
 .tenant-name {
   display: flex;

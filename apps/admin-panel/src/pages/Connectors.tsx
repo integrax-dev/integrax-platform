@@ -1,28 +1,36 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import './Pages.css';
 
 const connectorCatalog = [
-  { id: 'mercadopago', name: 'MercadoPago', icon: '💳', category: 'Pagos', configured: true, status: 'connected' },
-  { id: 'afip-wsfe', name: 'AFIP Factura Electrónica', icon: '🧾', category: 'Facturación', configured: true, status: 'connected' },
-  { id: 'contabilium', name: 'Contabilium', icon: '📊', category: 'ERP', configured: false, status: 'available' },
-  { id: 'whatsapp', name: 'WhatsApp Business', icon: '💬', category: 'Mensajería', configured: true, status: 'connected' },
-  { id: 'email', name: 'Email SMTP', icon: '📧', category: 'Mensajería', configured: true, status: 'error' },
-  { id: 'google-sheets', name: 'Google Sheets', icon: '📑', category: 'Planillas', configured: false, status: 'available' },
-  { id: 'tiendanube', name: 'Tienda Nube', icon: '🛒', category: 'E-commerce', configured: false, status: 'available' },
+  { id: 'mercadopago',   name: 'MercadoPago',              icon: '💳', category: 'Payments',   configured: true,  status: 'connected' },
+  { id: 'afip-wsfe',     name: 'AFIP Factura Electrónica', icon: '🧾', category: 'Billing',    configured: true,  status: 'connected' },
+  { id: 'contabilium',   name: 'Contabilium',              icon: '📊', category: 'ERP',        configured: false, status: 'available' },
+  { id: 'whatsapp',      name: 'WhatsApp Business',        icon: '💬', category: 'Messaging',  configured: true,  status: 'connected' },
+  { id: 'email',         name: 'Email SMTP',               icon: '📧', category: 'Messaging',  configured: true,  status: 'error' },
+  { id: 'google-sheets', name: 'Google Sheets',            icon: '📑', category: 'Sheets',     configured: false, status: 'available' },
+  { id: 'tiendanube',    name: 'Tienda Nube',              icon: '🛒', category: 'E-commerce', configured: false, status: 'available' },
 ];
 
 export function Connectors() {
+  const { t } = useTranslation();
   const [showLearnModal, setShowLearnModal] = useState(false);
+
+  const statusLabel = (status: string) => {
+    if (status === 'connected') return `● ${t('connectors.connectedLabel') ?? 'Connected'}`;
+    if (status === 'error') return `● ${t('common.error')}`;
+    return `○ Available`;
+  };
 
   return (
     <div className="page">
       <div className="page-header">
         <div>
-          <h1>Conectores</h1>
-          <p className="text-secondary">Configura integraciones con servicios externos</p>
+          <h1>{t('connectors.title')}</h1>
+          <p className="text-secondary">{t('connectors.subtitle')}</p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowLearnModal(true)}>
-          🧠 Aprender Nueva API
+          🧠 {t('connectors.learnApi') ?? 'Learn New API'}
         </button>
       </div>
 
@@ -39,19 +47,18 @@ export function Connectors() {
                 connector.status === 'connected' ? 'success' :
                 connector.status === 'error' ? 'error' : 'info'
               }`}>
-                {connector.status === 'connected' ? '● Conectado' :
-                 connector.status === 'error' ? '● Error' : '○ Disponible'}
+                {statusLabel(connector.status)}
               </span>
             </div>
 
             <div className="connector-actions">
               {connector.configured ? (
                 <>
-                  <button className="btn btn-secondary btn-sm">Configurar</button>
-                  <button className="btn btn-secondary btn-sm">Test</button>
+                  <button className="btn btn-secondary btn-sm">{t('common.edit')}</button>
+                  <button className="btn btn-secondary btn-sm">{t('connectors.test')}</button>
                 </>
               ) : (
-                <button className="btn btn-primary btn-sm">Configurar</button>
+                <button className="btn btn-primary btn-sm">{t('connectors.configure') ?? 'Configure'}</button>
               )}
             </div>
           </div>
@@ -61,33 +68,33 @@ export function Connectors() {
       {showLearnModal && (
         <div className="modal-overlay" onClick={() => setShowLearnModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>🧠 Aprender Nueva API</h2>
+            <h2>🧠 {t('connectors.learnApi') ?? 'Learn New API'}</h2>
             <p className="text-secondary mb-md">
-              El LLM analizará la documentación y generará un conector completo automáticamente.
+              {t('connectors.learnApiDesc') ?? 'The LLM will analyze the documentation and auto-generate a complete connector.'}
             </p>
             <form className="modal-form">
               <div className="form-group">
-                <label className="label">Nombre de la API</label>
-                <input className="input" placeholder="ej: Stripe, MercadoLibre, Rappi" />
+                <label className="label">API Name</label>
+                <input className="input" placeholder="e.g. Stripe, MercadoLibre, Rappi" />
               </div>
               <div className="form-group">
-                <label className="label">URL de Documentación</label>
+                <label className="label">Documentation URL</label>
                 <input className="input" placeholder="https://docs.example.com/api" />
               </div>
               <div className="form-group">
-                <label className="label">Tipo de Documentación</label>
+                <label className="label">Documentation Type</label>
                 <select className="input">
                   <option value="openapi">OpenAPI / Swagger</option>
-                  <option value="html">Página HTML</option>
+                  <option value="html">HTML Page</option>
                   <option value="markdown">Markdown</option>
                 </select>
               </div>
               <div className="modal-actions">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowLearnModal(false)}>
-                  Cancelar
+                  {t('common.cancel')}
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  🚀 Iniciar Aprendizaje
+                  🚀 {t('connectors.startLearning') ?? 'Start Learning'}
                 </button>
               </div>
             </form>

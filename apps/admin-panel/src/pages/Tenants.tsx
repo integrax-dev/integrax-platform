@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import './Pages.css';
 import { fetchAdminJson } from '../lib/adminApi';
 import { useAuthStore } from '../stores/auth';
@@ -22,6 +23,7 @@ const MOCK_TENANTS: Tenant[] = [
 ];
 
 export function Tenants() {
+  const { t } = useTranslation();
   const [showModal, setShowModal] = useState(false);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,35 +41,35 @@ export function Tenants() {
     getToken,
     handlers: useMemo(() => ({
       'tenant.created': (env: PlatformEvent) => {
-        const t = env.data as Tenant & { createdAt?: string };
+        const tenant = env.data as Tenant & { createdAt?: string };
         setTenants(prev => {
-          if (prev.find(x => x.id === t.id)) return prev;
+          if (prev.find(x => x.id === tenant.id)) return prev;
           return [{
-            id: t.id,
-            name: t.name,
-            plan: t.plan ?? 'starter',
-            status: t.status ?? 'active',
+            id: tenant.id,
+            name: tenant.name,
+            plan: tenant.plan ?? 'starter',
+            status: tenant.status ?? 'active',
             events: 0,
-            created: t.createdAt ? t.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
+            created: tenant.createdAt ? tenant.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
           }, ...prev];
         });
       },
       'tenant.updated': (env: PlatformEvent) => {
-        const t = env.data as Partial<Tenant> & { id: string };
+        const tenant = env.data as Partial<Tenant> & { id: string };
         setTenants(prev => prev.map(x =>
-          x.id === t.id ? { ...x, ...t } : x,
+          x.id === tenant.id ? { ...x, ...tenant } : x,
         ));
       },
       'tenant.suspended': (env: PlatformEvent) => {
-        const t = env.data as { id: string };
+        const tenant = env.data as { id: string };
         setTenants(prev => prev.map(x =>
-          x.id === t.id ? { ...x, status: 'suspended' } : x,
+          x.id === tenant.id ? { ...x, status: 'suspended' } : x,
         ));
       },
       'tenant.activated': (env: PlatformEvent) => {
-        const t = env.data as { id: string };
+        const tenant = env.data as { id: string };
         setTenants(prev => prev.map(x =>
-          x.id === t.id ? { ...x, status: 'active' } : x,
+          x.id === tenant.id ? { ...x, status: 'active' } : x,
         ));
       },
     }), []),
@@ -90,7 +92,7 @@ export function Tenants() {
             setError(null);
           }
         } else if (!cancelled) {
-          setError('No se pudo cargar tenants');
+          setError(t('tenants.loadError'));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -102,7 +104,7 @@ export function Tenants() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,7 +121,6 @@ export function Tenants() {
       setNewEmail('');
       setNewOwnerName('');
       setNewPlan('starter');
-      // SSE tenant.created event will prepend the new tenant automatically
     } catch {
       // Keep modal open on error so the user can retry
     } finally {
@@ -131,11 +132,11 @@ export function Tenants() {
     <div className="page">
       <div className="page-header">
         <div>
-          <h1>Tenants</h1>
-          <p className="text-secondary">Gestión de clientes de la plataforma</p>
+          <h1>{t('tenants.title')}</h1>
+          <p className="text-secondary">{t('tenants.subtitle')}</p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-          + Nuevo Tenant
+          + {t('tenants.newTenant')}
         </button>
       </div>
 
@@ -143,21 +144,21 @@ export function Tenants() {
         <table className="table">
           <thead>
             <tr>
-              <th>Nombre</th>
-              <th>Plan</th>
-              <th>Estado</th>
-              <th>Eventos (mes)</th>
-              <th>Creado</th>
-              <th>Acciones</th>
+              <th>{t('common.name')}</th>
+              <th>{t('tenants.plan')}</th>
+              <th>{t('common.status')}</th>
+              <th>Events (month)</th>
+              <th>{t('tenants.createdAt')}</th>
+              <th>{t('common.actions')}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6}>Cargando...</td></tr>
+              <tr><td colSpan={6}>{t('common.loading')}</td></tr>
             ) : error ? (
               <tr><td colSpan={6} style={{color:'red'}}>{error}</td></tr>
             ) : tenants.length === 0 ? (
-              <tr><td colSpan={6}>No hay tenants</td></tr>
+              <tr><td colSpan={6}>{t('tenants.noTenants')}</td></tr>
             ) : tenants.map((tenant) => (
               <tr key={tenant.id}>
                 <td>
@@ -179,15 +180,17 @@ export function Tenants() {
                 </td>
                 <td>
                   <span className={`badge badge-${tenant.status === 'active' ? 'success' : 'error'}`}>
-                    {tenant.status === 'active' ? '● Activo' : '○ Suspendido'}
+                    {tenant.status === 'active'
+                      ? `● ${t('tenants.status.active')}`
+                      : `○ ${t('tenants.status.suspended')}`}
                   </span>
                 </td>
                 <td>{tenant.events.toLocaleString()}</td>
                 <td className="text-muted">{tenant.created}</td>
                 <td>
                   <div className="action-buttons">
-                    <button className="btn btn-secondary btn-sm">Editar</button>
-                    <button className="btn btn-secondary btn-sm">Ver</button>
+                    <button className="btn btn-secondary btn-sm">{t('common.edit')}</button>
+                    <button className="btn btn-secondary btn-sm">{t('common.view')}</button>
                   </div>
                 </td>
               </tr>
@@ -199,41 +202,41 @@ export function Tenants() {
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>Nuevo Tenant</h2>
+            <h2>{t('tenants.newTenant')}</h2>
             <form className="modal-form" onSubmit={handleCreate}>
               <div className="form-group">
-                <label className="label">Nombre</label>
+                <label className="label">{t('common.name')}</label>
                 <input
                   className="input"
-                  placeholder="Nombre del tenant"
+                  placeholder={t('common.name')}
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   required
                 />
               </div>
               <div className="form-group">
-                <label className="label">Nombre del Owner</label>
+                <label className="label">Owner Name</label>
                 <input
                   className="input"
-                  placeholder="Nombre completo"
+                  placeholder="Full name"
                   value={newOwnerName}
                   onChange={(e) => setNewOwnerName(e.target.value)}
                   required
                 />
               </div>
               <div className="form-group">
-                <label className="label">Email del Owner</label>
+                <label className="label">Owner Email</label>
                 <input
                   className="input"
                   type="email"
-                  placeholder="admin@empresa.com"
+                  placeholder="admin@company.com"
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
                   required
                 />
               </div>
               <div className="form-group">
-                <label className="label">Plan</label>
+                <label className="label">{t('tenants.plan')}</label>
                 <select className="input" value={newPlan} onChange={(e) => setNewPlan(e.target.value)}>
                   <option value="free">Free</option>
                   <option value="starter">Starter</option>
@@ -243,10 +246,10 @@ export function Tenants() {
               </div>
               <div className="modal-actions">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
-                  Cancelar
+                  {t('common.cancel')}
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={creating}>
-                  {creating ? 'Creando...' : 'Crear Tenant'}
+                  {creating ? t('common.loading') : t('tenants.newTenant')}
                 </button>
               </div>
             </form>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import './Pages.css';
 import { fetchAdminJson } from '../lib/adminApi';
 import { allowDemoFallbacks } from '../lib/runtime';
@@ -13,26 +14,26 @@ type AuditLog = {
 };
 
 const MOCK_AUDIT_LOGS: AuditLog[] = [
-  { id: 'aud_001', action: 'tenant.create', user: 'admin@integrax.com', resource: 'Tienda ABC', ip: '190.2.45.123', time: '2024-02-15 14:30:00' },
-  { id: 'aud_002', action: 'connector.configure', user: 'user@tienda.com', resource: 'mercadopago', ip: '200.45.12.89', time: '2024-02-15 14:25:00' },
-  { id: 'aud_003', action: 'workflow.publish', user: 'user@tienda.com', resource: 'Facturar Pago', ip: '200.45.12.89', time: '2024-02-15 14:20:00' },
-  { id: 'aud_004', action: 'credential.rotate', user: 'admin@empresa.com', resource: 'afip-wsfe', ip: '181.23.45.67', time: '2024-02-15 14:15:00' },
-  { id: 'aud_005', action: 'tenant.suspend', user: 'admin@integrax.com', resource: 'Shop Online', ip: '190.2.45.123', time: '2024-02-15 14:10:00' },
-  { id: 'aud_006', action: 'user.login', user: 'user@tienda.com', resource: '-', ip: '200.45.12.89', time: '2024-02-15 14:00:00' },
+  { id: 'aud_001', action: 'tenant.create',       user: 'admin@integrax.com', resource: 'Tienda ABC',    ip: '190.2.45.123',  time: '2024-02-15 14:30:00' },
+  { id: 'aud_002', action: 'connector.configure', user: 'user@tienda.com',    resource: 'mercadopago',   ip: '200.45.12.89',  time: '2024-02-15 14:25:00' },
+  { id: 'aud_003', action: 'workflow.publish',    user: 'user@tienda.com',    resource: 'Facturar Pago', ip: '200.45.12.89',  time: '2024-02-15 14:20:00' },
+  { id: 'aud_004', action: 'credential.rotate',   user: 'admin@empresa.com',  resource: 'afip-wsfe',     ip: '181.23.45.67',  time: '2024-02-15 14:15:00' },
+  { id: 'aud_005', action: 'tenant.suspend',      user: 'admin@integrax.com', resource: 'Shop Online',   ip: '190.2.45.123',  time: '2024-02-15 14:10:00' },
+  { id: 'aud_006', action: 'user.login',          user: 'user@tienda.com',    resource: '-',             ip: '200.45.12.89',  time: '2024-02-15 14:00:00' },
 ];
 
-const actionLabels: Record<string, { label: string; color: string }> = {
-  'tenant.create': { label: 'Crear Tenant', color: 'success' },
-  'tenant.suspend': { label: 'Suspender Tenant', color: 'error' },
-  'tenant.update': { label: 'Actualizar Tenant', color: 'info' },
-  'tenant.delete': { label: 'Cancelar Tenant', color: 'error' },
-  'connector.configure': { label: 'Configurar Conector', color: 'info' },
-  'workflow.publish': { label: 'Publicar Workflow', color: 'info' },
-  'workflow.trigger': { label: 'Trigger Workflow', color: 'info' },
-  'workflow.enable': { label: 'Activar Workflow', color: 'success' },
-  'workflow.disable': { label: 'Pausar Workflow', color: 'warning' },
-  'credential.rotate': { label: 'Rotar Credencial', color: 'warning' },
-  'user.login': { label: 'Login', color: 'success' },
+const ACTION_META: Record<string, { color: string }> = {
+  'tenant.create':       { color: 'success' },
+  'tenant.suspend':      { color: 'error' },
+  'tenant.update':       { color: 'info' },
+  'tenant.delete':       { color: 'error' },
+  'connector.configure': { color: 'info' },
+  'workflow.publish':    { color: 'info' },
+  'workflow.trigger':    { color: 'info' },
+  'workflow.enable':     { color: 'success' },
+  'workflow.disable':    { color: 'warning' },
+  'credential.rotate':   { color: 'warning' },
+  'user.login':          { color: 'success' },
 };
 
 type BackendEntry = {
@@ -46,6 +47,7 @@ type BackendEntry = {
 };
 
 export function Audit() {
+  const { t } = useTranslation();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +68,7 @@ export function Audit() {
             user: e.userId,
             resource: e.resource,
             ip: e.ipAddress,
-            time: new Date(e.createdAt).toLocaleString('es-AR'),
+            time: new Date(e.createdAt).toLocaleString(),
           }));
           setLogs(mapped);
         }
@@ -74,7 +76,7 @@ export function Audit() {
         if (allowDemoFallbacks) {
           if (!cancelled) setLogs(MOCK_AUDIT_LOGS);
         } else if (!cancelled) {
-          setError('No se pudo cargar el log de auditoría');
+          setError(t('audit.loadError'));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -83,26 +85,26 @@ export function Audit() {
 
     load();
     return () => { cancelled = true; };
-  }, []);
+  }, [t]);
 
   return (
     <div className="page">
       <div className="page-header">
         <div>
-          <h1>Auditoría</h1>
-          <p className="text-secondary">Registro de todas las acciones en la plataforma</p>
+          <h1>{t('audit.title')}</h1>
+          <p className="text-secondary">{t('audit.subtitle')}</p>
         </div>
         <div className="flex gap-md">
           <input className="input" type="date" style={{ width: 'auto' }} />
           <select className="input" style={{ width: 'auto' }}>
-            <option>Todas las acciones</option>
+            <option>{t('common.all')}</option>
             <option>Tenants</option>
-            <option>Conectores</option>
-            <option>Workflows</option>
-            <option>Credenciales</option>
+            <option>{t('nav.connectors')}</option>
+            <option>{t('nav.workflows')}</option>
+            <option>Credentials</option>
             <option>Login</option>
           </select>
-          <button className="btn btn-secondary">Exportar</button>
+          <button className="btn btn-secondary">Export</button>
         </div>
       </div>
 
@@ -110,27 +112,27 @@ export function Audit() {
         <table className="table">
           <thead>
             <tr>
-              <th>Acción</th>
-              <th>Usuario</th>
-              <th>Recurso</th>
-              <th>IP</th>
-              <th>Tiempo</th>
+              <th>{t('audit.action')}</th>
+              <th>{t('audit.user')}</th>
+              <th>{t('audit.resource')}</th>
+              <th>{t('audit.ip')}</th>
+              <th>{t('common.time')}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5}>Cargando...</td></tr>
+              <tr><td colSpan={5}>{t('common.loading')}</td></tr>
             ) : error ? (
               <tr><td colSpan={5} style={{ color: 'red' }}>{error}</td></tr>
             ) : logs.length === 0 ? (
-              <tr><td colSpan={5}>Sin registros de auditoría aún</td></tr>
+              <tr><td colSpan={5}>{t('audit.noEvents')}</td></tr>
             ) : logs.map((log) => {
-              const action = actionLabels[log.action] || { label: log.action, color: 'info' };
+              const meta = ACTION_META[log.action] ?? { color: 'info' };
               return (
                 <tr key={log.id}>
                   <td>
-                    <span className={`badge badge-${action.color}`}>
-                      {action.label}
+                    <span className={`badge badge-${meta.color}`}>
+                      {log.action}
                     </span>
                   </td>
                   <td>{log.user}</td>

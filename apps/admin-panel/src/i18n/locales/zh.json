@@ -1,0 +1,181 @@
+{
+  "nav": {
+    "dashboard": "仪表板",
+    "tenants": "租户",
+    "connectors": "连接器",
+    "workflows": "工作流",
+    "events": "事件",
+    "audit": "审计",
+    "incidents": "事故",
+    "schemaDiffs": "架构差异",
+    "mappingMemory": "映射记忆",
+    "settings": "设置"
+  },
+  "common": {
+    "loading": "加载中...",
+    "noData": "暂无数据",
+    "error": "错误",
+    "retry": "重试",
+    "view": "查看",
+    "save": "保存",
+    "cancel": "取消",
+    "delete": "删除",
+    "edit": "编辑",
+    "create": "创建",
+    "search": "搜索",
+    "filter": "筛选",
+    "all": "全部",
+    "status": "状态",
+    "actions": "操作",
+    "type": "类型",
+    "tenant": "租户",
+    "connector": "连接器",
+    "time": "时间",
+    "id": "ID",
+    "name": "名称",
+    "now": "刚刚",
+    "logout": "退出",
+    "live": "实时",
+    "disconnected": "已断开",
+    "viewAll": "查看全部 →",
+    "newItems": "+{{count}} 条新记录"
+  },
+  "dashboard": {
+    "title": "仪表板",
+    "subtitle": "IntegraX 平台概览 — 实时更新",
+    "activeTenants": "活跃租户",
+    "eventsToday": "今日事件",
+    "configuredConnectors": "已配置连接器",
+    "uptime": "可用性",
+    "last30days": "最近30天",
+    "eventsPerHour": "每小时事件",
+    "connectorUsage": "连接器使用情况",
+    "recentEvents": "最近事件",
+    "success": "✓ 成功",
+    "failed": "✗ 失败",
+    "loadError": "无法加载仪表板"
+  },
+  "events": {
+    "title": "事件",
+    "subtitle": "已接收和处理的事件",
+    "allStatuses": "全部状态",
+    "allConnectors": "全部连接器",
+    "noEvents": "暂无事件",
+    "loadError": "无法加载事件",
+    "status": {
+      "processed": "✓ 已处理",
+      "pending": "○ 待处理",
+      "failed": "✗ 失败",
+      "dlq": "⚠ 死信队列"
+    }
+  },
+  "incidents": {
+    "title": "API Drift Incidents",
+    "subtitle": "由 schema-bridge 检测到的架构漂移",
+    "criticalActive": "严重活跃",
+    "majorActive": "主要活跃",
+    "totalActive": "活跃总计",
+    "allStatuses": "全部状态",
+    "allSeverities": "全部严重程度",
+    "noIncidents": "未找到事故",
+    "loadError": "无法加载事故",
+    "llmUnavailable": "LLM 不可用 — 请将 ANTHROPIC_API_KEY 添加到 control-plane/.env 并重启",
+    "analyzeWithLLM": "用 LLM 分析",
+    "analyzing": "分析中...",
+    "versionDelta": "版本差异",
+    "affectedTenants": "受影响租户",
+    "impactScore": "影响分数",
+    "remediationHints": "修复建议",
+    "detectedAt": "检测时间",
+    "resolvedAt": "解决时间",
+    "autoAnalysis": "自动",
+    "llmAnalysis": "AI",
+    "markResolved": "标记已解决",
+    "dismiss": "忽略",
+    "status": {
+      "open": "开放",
+      "investigating": "调查中",
+      "resolved": "已解决",
+      "dismissed": "已忽略"
+    },
+    "severity": {
+      "critical": "严重",
+      "major": "主要",
+      "minor": "次要"
+    }
+  },
+  "tenants": {
+    "title": "租户",
+    "subtitle": "平台租户管理",
+    "newTenant": "新建租户",
+    "allPlans": "全部计划",
+    "allStatuses": "全部状态",
+    "noTenants": "暂无租户",
+    "loadError": "无法加载租户",
+    "plan": "计划",
+    "createdAt": "创建时间",
+    "status": {
+      "active": "活跃",
+      "suspended": "已暂停",
+      "pending": "待处理",
+      "cancelled": "已取消"
+    }
+  },
+  "connectors": {
+    "title": "连接器",
+    "subtitle": "已配置的连接器",
+    "newConnector": "新建连接器",
+    "noConnectors": "暂无连接器",
+    "loadError": "无法加载连接器",
+    "test": "测试",
+    "protocol": "协议",
+    "version": "版本"
+  },
+  "workflows": {
+    "title": "工作流",
+    "subtitle": "集成流程",
+    "noWorkflows": "暂无工作流",
+    "loadError": "无法加载工作流"
+  },
+  "audit": {
+    "title": "审计",
+    "subtitle": "平台活动日志",
+    "noEvents": "暂无审计事件",
+    "loadError": "无法加载审计日志",
+    "action": "操作",
+    "user": "用户",
+    "resource": "资源",
+    "ip": "IP"
+  },
+  "schemaDiffs": {
+    "title": "架构差异",
+    "subtitle": "检测到的架构差异"
+  },
+  "mappingMemory": {
+    "title": "映射记忆",
+    "subtitle": "已学习的映射记忆"
+  },
+  "settings": {
+    "title": "设置",
+    "subtitle": "平台设置",
+    "language": "语言",
+    "theme": "主题",
+    "notifications": "通知"
+  },
+  "login": {
+    "title": "登录",
+    "email": "电子邮件",
+    "password": "密码",
+    "submit": "登录",
+    "error": "凭据无效"
+  },
+  "lang": {
+    "label": "语言",
+    "es": "Español",
+    "en": "English",
+    "pt": "Português",
+    "fr": "Français",
+    "de": "Deutsch",
+    "zh": "中文"
+  }
+}

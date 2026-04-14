@@ -1,0 +1,181 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "tenants": "Tenants",
+    "connectors": "Connectors",
+    "workflows": "Workflows",
+    "events": "Events",
+    "audit": "Audit",
+    "incidents": "Incidents",
+    "schemaDiffs": "Schema Diffs",
+    "mappingMemory": "Mapping Memory",
+    "settings": "Settings"
+  },
+  "common": {
+    "loading": "Loading...",
+    "noData": "No data",
+    "error": "Error",
+    "retry": "Retry",
+    "view": "View",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "filter": "Filter",
+    "all": "All",
+    "status": "Status",
+    "actions": "Actions",
+    "type": "Type",
+    "tenant": "Tenant",
+    "connector": "Connector",
+    "time": "Time",
+    "id": "ID",
+    "name": "Name",
+    "now": "now",
+    "logout": "Logout",
+    "live": "live",
+    "disconnected": "Disconnected",
+    "viewAll": "View all →",
+    "newItems": "+{{count}} new"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "IntegraX platform overview — real-time updates",
+    "activeTenants": "Active Tenants",
+    "eventsToday": "Events Today",
+    "configuredConnectors": "Configured Connectors",
+    "uptime": "Uptime",
+    "last30days": "Last 30 days",
+    "eventsPerHour": "Events per Hour",
+    "connectorUsage": "Connector Usage",
+    "recentEvents": "Recent Events",
+    "success": "✓ Success",
+    "failed": "✗ Failed",
+    "loadError": "Could not load dashboard"
+  },
+  "events": {
+    "title": "Events",
+    "subtitle": "Received and processed events",
+    "allStatuses": "All statuses",
+    "allConnectors": "All connectors",
+    "noEvents": "No events",
+    "loadError": "Could not load events",
+    "status": {
+      "processed": "✓ Processed",
+      "pending": "○ Pending",
+      "failed": "✗ Failed",
+      "dlq": "⚠ DLQ"
+    }
+  },
+  "incidents": {
+    "title": "API Drift Incidents",
+    "subtitle": "Schema drift detected by schema-bridge",
+    "criticalActive": "Critical Active",
+    "majorActive": "Major Active",
+    "totalActive": "Total Active",
+    "allStatuses": "All statuses",
+    "allSeverities": "All severities",
+    "noIncidents": "No incidents found",
+    "loadError": "Could not load incidents",
+    "llmUnavailable": "LLM unavailable — add ANTHROPIC_API_KEY to control-plane/.env and restart",
+    "analyzeWithLLM": "Analyze with LLM",
+    "analyzing": "Analyzing...",
+    "versionDelta": "Version delta",
+    "affectedTenants": "Affected tenants",
+    "impactScore": "Impact score",
+    "remediationHints": "Remediation hints",
+    "detectedAt": "Detected",
+    "resolvedAt": "Resolved",
+    "autoAnalysis": "auto",
+    "llmAnalysis": "llm",
+    "markResolved": "Mark resolved",
+    "dismiss": "Dismiss",
+    "status": {
+      "open": "Open",
+      "investigating": "Investigating",
+      "resolved": "Resolved",
+      "dismissed": "Dismissed"
+    },
+    "severity": {
+      "critical": "Critical",
+      "major": "Major",
+      "minor": "Minor"
+    }
+  },
+  "tenants": {
+    "title": "Tenants",
+    "subtitle": "Platform tenant management",
+    "newTenant": "New Tenant",
+    "allPlans": "All plans",
+    "allStatuses": "All statuses",
+    "noTenants": "No tenants",
+    "loadError": "Could not load tenants",
+    "plan": "Plan",
+    "createdAt": "Created",
+    "status": {
+      "active": "Active",
+      "suspended": "Suspended",
+      "pending": "Pending",
+      "cancelled": "Cancelled"
+    }
+  },
+  "connectors": {
+    "title": "Connectors",
+    "subtitle": "Configured connectors",
+    "newConnector": "New Connector",
+    "noConnectors": "No connectors",
+    "loadError": "Could not load connectors",
+    "test": "Test",
+    "protocol": "Protocol",
+    "version": "Version"
+  },
+  "workflows": {
+    "title": "Workflows",
+    "subtitle": "Integration flows",
+    "noWorkflows": "No workflows",
+    "loadError": "Could not load workflows"
+  },
+  "audit": {
+    "title": "Audit",
+    "subtitle": "Platform activity log",
+    "noEvents": "No audit events",
+    "loadError": "Could not load audit log",
+    "action": "Action",
+    "user": "User",
+    "resource": "Resource",
+    "ip": "IP"
+  },
+  "schemaDiffs": {
+    "title": "Schema Diffs",
+    "subtitle": "Detected schema differences"
+  },
+  "mappingMemory": {
+    "title": "Mapping Memory",
+    "subtitle": "Learned mapping memory"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Platform settings",
+    "language": "Language",
+    "theme": "Theme",
+    "notifications": "Notifications"
+  },
+  "login": {
+    "title": "Sign in",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "error": "Invalid credentials"
+  },
+  "lang": {
+    "label": "Language",
+    "es": "Español",
+    "en": "English",
+    "pt": "Português",
+    "fr": "Français",
+    "de": "Deutsch",
+    "zh": "中文"
+  }
+}
