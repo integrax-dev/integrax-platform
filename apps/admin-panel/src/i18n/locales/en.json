@@ -158,6 +158,22 @@
       "type_changed": "~ Type changed",
       "moved_to_nested": "→ Moved/nested",
       "needs_investigation": "? Unclear"
+    },
+    "kind": {
+      "field_removed": "Field removed",
+      "field_added": "Field added",
+      "type_changed": "Type changed",
+      "rename_candidate": "Possible rename"
+    },
+    "hint": {
+      "field_removed": "The '{{field}}' field was available in the previous version but is no longer present. Integrations that depend on it may fail or return empty values.",
+      "field_added": "A new '{{field}}' field appeared in the current version. Check whether your integration needs to handle it.",
+      "type_changed": "The data type of '{{field}}' changed between versions. Without a conversion step this may cause errors at runtime.",
+      "rename_candidate": "'{{a}}' and '{{b}}' may represent the same data with a different name. Confirm whether the mapping is correct.",
+      "format_changed": "The format of '{{field}}' changed. Validation rules may need to be updated.",
+      "nullability_changed": "'{{field}}' changed between required and optional. Make sure required fields are still being provided.",
+      "constraint_changed": "The allowed values for '{{field}}' changed. Make sure existing values are still accepted.",
+      "default": "A change was detected in '{{field}}'. Review the details and confirm the impact."
     }
   },
   "tenants": {

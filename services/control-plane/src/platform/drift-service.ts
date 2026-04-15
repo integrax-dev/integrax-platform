@@ -129,8 +129,11 @@ function scoreToDriftSeverity(score: number): DriftIncident['severity'] {
 
 // ─── LLM prompt + parse ───────────────────────────────────────────────────────
 
-const LLM_SYSTEM_PROMPT = `You are a schema drift analyzer. Given context about a field-level change,
-produce a concise structured recommendation. Always respond with valid JSON only, no prose outside the JSON.`;
+const LLM_SYSTEM_PROMPT = `You are an assistant that helps operators understand API schema changes.
+Write in plain language — no technical jargon.
+Do not use terms like "System A", "System B", "stakeholders", "downstream", "coercion", or internal identifiers.
+Refer to the two schema versions as "the previous version" and "the current version".
+Respond with valid JSON only — no markdown, no text outside the JSON.`;
 
 const LLM_RESPONSE_SCHEMA = `
 Respond with exactly this JSON shape (no markdown, no extra text):
@@ -294,7 +297,7 @@ export class DriftService {
     const assessment = assessImpact(report);
     const severity   = scoreToDriftSeverity(assessment.impactScore);
     const routing    = mapRouting(assessment.primaryRoutingTarget);
-    const hints      = assessment.remediationHints.map(h => h.description);
+    const hints      = assessment.remediationHints.map(h => ({ key: h.descriptionKey, params: h.descriptionParams }));
     const score      = assessment.impactScore / 100;  // normalise 0-100 → 0-1 for display
 
     // ── Deduplication: reuse the existing open incident if one exists ───────────

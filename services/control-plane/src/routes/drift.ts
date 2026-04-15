@@ -198,7 +198,7 @@ driftRouter.post(
         });
       }
 
-      const { escalationIndex } = req.body as { escalationIndex: number };
+      const { escalationIndex, locale } = req.body as { escalationIndex: number; locale?: string };
 
       if (typeof escalationIndex !== 'number') {
         return res.status(400).json({ success: false, error: 'escalationIndex (number) is required' });
@@ -236,17 +236,26 @@ driftRouter.post(
 
       const client = new sdk.default({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-      const systemPrompt = `You are a schema drift analyzer. Given context about a field-level change,
-produce a concise structured recommendation. Always respond with valid JSON only, no prose outside the JSON.`;
+      const LOCALE_NAMES: Record<string, string> = {
+        es: 'Spanish', en: 'English', pt: 'Portuguese',
+        fr: 'French',  de: 'German',  zh: 'Chinese',
+      };
+      const langName = LOCALE_NAMES[locale ?? 'en'] ?? 'English';
+
+      const systemPrompt = `You are an assistant helping operators understand API schema changes.
+Write in ${langName}, using plain and direct language — no technical jargon.
+Do not use terms like "System A", "System B", "stakeholders", "downstream", "coercion", or internal identifiers.
+Refer to the two schema versions simply as "the previous version" and "the current version".
+Respond with valid JSON only — no markdown, no text outside the JSON.`;
 
       const userPrompt = `${escalation.promptSeed}
 
 Respond with exactly this JSON shape (no markdown, no extra text):
 {
   "action": "renamed_to" | "truly_removed" | "type_changed" | "moved_to_nested" | "needs_investigation",
-  "suggestion": "<one-sentence recommendation for the operator>",
+  "suggestion": "<one-sentence recommendation, in ${langName}>",
   "confidence": <0.0–1.0>,
-  "reasoning": "<two-sentence max explanation>"
+  "reasoning": "<two-sentence max explanation, in ${langName}>"
 }`;
 
       const message = await client.messages.create({

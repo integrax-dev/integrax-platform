@@ -84,7 +84,7 @@ interface DriftIncident {
   bridgeReport: BridgeReport | null;
   impactScore: number | null;
   routingTarget: RoutingTarget | null;
-  remediationHints: string[];
+  remediationHints: Array<{ key: string; params: Record<string, string> }>;
   affectedTenants: string[];
   /** Pre-computed LLM analysis — auto-populated for critical incidents on ingest,
    *  on-demand for others. Empty array means not yet analyzed. */
@@ -303,12 +303,6 @@ function DiffTable({ conflicts }: { conflicts: ResolvedConflict[] }) {
                       )}
                     </div>
                   </div>
-                  {/* llmReason as sub-line when present */}
-                  {rc.llmRequired && rc.llmReason && li === 0 && (
-                    <div style={{ paddingLeft: 54, paddingBottom: 5, fontSize: 11, color: '#7c3aed', fontFamily: 'system-ui, sans-serif', opacity: 0.8 }}>
-                      {rc.llmReason}
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
@@ -343,7 +337,7 @@ function LLMEscalationsSection({
   incidentId: string;
   preComputed: LLMAnalysisResult[];
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   // Seed state with any analysis already stored in Postgres
   const [analyses, setAnalyses] = useState<Record<number, AIAnalysis>>(() => {
     const seed: Record<number, AIAnalysis> = {};
@@ -366,7 +360,7 @@ function LLMEscalationsSection({
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ escalationIndex: index }),
+          body: JSON.stringify({ escalationIndex: index, locale: i18n.language }),
         },
       );
       setAnalyses(prev => ({ ...prev, [index]: result.data }));
@@ -415,9 +409,6 @@ function LLMEscalationsSection({
                 <code style={{ fontSize: 12, color: '#5b21b6', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {esc.diff.pathA ?? esc.diff.pathB ?? '—'}
                 </code>
-                <span style={{ fontSize: 11, color: '#7c3aed', flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {esc.reason}
-                </span>
                 {!analysis && (
                   <button
                     disabled={isLoading}
@@ -862,7 +853,9 @@ export function Incidents() {
                       </div>
                       <ul style={{ margin: 0, paddingLeft: 16 }}>
                         {incident.remediationHints.map((h, i) => (
-                          <li key={i} style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 2 }}>{h}</li>
+                          <li key={i} style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 2 }}>
+                            {t(h.key, h.params as Record<string, unknown>)}
+                          </li>
                         ))}
                       </ul>
                     </div>

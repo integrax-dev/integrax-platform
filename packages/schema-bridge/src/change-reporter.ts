@@ -281,11 +281,11 @@ export class ChangeReporter {
 function buildPromptSeed(rc: ResolvedConflict): string {
   const { diff } = rc;
   return [
-    `Analizar diferencia entre Sistema A (campo: "${diff.pathA ?? 'N/A'}") y Sistema B (campo: "${diff.pathB ?? 'N/A'}").`,
-    `Tipo en A: ${diff.nodeA ? String(diff.nodeA.type) : 'ausente'}${diff.nodeA?.format ? ` (${diff.nodeA.format})` : ''}.`,
-    `Tipo en B: ${diff.nodeB ? String(diff.nodeB.type) : 'ausente'}${diff.nodeB?.format ? ` (${diff.nodeB.format})` : ''}.`,
-    `Motivo de escalación: ${rc.llmReason}`,
-    `Sugerir: (1) si es renombrado, (2) transformación necesaria, (3) si requiere campo nuevo en el modelo.`,
+    `Field change detected: previous version had "${diff.pathA ?? 'N/A'}", current version has "${diff.pathB ?? 'N/A'}".`,
+    `Type before: ${diff.nodeA ? String(diff.nodeA.type) : 'absent'}${diff.nodeA?.format ? ` (${diff.nodeA.format})` : ''}.`,
+    `Type after: ${diff.nodeB ? String(diff.nodeB.type) : 'absent'}${diff.nodeB?.format ? ` (${diff.nodeB.format})` : ''}.`,
+    `Reason for review: ${rc.llmReason}`,
+    `Suggest: (1) whether this is a rename, (2) what conversion is needed if any, (3) whether a new field must be added.`,
   ].join(' ');
 }
 

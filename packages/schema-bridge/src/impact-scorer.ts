@@ -32,6 +32,9 @@ export interface RemediationHint {
   severity: 'info' | 'warn' | 'error' | 'critical';
   title: string;
   description: string;
+  /** i18n key + params — frontend uses these to render in the active locale */
+  descriptionKey: string;
+  descriptionParams: Record<string, string>;
   suggestedAction: string;
   routeTo: RoutingTarget;
   /** If the transform was auto-generated, show the coercion expression */
@@ -74,7 +77,7 @@ export function assessImpact(report: BridgeReport): ImpactAssessment {
     const resolved = report.resolvedConflicts.find(
       rc => rc.diff.pathA === diff.pathA && rc.diff.pathB === diff.pathB && rc.diff.kind === diff.kind,
     );
-    const hint = buildHint(diff, resolved ?? null, report.connectorAId, report.connectorBId);
+    const hint = buildHint(diff, resolved ?? null);
     hints.push(hint);
   }
 
@@ -103,8 +106,6 @@ export function assessImpact(report: BridgeReport): ImpactAssessment {
 function buildHint(
   diff: FieldDiff,
   resolved: ResolvedConflict | null,
-  connA: string,
-  connB: string,
 ): RemediationHint {
   const diffId = `${diff.pathA ?? '_'}::${diff.pathB ?? '_'}::${diff.kind}`;
   const autoTransform = resolved?.mapping?.transform?.coercionFn ?? undefined;
@@ -116,10 +117,12 @@ function buildHint(
         kind: diff.kind,
         severity: diff.breakingScore >= 0.7 ? 'critical' : 'error',
         title: `Field removed: ${diff.pathA}`,
-        description: `"${diff.pathA}" exists in ${connA} but is absent in ${connB}. Any transform reading this field will produce undefined.`,
+        description: `The field "${diff.pathA}" was present in the previous version but is no longer available.`,
+        descriptionKey: 'incidents.hint.field_removed',
+        descriptionParams: { field: diff.pathA ?? '' },
         suggestedAction: resolved?.mapping
-          ? `Auto-mapped to "${resolved.mapping.pathB}" — review transform in generated TypeScript.`
-          : `Add a fallback default or mark this field as optional in the ${connB} schema. Run sync_record to push the updated mapping.`,
+          ? `Automatically mapped to "${resolved.mapping.pathB}" — verify the mapping is correct.`
+          : `Add a default value for this field, or confirm it is no longer needed and update any integrations that depend on it.`,
         routeTo: resolved?.resolution === 'deterministic' ? 'auto_resolved' : 'operator_review',
         autoTransform,
         operationCommand: 'sync_record',
@@ -131,10 +134,12 @@ function buildHint(
         kind: diff.kind,
         severity: 'info',
         title: `New field: ${diff.pathB}`,
-        description: `"${diff.pathB}" is present in ${connB} but not in ${connA}.`,
+        description: `A new field "${diff.pathB}" appeared in the current version.`,
+        descriptionKey: 'incidents.hint.field_added',
+        descriptionParams: { field: diff.pathB ?? '' },
         suggestedAction: resolved?.mapping
-          ? 'Auto-added with constant default — verify the default value is correct.'
-          : `Add this field to the ${connA} schema or set a constant default in the transform.`,
+          ? 'Added automatically with a default value — verify the default is correct.'
+          : `Include this field in your integration or set a constant default if it is not needed.`,
         routeTo: resolved?.resolution === 'deterministic' ? 'auto_resolved' : 'timeline_trace',
         autoTransform,
       };
@@ -145,10 +150,12 @@ function buildHint(
         kind: diff.kind,
         severity: 'error',
         title: `Type changed: ${diff.pathA} (${nodeTypeSummary(diff)} )`,
-        description: `Field type diverged between ${connA} and ${connB}. Coercion is required to prevent runtime errors.`,
+        description: `The data type of "${diff.pathA}" changed between versions.`,
+        descriptionKey: 'incidents.hint.type_changed',
+        descriptionParams: { field: diff.pathA ?? '' },
         suggestedAction: autoTransform
-          ? `Auto-coercion: \`${autoTransform}\`. Validate in staging before rolling to production.`
-          : `Implement a manual type coercion in the transform function. Consider whether precision loss is acceptable.`,
+          ? `A conversion was generated automatically. Review it before pushing to production.`
+          : `A manual conversion step is needed. Check whether any data precision could be lost.`,
         routeTo: diff.breakingScore >= 0.8 ? 'incident_alert' : 'operator_review',
         autoTransform,
         operationCommand: 'update_record',
@@ -160,10 +167,12 @@ function buildHint(
         kind: diff.kind,
         severity: resolved?.resolution === 'deterministic' ? 'info' : 'warn',
         title: `Possible rename: ${diff.pathA} → ${diff.pathB}`,
-        description: `Fields look similar but have different names. Confidence: ${((diff.similarity?.combined ?? 0) * 100).toFixed(0)}%.`,
+        description: `"${diff.pathA}" and "${diff.pathB}" may represent the same data with a different name.`,
+        descriptionKey: 'incidents.hint.rename_candidate',
+        descriptionParams: { a: diff.pathA ?? '', b: diff.pathB ?? '' },
         suggestedAction: resolved?.resolution === 'deterministic'
-          ? 'High-confidence auto-accept — rename applied in generated transform.'
-          : 'Review the mapping in the schema bridge UI and confirm or reject.',
+          ? 'Rename detected with high confidence and applied automatically. Verify the mapping is correct.'
+          : 'Confirm or reject this rename in the incident details.',
         routeTo: resolved?.resolution === 'deterministic' ? 'auto_resolved' : 'operator_review',
         autoTransform,
       };
@@ -174,7 +183,9 @@ function buildHint(
         kind: diff.kind,
         severity: 'warn',
         title: `Format changed: ${diff.pathA}`,
-        description: `The semantic format of "${diff.pathA}" changed (e.g. date → date-time, or plain string → email). Validation rules may need updating.`,
+        description: `The format of "${diff.pathA}" changed.`,
+        descriptionKey: 'incidents.hint.format_changed',
+        descriptionParams: { field: diff.pathA ?? '' },
         suggestedAction: 'Update input validation and any format-sensitive transforms.',
         routeTo: 'operator_review',
         autoTransform,
@@ -186,7 +197,9 @@ function buildHint(
         kind: diff.kind,
         severity: 'warn',
         title: `Nullability changed: ${diff.pathA}`,
-        description: `"${diff.pathA}" changed from required to optional (or vice versa). Downstream NOT NULL constraints may fail.`,
+        description: `"${diff.pathA}" changed between required and optional.`,
+        descriptionKey: 'incidents.hint.nullability_changed',
+        descriptionParams: { field: diff.pathA ?? '' },
         suggestedAction: 'Verify DB constraints and Zod schemas that assume non-null for this field.',
         routeTo: 'timeline_trace',
         autoTransform,
@@ -198,7 +211,9 @@ function buildHint(
         kind: diff.kind,
         severity: 'info',
         title: `Constraint changed: ${diff.pathA}`,
-        description: `Enum values or allowed values changed for "${diff.pathA}".`,
+        description: `The allowed values for "${diff.pathA}" changed.`,
+        descriptionKey: 'incidents.hint.constraint_changed',
+        descriptionParams: { field: diff.pathA ?? '' },
         suggestedAction: 'Update allowed value lists in validation schemas and operation payloads.',
         routeTo: 'timeline_trace',
         autoTransform,
@@ -211,6 +226,8 @@ function buildHint(
         severity: 'info',
         title: `Schema change: ${diff.pathA ?? diff.pathB}`,
         description: 'A schema change was detected.',
+        descriptionKey: 'incidents.hint.default',
+        descriptionParams: { field: diff.pathA ?? diff.pathB ?? '' },
         suggestedAction: 'Review the diff manually.',
         routeTo: 'timeline_trace',
       };
@@ -224,6 +241,8 @@ function buildRequirementHint(req: FunctionalRequirement, level: 'breaking' | 'n
     severity: level === 'breaking' ? 'critical' : 'warn',
     title: req.title,
     description: req.description,
+    descriptionKey: 'incidents.hint.default',
+    descriptionParams: { field: req.title },
     suggestedAction: req.generatedTransform
       ? `Generated transform available: \`${req.generatedTransform}\``
       : 'Manual implementation required.',

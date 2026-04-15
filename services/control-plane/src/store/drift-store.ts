@@ -46,7 +46,7 @@ export interface DriftIncident {
   bridgeReport: BridgeReport | null;
   impactScore: number | null;
   routingTarget: RoutingTarget | null;
-  remediationHints: string[];
+  remediationHints: Array<{ key: string; params: Record<string, string> }>;
   affectedTenants: string[];
   /** AI analysis results — one entry per resolved escalation. Auto-populated for
    *  critical incidents; available on-demand for others. */
@@ -92,7 +92,11 @@ function toIncident(r: IncidentRow): DriftIncident {
     bridgeReport: r.bridge_report as BridgeReport | null,
     impactScore: r.impact_score !== null ? Number(r.impact_score) : null,
     routingTarget: r.routing_target as RoutingTarget | null,
-    remediationHints: r.remediation_hints ?? [],
+    remediationHints: ((r.remediation_hints ?? []) as Array<unknown>).map(h =>
+      typeof h === 'string'
+        ? { key: 'incidents.hint.field_removed', params: { field: h } }
+        : h as { key: string; params: Record<string, string> }
+    ),
     affectedTenants: r.affected_tenants ?? [],
     llmAnalysis: r.llm_analysis ?? [],
     detectedAt: r.detected_at,
