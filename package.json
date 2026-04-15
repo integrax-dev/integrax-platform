@@ -13,6 +13,7 @@
     "test": "pnpm -r test",
     "test:real": "tsx scripts/test-real.ts",
     "test:integration": "tsx scripts/test-integration.ts",
+    "test:e2e:incidents:env": "tsx scripts/e2e-incidents-env.ts",
     "verify:services:live": "tsx scripts/verify-service-reality.ts",
     "verify:surface": "tsx scripts/verify-integration-surface.ts",
     "test:surface:unit": "tsx --test scripts/__tests__/verify-integration-surface.test.ts",

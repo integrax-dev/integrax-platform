@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: integrax
+      POSTGRES_PASSWORD: integrax
+      POSTGRES_DB: integrax
+    ports:
+      - "${E2E_PG_PORT:-55432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../mvp/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ../mvp/02-schema-versioning.sql:/docker-entrypoint-initdb.d/02-schema-versioning.sql:ro
+      - ../mvp/03-mapping-memory.sql:/docker-entrypoint-initdb.d/03-mapping-memory.sql:ro
+      - ../mvp/04-tenants-connectors.sql:/docker-entrypoint-initdb.d/04-tenants-connectors.sql:ro
+      - ../../../db/migrations/009_drift_incidents.sql:/docker-entrypoint-initdb.d/09-drift-incidents.sql:ro
+      - ../../../db/migrations/010_drift_llm_analysis.sql:/docker-entrypoint-initdb.d/10-drift-llm-analysis.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U integrax"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    ports:
+      - "${E2E_REDIS_PORT:-56379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  postgres_data:
+  redis_data:

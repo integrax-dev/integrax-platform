@@ -91,7 +91,13 @@
     "autoAnalysis": "自动",
     "llmAnalysis": "AI",
     "markResolved": "标记已解决",
+    "markInvestigating": "调查",
+    "resolve": "解决",
     "dismiss": "忽略",
+    "startRemediation": "开始修复",
+    "starting": "启动中…",
+    "saving": "保存中…",
+    "refresh": "↺ 刷新",
     "status": {
       "open": "开放",
       "investigating": "调查中",
@@ -129,13 +135,27 @@
     "loadError": "无法加载连接器",
     "test": "测试",
     "protocol": "协议",
-    "version": "版本"
+    "version": "版本",
+    "connectedLabel": "已连接",
+    "configure": "配置",
+    "learnApi": "学习新 API",
+    "learnApiDesc": "LLM 将分析文档并自动生成完整连接器。",
+    "startLearning": "开始学习"
   },
   "workflows": {
     "title": "工作流",
     "subtitle": "集成流程",
     "noWorkflows": "暂无工作流",
-    "loadError": "无法加载工作流"
+    "loadError": "无法加载工作流",
+    "newWorkflow": "新建工作流",
+    "active": "活跃",
+    "paused": "已暂停",
+    "manual": "手动",
+    "successes": "成功",
+    "failures": "失败",
+    "viewRuns": "查看执行记录",
+    "pause": "暂停",
+    "activate": "激活"
   },
   "audit": {
     "title": "审计",

@@ -91,7 +91,13 @@
     "autoAnalysis": "auto",
     "llmAnalysis": "llm",
     "markResolved": "Als gelöst markieren",
+    "markInvestigating": "Untersuchen",
+    "resolve": "Lösen",
     "dismiss": "Verwerfen",
+    "startRemediation": "Behebung starten",
+    "starting": "Startet…",
+    "saving": "Speichern…",
+    "refresh": "↺ Aktualisieren",
     "status": {
       "open": "Offen",
       "investigating": "Wird untersucht",
@@ -129,13 +135,27 @@
     "loadError": "Konnektoren konnten nicht geladen werden",
     "test": "Testen",
     "protocol": "Protokoll",
-    "version": "Version"
+    "version": "Version",
+    "connectedLabel": "Verbunden",
+    "configure": "Konfigurieren",
+    "learnApi": "Neue API lernen",
+    "learnApiDesc": "Das LLM analysiert die Dokumentation und generiert automatisch einen vollständigen Konnektor.",
+    "startLearning": "Lernen starten"
   },
   "workflows": {
     "title": "Workflows",
     "subtitle": "Integrationsabläufe",
     "noWorkflows": "Keine Workflows",
-    "loadError": "Workflows konnten nicht geladen werden"
+    "loadError": "Workflows konnten nicht geladen werden",
+    "newWorkflow": "Neuer Workflow",
+    "active": "Aktiv",
+    "paused": "Pausiert",
+    "manual": "Manuell",
+    "successes": "Erfolge",
+    "failures": "Fehler",
+    "viewRuns": "Ausführungen ansehen",
+    "pause": "Pausieren",
+    "activate": "Aktivieren"
   },
   "audit": {
     "title": "Audit",

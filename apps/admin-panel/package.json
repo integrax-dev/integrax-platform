@@ -9,6 +9,11 @@
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "lint:strict": "eslint . --max-warnings=0",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:install": "playwright install chromium",
+    "test:e2e:live": "playwright test -c playwright.live.config.ts",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -26,6 +31,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.55.0",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",

@@ -9,8 +9,8 @@ import {
   parseProtobuf,
 } from './protocol-parsers.js';
 
-// Helper — extract just the names from a ParsedField array
-const names = (fields: ReturnType<typeof parseCsv>) => fields.map(f => f.name);
+// Helper — extract just the paths from a SchemaField array
+const names = (fields: ReturnType<typeof parseCsv>) => fields.map(f => f.path);
 
 // ─── CSV ──────────────────────────────────────────────────────────────────────
 
@@ -55,9 +55,10 @@ describe('parseCsv', () => {
   it('returns every field with correct ParsedField shape', () => {
     const fields = parseCsv('id,name');
     for (const f of fields) {
-      expect(f.types).toEqual(['string']);
-      expect(f.nullable).toBe(false);
-      expect(f.frequency).toBe(1);
+      expect(f.required).toBe(true);
+      expect(f.node.type).toBe('string');
+      expect(f.node.nullable).toBe(false);
+      expect(f.node.examples).toEqual([]);
     }
   });
 });
@@ -112,8 +113,8 @@ describe('parseAvro', () => {
       ],
     });
     const fields = parseAvro(schema);
-    expect(fields.find(f => f.name === 'phone')?.nullable).toBe(true);
-    expect(fields.find(f => f.name === 'name')?.nullable).toBe(false);
+    expect(fields.find(f => f.path === 'phone')?.node.nullable).toBe(true);
+    expect(fields.find(f => f.path === 'name')?.node.nullable).toBe(false);
   });
 
   it('handles flat { fields: [...] } without type wrapper', () => {
@@ -276,8 +277,8 @@ describe('parseParquet', () => {
       columns: [{ name: 'id', nullable: false }, { name: 'note', nullable: true }],
     });
     const fields = parseParquet(schema);
-    expect(fields.find(f => f.name === 'note')?.nullable).toBe(true);
-    expect(fields.find(f => f.name === 'id')?.nullable).toBe(false);
+    expect(fields.find(f => f.path === 'note')?.node.nullable).toBe(true);
+    expect(fields.find(f => f.path === 'id')?.node.nullable).toBe(false);
   });
 
   it('parses Parquet DDL text (message syntax)', () => {

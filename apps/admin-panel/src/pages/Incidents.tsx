@@ -618,19 +618,19 @@ export function Incidents() {
           disabled={loading}
           className="btn btn-secondary"
         >
-          {loading ? 'Loading…' : '↺ Refresh'}
+          {loading ? t('common.loading') : t('incidents.refresh')}
         </button>
       </div>
 
       {/* Summary cards */}
       <div className="stats-grid" style={{ marginBottom: 8 }}>
         {([
-          { labelKey: 'incidents.criticalActive', value: summary.critical, color: '#ef4444' },
-          { labelKey: 'incidents.majorActive',    value: summary.major,    color: '#f59e0b' },
-          { labelKey: 'incidents.totalActive',    value: summary.total,    color: '#6366f1' },
-          { labelKey: 'common.all',               value: summary.resolved, color: '#10b981' },
-        ] as const).map(({ labelKey, value, color }) => (
-          <div key={labelKey} style={{
+          { id: 'critical-active', labelKey: 'incidents.criticalActive', value: summary.critical, color: '#ef4444' },
+          { id: 'major-active',    labelKey: 'incidents.majorActive',    value: summary.major,    color: '#f59e0b' },
+          { id: 'total-active',    labelKey: 'incidents.totalActive',    value: summary.total,    color: '#6366f1' },
+          { id: 'resolved',        labelKey: 'incidents.status.resolved', value: summary.resolved, color: '#10b981' },
+        ] as const).map(({ id, labelKey, value, color }) => (
+          <div key={id} data-testid={`incidents-summary-${id}`} style={{
             background: '#fff', borderRadius: 10, padding: '16px 20px',
             border: '1px solid var(--border-color)',
             borderLeft: `4px solid ${color}`,
@@ -649,18 +649,22 @@ export function Incidents() {
       {/* Filters */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         {([
-          { labelKey: 'incidents.severityLabel', label: 'Severity', value: filterSeverity, setter: setFilterSeverity,
+          { id: 'severity', labelKey: 'incidents.severityLabel', label: 'Severity', value: filterSeverity, setter: setFilterSeverity,
             options: [['all', t('common.all')],['critical','Critical'],['major','Major'],['minor','Minor']] as [string,string][] },
-          { labelKey: 'common.status', label: 'Status', value: filterStatus, setter: setFilterStatus,
+          { id: 'status', labelKey: 'common.status', label: 'Status', value: filterStatus, setter: setFilterStatus,
             options: [['all', t('common.all')],['open', t('incidents.status.open')],['investigating', t('incidents.status.investigating')],['resolved', t('incidents.status.resolved')],['dismissed', t('incidents.status.dismissed')]] as [string,string][] },
-          { labelKey: 'incidents.protocolLabel', label: 'Protocol', value: filterProtocol, setter: setFilterProtocol,
+          { id: 'protocol', labelKey: 'incidents.protocolLabel', label: 'Protocol', value: filterProtocol, setter: setFilterProtocol,
             options: [['all', t('common.all')],['sql','SQL'],['openapi','OpenAPI'],['avro','Avro'],['csv','CSV'],['jsonl','JSONL'],['xml','XML'],['soap','SOAP'],['graphql','GraphQL'],['parquet','Parquet'],['protobuf','Protobuf']] as [string,string][] },
-        ]).map(({ labelKey, label, value, setter, options }) => (
+        ]).map(({ id, labelKey, label, value, setter, options }) => {
+          const selectId = `incidents-filter-${id}`;
+          return (
           <div key={labelKey} style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
-            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.02em' }}>
+            <label htmlFor={selectId} style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.02em' }}>
               {label}
             </label>
             <select
+              id={selectId}
+              data-testid={selectId}
               value={value}
               onChange={e => (setter as (v: string) => void)(e.target.value)}
               style={{
@@ -672,7 +676,8 @@ export function Incidents() {
               {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Error */}
@@ -680,7 +685,7 @@ export function Incidents() {
         <div style={{ padding: 14, background: 'rgba(239,68,68,0.06)', borderRadius: 8, border: '1px solid rgba(239,68,68,0.2)', color: '#dc2626', marginBottom: 16, fontSize: 13 }}>
           {error} —{' '}
           <button onClick={() => void load()} style={{ color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
-            retry
+            {t('common.retry').toLowerCase()}
           </button>
         </div>
       )}
@@ -689,7 +694,7 @@ export function Incidents() {
       {!loading && !error && filtered.length === 0 && (
         <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text-muted)', background: '#fff', borderRadius: 10, border: '1px solid var(--border-color)' }}>
           <div style={{ fontSize: 28, marginBottom: 10, opacity: 0.6 }}>✓</div>
-          <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--text-secondary)', marginBottom: 6 }}>No incidents match the current filters</div>
+          <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--text-secondary)', marginBottom: 6 }}>{t('incidents.noIncidents')}</div>
           <div style={{ fontSize: 13 }}>
             Submit schemas via <code style={{ background: 'var(--bg-tertiary)', padding: '1px 6px', borderRadius: 4, fontSize: 12 }}>POST /api/drift/ingest</code> to start detecting drift
           </div>
@@ -721,6 +726,7 @@ export function Incidents() {
           return (
             <div
               key={incident.id}
+              data-testid={`incident-card-${incident.id}`}
               style={{
                 background: '#fff',
                 borderRadius: 10,
@@ -879,7 +885,7 @@ export function Incidents() {
                           opacity: isRemediating ? 0.6 : 1,
                         }}
                       >
-                        {isRemediating ? 'Starting…' : '🚨 Start Remediation'}
+                        {isRemediating ? t('incidents.starting') : `🚨 ${t('incidents.startRemediation')}`}
                       </button>
                     )}
 
@@ -893,7 +899,7 @@ export function Incidents() {
                           cursor: isUpdating ? 'not-allowed' : 'pointer', opacity: isUpdating ? 0.6 : 1,
                         }}
                       >
-                        Mark Investigating
+                        {t('incidents.markInvestigating')}
                       </button>
                     )}
                     {(incident.status === 'open' || incident.status === 'investigating') && (
@@ -906,7 +912,7 @@ export function Incidents() {
                           cursor: isUpdating ? 'not-allowed' : 'pointer', opacity: isUpdating ? 0.6 : 1,
                         }}
                       >
-                        Resolve
+                        {t('incidents.resolve')}
                       </button>
                     )}
                     {incident.status === 'open' && (
@@ -919,11 +925,11 @@ export function Incidents() {
                           cursor: isUpdating ? 'not-allowed' : 'pointer', opacity: isUpdating ? 0.6 : 1,
                         }}
                       >
-                        Dismiss
+                        {t('incidents.dismiss')}
                       </button>
                     )}
                     {(isUpdating || isRemediating) && (
-                      <span style={{ fontSize: 12, color: '#94a3b8' }}>Saving…</span>
+                      <span style={{ fontSize: 12, color: '#94a3b8' }}>{t('incidents.saving')}</span>
                     )}
                   </div>
 

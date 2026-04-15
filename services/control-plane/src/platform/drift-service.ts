@@ -20,16 +20,19 @@
 
 import { ulid } from 'ulid';
 import { EventEmitter } from 'events';
+import { createHash } from 'crypto';
 import {
   SqlDdlAdapter,
   OpenApiAdapter,
   createSchemaBridge,
   assessImpact,
   type InferredJsonSchema,
+  type SchemaField,
 } from '@integrax/schema-bridge';
 import { createLogger } from '@integrax/logger';
 import {
   getBaseline,
+  getDriftIncident,
   saveBaseline,
   saveDriftIncident,
   saveDriftLlmAnalysis,
@@ -48,14 +51,25 @@ import {
 import {
   parseCsv, parseJsonl, parseAvro, parseXml,
   parseGraphql, parseParquet, parseProtobuf,
-  type ParsedField,
 } from './protocol-parsers.js';
 import { emitPlatformEvent } from './platform-emitter.js';
 
 const logger = createLogger({ service: 'drift-service' });
 
-function makeSchema(fields: ParsedField[], sampleCount = 1): InferredJsonSchema {
-  return { fields, fingerprint: ulid(), sampleCount } as unknown as InferredJsonSchema;
+function fingerprintFields(fields: SchemaField[]): string {
+  const canonical = [...fields]
+    .sort((left, right) => left.path.localeCompare(right.path))
+    .map(f => ({
+      path: f.path,
+      type: f.node.type,
+      format: f.node.format ?? null,
+    }));
+  return createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
+}
+
+function makeSchema(fields: SchemaField[], sampleCount = 1): InferredJsonSchema {
+  const sorted = [...fields].sort((left, right) => left.path.localeCompare(right.path));
+  return { fields: sorted, fingerprint: fingerprintFields(sorted), sampleCount };
 }
 
 // ─── Normalize raw input to InferredJsonSchema ─────────────────────────────────
@@ -226,8 +240,15 @@ export class DriftService {
     const schema = toSchema(protocol, raw);
     await saveBaseline(sourceId, protocol, schema as unknown as Record<string, unknown>);
 
-    const resolved = await resolveOpenIncidentsBySource(sourceId, protocol);
-    if (resolved > 0) {
+    const resolvedIds = await resolveOpenIncidentsBySource(sourceId, protocol);
+    const resolved = resolvedIds.length;
+    if (resolvedIds.length > 0) {
+      for (const id of resolvedIds) {
+        const incident = await getDriftIncident(id);
+        if (!incident) continue;
+        driftEventEmitter.emit('incident.updated', incident);
+        emitPlatformEvent('incident.updated', incident);
+      }
       logger.info({ sourceId, protocol, resolved }, 'Baseline captured — auto-resolved open incidents');
     } else {
       logger.info({ sourceId, protocol }, 'Baseline captured');

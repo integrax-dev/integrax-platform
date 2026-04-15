@@ -1,4 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { useAuthStore } from '../stores/auth';
 import { useTranslation } from 'react-i18next';
 import './Layout.css';
@@ -16,6 +17,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
+  const [langOpen, setLangOpen] = useState(false);
 
   const navItems = [
     { path: '/',               label: t('nav.dashboard'),     icon: '📊' },
@@ -67,18 +69,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="sidebar-footer">
           {/* Language switcher */}
           <div className="lang-switcher">
-            <span className="lang-current">{activeLang.flag} {activeLang.label}</span>
-            <div className="lang-dropdown">
-              {LANGUAGES.map(lang => (
-                <button
-                  key={lang.code}
-                  className={`lang-option ${currentLang === lang.code ? 'active' : ''}`}
-                  onClick={() => i18n.changeLanguage(lang.code)}
-                >
-                  {lang.flag} {lang.label}
-                </button>
-              ))}
-            </div>
+            <button
+              className="lang-current"
+              onClick={() => setLangOpen(o => !o)}
+              aria-expanded={langOpen}
+            >
+              {activeLang.flag} {activeLang.label} <span style={{ opacity: 0.5, fontSize: 9 }}>{langOpen ? '▲' : '▼'}</span>
+            </button>
+            {langOpen && (
+              <div className="lang-dropdown">
+                {LANGUAGES.map(lang => (
+                  <button
+                    key={lang.code}
+                    className={`lang-option ${currentLang === lang.code ? 'active' : ''}`}
+                    onClick={() => { i18n.changeLanguage(lang.code); setLangOpen(false); }}
+                  >
+                    {lang.flag} {lang.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="user-info">

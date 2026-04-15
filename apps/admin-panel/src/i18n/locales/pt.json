@@ -91,7 +91,13 @@
     "autoAnalysis": "auto",
     "llmAnalysis": "llm",
     "markResolved": "Marcar resolvido",
+    "markInvestigating": "Investigar",
+    "resolve": "Resolver",
     "dismiss": "Descartar",
+    "startRemediation": "Iniciar Remediação",
+    "starting": "Iniciando…",
+    "saving": "Salvando…",
+    "refresh": "↺ Atualizar",
     "status": {
       "open": "Aberto",
       "investigating": "Investigando",
@@ -129,13 +135,27 @@
     "loadError": "Não foi possível carregar conectores",
     "test": "Testar",
     "protocol": "Protocolo",
-    "version": "Versão"
+    "version": "Versão",
+    "connectedLabel": "Conectado",
+    "configure": "Configurar",
+    "learnApi": "Aprender Nova API",
+    "learnApiDesc": "O LLM analisará a documentação e gerará um conector completo automaticamente.",
+    "startLearning": "Iniciar Aprendizado"
   },
   "workflows": {
     "title": "Workflows",
     "subtitle": "Fluxos de integração",
     "noWorkflows": "Sem workflows",
-    "loadError": "Não foi possível carregar workflows"
+    "loadError": "Não foi possível carregar workflows",
+    "newWorkflow": "Novo Workflow",
+    "active": "Ativo",
+    "paused": "Pausado",
+    "manual": "Manual",
+    "successes": "sucessos",
+    "failures": "falhas",
+    "viewRuns": "Ver Execuções",
+    "pause": "Pausar",
+    "activate": "Ativar"
   },
   "audit": {
     "title": "Auditoria",

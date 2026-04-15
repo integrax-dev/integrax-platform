@@ -8,15 +8,18 @@
  * Exported so they can be unit-tested independently of DriftService.
  */
 
-export type ParsedField = {
-  name: string;
-  types: ['string'];
-  nullable: boolean;
-  frequency: number;
-};
+import type { SchemaField, SchemaNode } from '@integrax/schema-bridge';
 
-function field(name: string, nullable = false): ParsedField {
-  return { name, types: ['string'], nullable, frequency: 1 };
+function node(nullable: boolean): SchemaNode {
+  return {
+    type: 'string',
+    nullable,
+    examples: [],
+  };
+}
+
+function field(path: string, nullable = false): SchemaField {
+  return { path, required: true, node: node(nullable) };
 }
 
 // ─── CSV ──────────────────────────────────────────────────────────────────────
@@ -27,7 +30,7 @@ function field(name: string, nullable = false): ParsedField {
  *
  * @example parseCsv('id,"full name",email\n1,Alice,a@b.com') → ['id','full name','email']
  */
-export function parseCsv(raw: string): ParsedField[] {
+export function parseCsv(raw: string): SchemaField[] {
   // Normalize CRLF → LF so Windows/Metabase exports work correctly
   const normalized = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const header = normalized.split('\n').find(l => l.trim().length > 0) ?? '';
@@ -44,7 +47,7 @@ export function parseCsv(raw: string): ParsedField[] {
  *
  * @example parseJsonl('{"id":1,"name":"x"}\n{"id":2,"name":"y"}') → ['id','name']
  */
-export function parseJsonl(raw: string): ParsedField[] {
+export function parseJsonl(raw: string): SchemaField[] {
   const firstLine = raw.split('\n').find(l => l.trim().startsWith('{'));
   if (!firstLine) return [];
   try {
@@ -63,7 +66,7 @@ export function parseJsonl(raw: string): ParsedField[] {
  *
  * @example parseAvro('{"type":"record","fields":[{"name":"id","type":"int"}]}') → ['id']
  */
-export function parseAvro(raw: string): ParsedField[] {
+export function parseAvro(raw: string): SchemaField[] {
   try {
     const schema = JSON.parse(raw) as any;
     const fields: any[] = schema.fields ?? schema.schema?.fields ?? [];
@@ -87,7 +90,7 @@ export function parseAvro(raw: string): ParsedField[] {
  *
  * @example parseXml('<root><id>1</id><name type="string">x</name></root>') → ['root','id','name','type']
  */
-export function parseXml(raw: string): ParsedField[] {
+export function parseXml(raw: string): SchemaField[] {
   const seen = new Set<string>();
 
   for (const [, tag] of raw.matchAll(/<([A-Za-z][A-Za-z0-9_:.-]*)[^>]*>/g)) {
@@ -112,7 +115,7 @@ export function parseXml(raw: string): ParsedField[] {
  *
  * @example parseGraphql('type User {\n  id: ID!\n  name: String\n}') → ['id','name']
  */
-export function parseGraphql(raw: string): ParsedField[] {
+export function parseGraphql(raw: string): SchemaField[] {
   const seen = new Set<string>();
   for (const [, f] of raw.matchAll(/^\s{2,}([A-Za-z_][A-Za-z0-9_]*)\s*(?:\([^)]*\))?\s*:/gm)) {
     seen.add(f);
@@ -133,7 +136,7 @@ export function parseGraphql(raw: string): ParsedField[] {
  *
  * @example parseParquet('{"columns":[{"name":"id"},{"name":"ts"}]}') → ['id','ts']
  */
-export function parseParquet(raw: string): ParsedField[] {
+export function parseParquet(raw: string): SchemaField[] {
   try {
     const obj = JSON.parse(raw) as any;
     const cols: any[] =
@@ -163,7 +166,7 @@ export function parseParquet(raw: string): ParsedField[] {
  *
  * @example parseProtobuf('message User { string name = 1; int32 age = 2; }') → ['name','age']
  */
-export function parseProtobuf(raw: string): ParsedField[] {
+export function parseProtobuf(raw: string): SchemaField[] {
   const KEYWORDS = new Set([
     'message', 'enum', 'service', 'rpc', 'returns', 'option',
     'syntax', 'package', 'import', 'oneof', 'map', 'extensions', 'reserved',

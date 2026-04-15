@@ -245,8 +245,8 @@ export async function updateDriftIncidentReport(
 export async function resolveOpenIncidentsBySource(
   sourceId: string,
   protocol: DriftProtocol,
-): Promise<number> {
-  const result = await pool.query<{ count: string }>(
+): Promise<string[]> {
+  const result = await pool.query<{ id: string }>(
     `UPDATE drift_incidents
      SET status     = 'resolved',
          resolved_at = NOW(),
@@ -255,7 +255,7 @@ export async function resolveOpenIncidentsBySource(
      RETURNING id`,
     [sourceId, protocol],
   );
-  return result.rowCount ?? 0;
+  return result.rows.map(r => r.id);
 }
 
 // ─── Baselines ────────────────────────────────────────────────────────────────

@@ -77,7 +77,7 @@
     "totalActive": "Total Active",
     "allStatuses": "All statuses",
     "allSeverities": "All severities",
-    "noIncidents": "No incidents found",
+    "noIncidents": "No incidents match the current filters",
     "loadError": "Could not load incidents",
     "llmUnavailable": "LLM unavailable — add ANTHROPIC_API_KEY to control-plane/.env and restart",
     "analyzeWithLLM": "Analyze with LLM",
@@ -91,7 +91,13 @@
     "autoAnalysis": "auto",
     "llmAnalysis": "llm",
     "markResolved": "Mark resolved",
+    "markInvestigating": "Mark Investigating",
+    "resolve": "Resolve",
     "dismiss": "Dismiss",
+    "startRemediation": "Start Remediation",
+    "starting": "Starting…",
+    "saving": "Saving…",
+    "refresh": "↺ Refresh",
     "status": {
       "open": "Open",
       "investigating": "Investigating",
@@ -129,13 +135,27 @@
     "loadError": "Could not load connectors",
     "test": "Test",
     "protocol": "Protocol",
-    "version": "Version"
+    "version": "Version",
+    "connectedLabel": "Connected",
+    "configure": "Configure",
+    "learnApi": "Learn New API",
+    "learnApiDesc": "The LLM will analyze the documentation and auto-generate a complete connector.",
+    "startLearning": "Start Learning"
   },
   "workflows": {
     "title": "Workflows",
     "subtitle": "Integration flows",
     "noWorkflows": "No workflows",
-    "loadError": "Could not load workflows"
+    "loadError": "Could not load workflows",
+    "newWorkflow": "New Workflow",
+    "active": "Active",
+    "paused": "Paused",
+    "manual": "Manual",
+    "successes": "successes",
+    "failures": "failures",
+    "viewRuns": "View Runs",
+    "pause": "Pause",
+    "activate": "Activate"
   },
   "audit": {
     "title": "Audit",
