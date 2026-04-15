@@ -21,7 +21,7 @@
  *   });
  */
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { buildAdminApiUrl } from './runtime';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -71,7 +71,8 @@ export function usePlatformStream({
   const mountedRef  = useRef(false);
   // Keep handlers ref fresh so reconnect loop always calls latest closures
   const handlersRef = useRef(handlers);
-  handlersRef.current = handlers;
+  // connectRef breaks the circular self-reference inside scheduleReconnect
+  const connectRef  = useRef<(() => void) | null>(null);
 
   const connect = useCallback(() => {
     if (!mountedRef.current) return;
@@ -91,7 +92,7 @@ export function usePlatformStream({
       const delay  = Math.min(delayRef.current * jitter, MAX_DELAY_MS);
       delayRef.current = Math.min(delayRef.current * 2, MAX_DELAY_MS);
       timerRef.current = setTimeout(() => {
-        if (mountedRef.current) connect();
+        if (mountedRef.current) connectRef.current?.();
       }, delay);
     };
 
@@ -150,6 +151,12 @@ export function usePlatformStream({
       scheduleReconnect();
     })();
   }, [getToken]);
+
+  // Sync both refs after every render — useLayoutEffect avoids mutating during render
+  useLayoutEffect(() => {
+    handlersRef.current = handlers;
+    connectRef.current  = connect;
+  });
 
   useEffect(() => {
     if (!enabled) return;

@@ -459,3 +459,98 @@ test('shows friendly error on 504 analyze', async ({ page }) => {
   await page.getByRole('button', { name: /Analyze with AI/i }).click();
   await expect(page.getByText('LLM service not responding')).toBeVisible();
 });
+
+test('expands incident and renders Schema Diffs table', async ({ page }) => {
+  const nowIso = new Date('2026-04-14T12:00:00.000Z').toISOString();
+  const incidents = buildIncidentsFixture(nowIso);
+  await mockIncidentsApi(page, { incidents });
+
+  await page.goto('/incidents');
+
+  // Expand the incident that has a bridge report
+  await page.getByText('source_investigating', { exact: true }).click();
+
+  const card = page.getByTestId('incident-card-inc-investigating');
+
+  // Schema Diffs header shows count
+  await expect(card.getByText(/Schema Diffs \(1\)/i)).toBeVisible();
+
+  // The diff hunk header
+  await expect(card.getByText('@@ schema diff @@')).toBeVisible();
+
+  // The renamed field paths are shown
+  await expect(card.getByText('name')).toBeVisible();
+  await expect(card.getByText('full_name')).toBeVisible();
+
+  // Fingerprint delta chip is visible
+  await expect(card.getByText(/aaaaaaaa/)).toBeVisible();
+  await expect(card.getByText(/bbbbbbbb/)).toBeVisible();
+
+  // Resolution summary: 1 pending LLM, 1 breaking
+  await expect(card.getByText(/pending.*LLM|LLM.*pending/i)).toBeVisible();
+  await expect(card.getByText(/breaking/i).first()).toBeVisible();
+});
+
+test('expands incident and shows Needs AI analysis section', async ({ page }) => {
+  const nowIso = new Date('2026-04-14T12:00:00.000Z').toISOString();
+  const incidents = buildIncidentsFixture(nowIso);
+  await mockIncidentsApi(page, { incidents });
+
+  await page.goto('/incidents');
+  await page.getByText('source_investigating', { exact: true }).click();
+
+  const card = page.getByTestId('incident-card-inc-investigating');
+
+  // LLM escalation section header
+  await expect(card.getByText(/Needs AI analysis \(1\)/i)).toBeVisible();
+
+  // The escalation reason from the fixture
+  await expect(card.getByText('Ambiguous rename vs new field')).toBeVisible();
+
+  // Analyze button
+  await expect(card.getByRole('button', { name: /Analyze with AI/i })).toBeVisible();
+});
+
+test('completes LLM analysis and shows result card', async ({ page }) => {
+  const nowIso = new Date('2026-04-14T12:00:00.000Z').toISOString();
+  const incidents = buildIncidentsFixture(nowIso);
+  await mockIncidentsApi(page, { incidents });
+
+  await page.goto('/incidents');
+  await page.getByText('source_investigating', { exact: true }).click();
+
+  const analyzeReq = page.waitForRequest((req) =>
+    req.method() === 'POST' && req.url().includes('/api/drift/incidents/inc-investigating/analyze'),
+  );
+  await page.getByRole('button', { name: /Analyze with AI/i }).click();
+  await analyzeReq;
+
+  const card = page.getByTestId('incident-card-inc-investigating');
+
+  // Default mock returns renamed_to with suggestion and 82% confidence
+  await expect(card.getByText('Treat as rename')).toBeVisible();
+  await expect(card.getByText('Likely field rename.')).toBeVisible();
+  await expect(card.getByText('82%')).toBeVisible();
+
+  // After analysis the Analyze button is replaced by action badge + Re-analyze
+  await expect(card.getByRole('button', { name: /Analyze with AI/i })).toHaveCount(0);
+  await expect(card.getByRole('button', { name: /Re-analyze/i })).toBeVisible();
+});
+
+test('incidents with null bridgeReport show no-diffs text', async ({ page }) => {
+  const nowIso = new Date('2026-04-14T12:00:00.000Z').toISOString();
+  const incidents = buildIncidentsFixture(nowIso);
+  await mockIncidentsApi(page, { incidents });
+
+  await page.goto('/incidents');
+
+  // Expand inc-open which has bridgeReport: null
+  await page.getByText('source_open', { exact: true }).click();
+
+  const card = page.getByTestId('incident-card-inc-open');
+
+  // No diffs text and no Schema Diffs section
+  await expect(card.getByText(/No diffs recorded/i)).toBeVisible();
+  await expect(card.getByText(/Schema Diffs/i)).toHaveCount(0);
+  await expect(card.getByText(/Needs AI analysis/i)).toHaveCount(0);
+});

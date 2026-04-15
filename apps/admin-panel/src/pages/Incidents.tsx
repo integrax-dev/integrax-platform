@@ -123,28 +123,36 @@ const PROTOCOL_COLOR: Record<DriftProtocol, string> = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+type TFn = (key: string, opts?: Record<string, unknown>) => string;
+
 function shortFingerprint(fp?: string): string {
   if (!fp) return '—';
   return fp.length > 10 ? fp.slice(0, 8) + '…' : fp;
 }
 
-/** Generates the one-liner summary shown in the collapsed row, e.g.
- *  "2 changes detected: field 'payments' was removed (+1 more)" */
-function changeSummary(conflicts: ResolvedConflict[]): string {
-  if (!conflicts.length) return 'No diffs recorded';
+/** Converts a raw sourceId like "source_open" to "Source Open" */
+function formatSourceId(id: string): string {
+  return id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+/** Generates the one-liner summary shown in the collapsed row */
+function changeSummary(conflicts: ResolvedConflict[], t: TFn): string {
+  if (!conflicts.length) return t('incidents.noChanges');
   const first = conflicts[0];
   const { kind, pathA, pathB } = first.diff;
   const name = pathA ?? pathB ?? '';
-  const kindDescriptions: Record<string, string> = {
-    field_removed:    `field '${name}' was removed`,
-    field_added:      `field '${name}' was added`,
-    type_changed:     `type changed on '${name}'`,
-    rename_candidate: `'${pathA}' may have been renamed to '${pathB}'`,
-  };
-  const firstDesc = kindDescriptions[kind] ?? `${kind.replace(/_/g, ' ')} on '${name}'`;
+  const desc = (() => {
+    switch (kind) {
+      case 'field_removed':    return t('incidents.diffFieldRemoved', { name });
+      case 'field_added':      return t('incidents.diffFieldAdded', { name });
+      case 'type_changed':     return t('incidents.diffTypeChanged', { name });
+      case 'rename_candidate': return t('incidents.diffRenameCandidate', { a: pathA, b: pathB });
+      default:                 return t('incidents.diffDefaultKind', { kind: kind.replace(/_/g, ' '), name });
+    }
+  })();
   const rest = conflicts.length - 1;
-  const suffix = rest > 0 ? ` (+${rest} more)` : '';
-  return `${conflicts.length} change${conflicts.length !== 1 ? 's' : ''} detected: ${firstDesc}${suffix}`;
+  const more = rest > 0 ? t('incidents.moreChanges', { count: rest }) : '';
+  return t('incidents.changeSummary', { count: conflicts.length, desc, more });
 }
 
 function timeAgo(iso: string): string {
@@ -173,23 +181,24 @@ function Badge({
 }
 
 function ResolutionSummary({ report }: { report: RequirementsReport | undefined }) {
+  const { t } = useTranslation();
   if (!report) return null;
   const s = report.summary;
   return (
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
       {s.resolvedDeterministically > 0 && (
         <span style={{ fontSize: 11, fontWeight: 600, color: '#059669', background: 'rgba(16,185,129,0.1)', padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(16,185,129,0.25)' }}>
-          ✓ {s.resolvedDeterministically} auto-resolved
+          {t('incidents.autoResolvedCount', { count: s.resolvedDeterministically })}
         </span>
       )}
       {s.llmEscalationCount > 0 && (
         <span style={{ fontSize: 11, fontWeight: 600, color: '#8b5cf6', background: 'rgba(139,92,246,0.1)', padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(139,92,246,0.25)' }}>
-          ⚡ {s.llmEscalationCount} pending LLM
+          {t('incidents.pendingLlmCount', { count: s.llmEscalationCount })}
         </span>
       )}
       {s.breakingCount > 0 && (
         <span style={{ fontSize: 11, fontWeight: 600, color: '#dc2626', background: 'rgba(239,68,68,0.08)', padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(239,68,68,0.2)' }}>
-          ✕ {s.breakingCount} breaking
+          {t('incidents.breakingCount', { count: s.breakingCount })}
         </span>
       )}
     </div>
@@ -197,20 +206,21 @@ function ResolutionSummary({ report }: { report: RequirementsReport | undefined 
 }
 
 /** Converts a diff kind + paths into a human-readable description line */
-function diffDescription(kind: string, pathA: string | null, pathB: string | null): string {
+function diffDescription(kind: string, pathA: string | null, pathB: string | null, t: TFn): string {
   const a = pathA ?? '?';
   const b = pathB ?? '?';
   switch (kind) {
-    case 'field_removed':    return `Field "${a}" was removed`;
-    case 'field_added':      return `Field "${b}" was added`;
-    case 'type_changed':     return `Type changed on "${a}"${b && b !== a ? ` → "${b}"` : ''}`;
-    case 'rename_candidate': return `"${a}" may have been renamed to "${b}"`;
+    case 'field_removed':    return t('incidents.diffRemovedDesc', { name: a });
+    case 'field_added':      return t('incidents.diffAddedDesc', { name: b });
+    case 'type_changed':     return t('incidents.diffTypeDesc', { name: a });
+    case 'rename_candidate': return t('incidents.diffRenameCandidate', { a, b });
     default:                 return `${kind.replace(/_/g, ' ')} on "${a}"`;
   }
 }
 
 /** GitHub-style diff with human-readable descriptions (like Antigraviity had) */
 function DiffTable({ conflicts }: { conflicts: ResolvedConflict[] }) {
+  const { t } = useTranslation();
   if (!conflicts.length) return null;
 
   type DiffLine = {
@@ -223,16 +233,16 @@ function DiffTable({ conflicts }: { conflicts: ResolvedConflict[] }) {
   return (
     <div style={{ marginTop: 14 }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-        Schema Diffs ({conflicts.length})
+        {t('incidents.schemaDiffsHeader', { count: conflicts.length })}
       </div>
       <div style={{
         borderRadius: 6, border: '1px solid #e2e8f0', overflow: 'hidden',
         fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
       }}>
-        {/* Hunk header */}
+        {/* Section header */}
         <div style={{ background: '#f6f8fa', borderBottom: '1px solid #e2e8f0', padding: '5px 14px', fontSize: 12, color: '#57606a', display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ fontWeight: 600 }}>@@ schema diff @@</span>
-          <span>{conflicts.length} change{conflicts.length !== 1 ? 's' : ''}</span>
+          <span style={{ fontWeight: 600 }}>{t('incidents.schemaDiffsTitle')}</span>
+          <span>{t('incidents.schemaDiffsChanges', { count: conflicts.length })}</span>
         </div>
 
         {conflicts.map((rc, i) => {
@@ -240,17 +250,17 @@ function DiffTable({ conflicts }: { conflicts: ResolvedConflict[] }) {
           const lines: DiffLine[] = [];
 
           if (diff.kind === 'field_removed') {
-            lines.push({ prefix: '-', path: diff.pathA ?? '?', description: diffDescription(diff.kind, diff.pathA, diff.pathB), bg: '#ffeef0', fg: '#b91c1c', borderLeft: '#dc2626' });
+            lines.push({ prefix: '-', path: diff.pathA ?? '?', description: diffDescription(diff.kind, diff.pathA, diff.pathB, t), bg: '#ffeef0', fg: '#b91c1c', borderLeft: '#dc2626' });
           } else if (diff.kind === 'field_added') {
-            lines.push({ prefix: '+', path: diff.pathB ?? '?', description: diffDescription(diff.kind, diff.pathA, diff.pathB), bg: '#e6ffed', fg: '#15803d', borderLeft: '#16a34a' });
+            lines.push({ prefix: '+', path: diff.pathB ?? '?', description: diffDescription(diff.kind, diff.pathA, diff.pathB, t), bg: '#e6ffed', fg: '#15803d', borderLeft: '#16a34a' });
           } else if (diff.kind === 'rename_candidate') {
-            lines.push({ prefix: '-', path: diff.pathA ?? '?', description: `Was: "${diff.pathA}"`, bg: '#ffeef0', fg: '#b91c1c', borderLeft: '#dc2626' });
-            lines.push({ prefix: '+', path: diff.pathB ?? '?', description: `Now: "${diff.pathB}" (rename candidate)`, bg: '#e6ffed', fg: '#15803d', borderLeft: '#16a34a' });
+            lines.push({ prefix: '-', path: diff.pathA ?? '?', description: t('incidents.diffRenameWas', { name: diff.pathA }), bg: '#ffeef0', fg: '#b91c1c', borderLeft: '#dc2626' });
+            lines.push({ prefix: '+', path: diff.pathB ?? '?', description: t('incidents.diffRenameNow', { name: diff.pathB }), bg: '#e6ffed', fg: '#15803d', borderLeft: '#16a34a' });
           } else if (diff.kind === 'type_changed') {
-            lines.push({ prefix: '-', path: diff.pathA ?? '?', description: `Before: "${diff.pathA}"`, bg: '#fff8f1', fg: '#c2410c', borderLeft: '#f97316' });
-            lines.push({ prefix: '+', path: diff.pathB ?? diff.pathA ?? '?', description: `After: "${diff.pathB ?? diff.pathA}" (type changed)`, bg: '#f0fdf4', fg: '#15803d', borderLeft: '#22c55e' });
+            lines.push({ prefix: '-', path: diff.pathA ?? '?', description: t('incidents.diffTypeBefore', { name: diff.pathA }), bg: '#fff8f1', fg: '#c2410c', borderLeft: '#f97316' });
+            lines.push({ prefix: '+', path: diff.pathB ?? diff.pathA ?? '?', description: t('incidents.diffTypeAfter', { name: diff.pathB ?? diff.pathA }), bg: '#f0fdf4', fg: '#15803d', borderLeft: '#22c55e' });
           } else {
-            lines.push({ prefix: '~', path: diff.pathA ?? diff.pathB ?? '?', description: diffDescription(diff.kind, diff.pathA, diff.pathB), bg: '#fffbeb', fg: '#92400e', borderLeft: '#d97706' });
+            lines.push({ prefix: '~', path: diff.pathA ?? diff.pathB ?? '?', description: diffDescription(diff.kind, diff.pathA, diff.pathB, t), bg: '#fffbeb', fg: '#92400e', borderLeft: '#d97706' });
           }
 
           return (
@@ -284,12 +294,12 @@ function DiffTable({ conflicts }: { conflicts: ResolvedConflict[] }) {
                     <div style={{ display: 'flex', gap: 5, alignItems: 'center', padding: '0 10px', flexShrink: 0 }}>
                       <span style={{ fontSize: 10, color: '#94a3b8' }}>{Math.round(rc.confidence * 100)}%</span>
                       {diff.breakingScore > 0.5 && (
-                        <span style={{ fontSize: 10, color: '#dc2626', fontWeight: 700, background: 'rgba(239,68,68,0.08)', padding: '1px 5px', borderRadius: 3 }}>breaking</span>
+                        <span style={{ fontSize: 10, color: '#dc2626', fontWeight: 700, background: 'rgba(239,68,68,0.08)', padding: '1px 5px', borderRadius: 3 }}>{t('incidents.breakingLabel')}</span>
                       )}
                       {rc.llmRequired ? (
-                        <span style={{ fontSize: 10, color: '#7c3aed', fontWeight: 700, background: '#faf5ff', padding: '1px 5px', borderRadius: 3 }}>⚡ llm</span>
+                        <span style={{ fontSize: 10, color: '#7c3aed', fontWeight: 700, background: '#faf5ff', padding: '1px 5px', borderRadius: 3 }}>{t('incidents.llmLabel')}</span>
                       ) : (
-                        <span style={{ fontSize: 10, color: '#059669', fontWeight: 700, background: 'rgba(16,185,129,0.1)', padding: '1px 5px', borderRadius: 3 }}>✓ auto</span>
+                        <span style={{ fontSize: 10, color: '#059669', fontWeight: 700, background: 'rgba(16,185,129,0.1)', padding: '1px 5px', borderRadius: 3 }}>{t('incidents.autoLabel')}</span>
                       )}
                     </div>
                   </div>
@@ -316,12 +326,12 @@ type AIAnalysis = {
   reasoning: string;
 };
 
-const ACTION_LABEL: Record<AIAnalysis['action'], { label: string; color: string; bg: string }> = {
-  renamed_to:          { label: '↪ Renamed',        color: '#7c3aed', bg: '#faf5ff' },
-  truly_removed:       { label: '✕ Truly removed',  color: '#ef4444', bg: 'rgba(239,68,68,0.06)' },
-  type_changed:        { label: '~ Type changed',   color: '#f59e0b', bg: 'rgba(245,158,11,0.06)' },
-  moved_to_nested:     { label: '→ Moved/nested',   color: '#6366f1', bg: 'rgba(99,102,241,0.06)' },
-  needs_investigation: { label: '? Unclear',         color: '#6b7280', bg: '#f8fafc' },
+const ACTION_COLOR: Record<AIAnalysis['action'], { color: string; bg: string }> = {
+  renamed_to:          { color: '#7c3aed', bg: '#faf5ff' },
+  truly_removed:       { color: '#ef4444', bg: 'rgba(239,68,68,0.06)' },
+  type_changed:        { color: '#f59e0b', bg: 'rgba(245,158,11,0.06)' },
+  moved_to_nested:     { color: '#6366f1', bg: 'rgba(99,102,241,0.06)' },
+  needs_investigation: { color: '#6b7280', bg: '#f8fafc' },
 };
 
 function LLMEscalationsSection({
@@ -333,6 +343,7 @@ function LLMEscalationsSection({
   incidentId: string;
   preComputed: LLMAnalysisResult[];
 }) {
+  const { t } = useTranslation();
   // Seed state with any analysis already stored in Postgres
   const [analyses, setAnalyses] = useState<Record<number, AIAnalysis>>(() => {
     const seed: Record<number, AIAnalysis> = {};
@@ -376,9 +387,9 @@ function LLMEscalationsSection({
   return (
     <div style={{ marginTop: 14 }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: '#7c3aed', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 6 }}>
-        ⚡ Needs AI analysis ({escalations.length})
+        {t('incidents.needsAiAnalysis', { count: escalations.length })}
         <span style={{ fontSize: 10, fontWeight: 400, color: '#94a3b8', textTransform: 'none' }}>
-          — deterministic engine couldn't resolve these
+          {t('incidents.deterministicNote')}
         </span>
       </div>
       <div style={{ display: 'grid', gap: 8 }}>
@@ -386,7 +397,7 @@ function LLMEscalationsSection({
           const analysis = analyses[i];
           const isLoading = loading === i;
           const err = errors[i];
-          const actionMeta = analysis ? ACTION_LABEL[analysis.action] : null;
+          const actionMeta = analysis ? { ...ACTION_COLOR[analysis.action], label: t(`incidents.action.${analysis.action}`) } : null;
 
           return (
             <div key={i} style={{
@@ -399,7 +410,7 @@ function LLMEscalationsSection({
                 padding: '9px 12px', background: '#faf5ff', borderBottom: analysis ? '1px solid #ddd6fe' : 'none',
               }}>
                 <span style={{ fontSize: 10, fontWeight: 700, color: '#7c3aed', background: '#ede9fe', padding: '2px 6px', borderRadius: 3, textTransform: 'uppercase', flexShrink: 0 }}>
-                  {esc.diff.kind.replace(/_/g, ' ')}
+                  {t(`incidents.kind.${esc.diff.kind}`, { defaultValue: esc.diff.kind.replace(/_/g, ' ') } as Record<string, unknown>)}
                 </span>
                 <code style={{ fontSize: 12, color: '#5b21b6', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {esc.diff.pathA ?? esc.diff.pathB ?? '—'}
@@ -419,8 +430,8 @@ function LLMEscalationsSection({
                     }}
                   >
                     {isLoading
-                      ? <><span style={{ display: 'inline-block', width: 10, height: 10, border: '2px solid #7c3aed', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> Analyzing…</>
-                      : '⚡ Analyze with AI'}
+                      ? <><span style={{ display: 'inline-block', width: 10, height: 10, border: '2px solid #7c3aed', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> {t('incidents.analyzing')}</>
+                      : t('incidents.analyzeWithAi')}
                   </button>
                 )}
                 {analysis && (
@@ -446,14 +457,14 @@ function LLMEscalationsSection({
                       <div style={{ fontSize: 18, fontWeight: 700, color: analysis.confidence >= 0.75 ? '#10b981' : analysis.confidence >= 0.5 ? '#f59e0b' : '#ef4444' }}>
                         {Math.round(analysis.confidence * 100)}%
                       </div>
-                      <div style={{ fontSize: 10, color: '#94a3b8' }}>confidence</div>
+                      <div style={{ fontSize: 10, color: '#94a3b8' }}>{t('incidents.confidence')}</div>
                     </div>
                   </div>
                   <button
                     onClick={() => void analyze(i)}
                     style={{ marginTop: 8, padding: '3px 10px', borderRadius: 4, border: '1px solid #ddd6fe', background: '#f5f3ff', color: '#7c3aed', fontSize: 11, cursor: 'pointer' }}
                   >
-                    Re-analyze
+                    {t('incidents.reAnalyze')}
                   </button>
                 </div>
               )}
@@ -466,7 +477,7 @@ function LLMEscalationsSection({
                     <span style={{ fontSize: 12, color: '#dc2626' }}>{err}</span>
                   </div>
                   <button onClick={() => void analyze(i)} style={{ fontSize: 11, fontWeight: 600, color: '#7c3aed', background: 'none', border: '1px solid #ddd6fe', borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}>
-                    retry
+                    {t('incidents.retryBtn')}
                   </button>
                 </div>
               )}
@@ -649,18 +660,18 @@ export function Incidents() {
       {/* Filters */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         {([
-          { id: 'severity', labelKey: 'incidents.severityLabel', label: 'Severity', value: filterSeverity, setter: setFilterSeverity,
-            options: [['all', t('common.all')],['critical','Critical'],['major','Major'],['minor','Minor']] as [string,string][] },
-          { id: 'status', labelKey: 'common.status', label: 'Status', value: filterStatus, setter: setFilterStatus,
+          { id: 'severity', labelKey: 'incidents.severityLabel', value: filterSeverity, setter: setFilterSeverity,
+            options: [['all', t('common.all')],['critical', t('incidents.severity.critical')],['major', t('incidents.severity.major')],['minor', t('incidents.severity.minor')]] as [string,string][] },
+          { id: 'status', labelKey: 'common.status', value: filterStatus, setter: setFilterStatus,
             options: [['all', t('common.all')],['open', t('incidents.status.open')],['investigating', t('incidents.status.investigating')],['resolved', t('incidents.status.resolved')],['dismissed', t('incidents.status.dismissed')]] as [string,string][] },
-          { id: 'protocol', labelKey: 'incidents.protocolLabel', label: 'Protocol', value: filterProtocol, setter: setFilterProtocol,
+          { id: 'protocol', labelKey: 'incidents.protocolLabel', value: filterProtocol, setter: setFilterProtocol,
             options: [['all', t('common.all')],['sql','SQL'],['openapi','OpenAPI'],['avro','Avro'],['csv','CSV'],['jsonl','JSONL'],['xml','XML'],['soap','SOAP'],['graphql','GraphQL'],['parquet','Parquet'],['protobuf','Protobuf']] as [string,string][] },
-        ]).map(({ id, labelKey, label, value, setter, options }) => {
+        ]).map(({ id, labelKey, value, setter, options }) => {
           const selectId = `incidents-filter-${id}`;
           return (
           <div key={labelKey} style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
             <label htmlFor={selectId} style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.02em' }}>
-              {label}
+              {t(labelKey)}
             </label>
             <select
               id={selectId}
@@ -696,7 +707,7 @@ export function Incidents() {
           <div style={{ fontSize: 28, marginBottom: 10, opacity: 0.6 }}>✓</div>
           <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--text-secondary)', marginBottom: 6 }}>{t('incidents.noIncidents')}</div>
           <div style={{ fontSize: 13 }}>
-            Submit schemas via <code style={{ background: 'var(--bg-tertiary)', padding: '1px 6px', borderRadius: 4, fontSize: 12 }}>POST /api/drift/ingest</code> to start detecting drift
+            {t('incidents.noIncidentsDesc')}
           </div>
         </div>
       )}
@@ -744,19 +755,21 @@ export function Incidents() {
               >
                 {/* Line 1: severity · source · protocol · status · tenants · time */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap', overflow: 'hidden' }}>
-                  <Badge label={incident.severity} color={sc} />
+                  <Badge label={t(`incidents.severity.${incident.severity}`)} color={sc} />
 
                   <span style={{
-                    fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-                    fontWeight: 600, fontSize: 13,
+                    fontWeight: 500, fontSize: 13,
                     color: 'var(--text-primary)',
                     flexShrink: 0, whiteSpace: 'nowrap' as const,
                   }}>
-                    {incident.sourceId}
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)', marginRight: 3 }}>
+                      {t('incidents.sourceLabel')}:
+                    </span>
+                    {formatSourceId(incident.sourceId)}
                   </span>
 
                   <Badge label={incident.protocol.toUpperCase()} color={pc} />
-                  <Badge label={incident.status} color={STATUS_COLOR[incident.status]} />
+                  <Badge label={t(`incidents.status.${incident.status}`)} color={STATUS_COLOR[incident.status]} />
 
                   {incident.affectedTenants.length > 0 && (
                     <span style={{
@@ -781,36 +794,26 @@ export function Incidents() {
                   marginTop: 6, fontSize: 13, color: 'var(--text-secondary)',
                   lineHeight: 1.4, paddingRight: 8,
                 }}>
-                  {changeSummary(conflicts)}
+                  {changeSummary(conflicts, t)}
                 </div>
 
-                {/* Line 3: version delta chip + resolution stats */}
+                {/* Line 3: resolution stats */}
                 <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                  {fpA && fpB && (
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                      fontFamily: "'JetBrains Mono', monospace", fontSize: 11,
-                      background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)',
-                      padding: '2px 8px', borderRadius: 4, color: '#64748b',
-                    }}>
-                      <span style={{ color: '#ef4444' }}>#{shortFingerprint(fpA)}</span>
-                      <span style={{ color: '#94a3b8' }}>→</span>
-                      <span style={{ color: '#10b981' }}>#{shortFingerprint(fpB)}</span>
-                    </span>
-                  )}
                   {autoCount > 0 && (
                     <span style={{ fontSize: 11, color: '#10b981', fontWeight: 600 }}>
-                      ✓ {autoCount} auto
+                      {t('incidents.autoStat', { count: autoCount })}
                     </span>
                   )}
                   {llmCount > 0 && (
                     <span style={{ fontSize: 11, color: '#8b5cf6', fontWeight: 600 }}>
-                      {incident.llmAnalysis.length >= llmCount ? `⚡ ${llmCount} AI analyzed` : `${llmCount} pending LLM`}
+                      {incident.llmAnalysis.length >= llmCount
+                        ? t('incidents.aiAnalyzed', { count: llmCount })
+                        : t('incidents.pendingLlmStat', { count: llmCount })}
                     </span>
                   )}
                   {incident.impactScore !== null && (
                     <span style={{ fontSize: 11, color: '#94a3b8' }}>
-                      impact <strong style={{ color: 'var(--text-primary)' }}>{Math.round(incident.impactScore * 100)}%</strong>
+                      {t('incidents.impactLabel')} <strong style={{ color: 'var(--text-primary)' }}>{Math.round(incident.impactScore * 100)}%</strong>
                     </span>
                   )}
                 </div>
@@ -834,15 +837,15 @@ export function Incidents() {
                         padding: '4px 10px', borderRadius: 6, background: '#f8fafc',
                         border: '1px solid #e2e8f0', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)',
                       }}>
-                        {incident.routingTarget === 'incident_alert'  && '🚨 Incident Alert'}
-                        {incident.routingTarget === 'operator_review' && '👤 Operator Review'}
-                        {incident.routingTarget === 'timeline_trace'  && '📋 Timeline Trace'}
-                        {incident.routingTarget === 'auto_resolved'   && '✅ Auto-resolved'}
+                        {incident.routingTarget === 'incident_alert'  && t('incidents.routingIncidentAlert')}
+                        {incident.routingTarget === 'operator_review' && t('incidents.routingOperatorReview')}
+                        {incident.routingTarget === 'timeline_trace'  && t('incidents.routingTimelineTrace')}
+                        {incident.routingTarget === 'auto_resolved'   && t('incidents.routingAutoResolved')}
                       </div>
                     )}
                     {incident.affectedTenants.length > 0 && (
                       <div style={{ fontSize: 12, color: '#d97706', padding: '4px 10px', background: 'rgba(245,158,11,0.08)', borderRadius: 6, border: '1px solid rgba(245,158,11,0.2)' }}>
-                        ⚠ {incident.affectedTenants.length} tenant{incident.affectedTenants.length !== 1 ? 's' : ''} in blast radius:{' '}
+                        {t('incidents.tenantBlastRadius', { count: incident.affectedTenants.length })}{' '}
                         <span style={{ fontFamily: 'monospace', fontSize: 11 }}>{incident.affectedTenants.join(', ')}</span>
                       </div>
                     )}
@@ -855,7 +858,7 @@ export function Incidents() {
                   {incident.remediationHints.length > 0 && (
                     <div style={{ marginTop: 12, padding: 10, background: 'rgba(245,158,11,0.06)', borderRadius: 6, border: '1px solid rgba(245,158,11,0.2)' }}>
                       <div style={{ fontSize: 11, fontWeight: 700, color: '#d97706', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        Remediation Hints
+                        {t('incidents.remediationHints')}
                       </div>
                       <ul style={{ margin: 0, paddingLeft: 16 }}>
                         {incident.remediationHints.map((h, i) => (
