@@ -406,9 +406,19 @@ function LLMEscalationsSection({
                 <span style={{ fontSize: 10, fontWeight: 700, color: '#7c3aed', background: '#ede9fe', padding: '2px 6px', borderRadius: 3, textTransform: 'uppercase', flexShrink: 0 }}>
                   {t(`incidents.kind.${esc.diff.kind}`, { defaultValue: esc.diff.kind.replace(/_/g, ' ') } as Record<string, unknown>)}
                 </span>
-                <code style={{ fontSize: 12, color: '#5b21b6', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {esc.diff.pathA ?? esc.diff.pathB ?? '—'}
-                </code>
+                <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <code style={{ fontSize: 12, color: '#5b21b6', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {esc.diff.pathA ?? esc.diff.pathB ?? '—'}
+                  </code>
+                  <span style={{ fontSize: 10, color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {t(`incidents.escalationReason.${esc.diff.kind}`, {
+                      field: esc.diff.pathA ?? esc.diff.pathB ?? '',
+                      a: esc.diff.pathA ?? '',
+                      b: esc.diff.pathB ?? '',
+                      defaultValue: t('incidents.escalationReason.default'),
+                    } as Record<string, unknown>)}
+                  </span>
+                </div>
                 {!analysis && (
                   <button
                     disabled={isLoading}

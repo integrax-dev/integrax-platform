@@ -131,6 +131,13 @@
     "analyzeWithAi": "⚡ Analyze with AI",
     "confidence": "confidence",
     "reAnalyze": "Re-analyze",
+    "escalationReason": {
+      "field_removed": "Field removed — dependent integrations may break",
+      "field_added": "New field appeared — verify your integration handles it",
+      "type_changed": "Data type changed — conversion may be needed",
+      "rename_candidate": "Possible rename detected — confirm the mapping",
+      "default": "Ambiguous change — AI review needed"
+    },
     "retryBtn": "retry",
     "autoStat": "✓ {{count}} resolved",
     "aiAnalyzed": "⚡ {{count}} AI reviewed",
@@ -258,10 +265,6 @@
   "lang": {
     "label": "Language",
     "es": "Español",
-    "en": "English",
-    "pt": "Português",
-    "fr": "Français",
-    "de": "Deutsch",
-    "zh": "中文"
+    "en": "English"
   }
 }

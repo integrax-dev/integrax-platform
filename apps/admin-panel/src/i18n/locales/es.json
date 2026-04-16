@@ -131,6 +131,13 @@
     "analyzeWithAi": "⚡ Analizar con IA",
     "confidence": "confianza",
     "reAnalyze": "Re-analizar",
+    "escalationReason": {
+      "field_removed": "Campo eliminado — las integraciones dependientes pueden fallar",
+      "field_added": "Nuevo campo detectado — verifica si tu integración lo maneja",
+      "type_changed": "Tipo de dato cambiado — puede requerirse conversión",
+      "rename_candidate": "Posible cambio de nombre — confirma el mapeo",
+      "default": "Cambio ambiguo — revisión de IA recomendada"
+    },
     "retryBtn": "reintentar",
     "autoStat": "✓ {{count}} resuelto(s)",
     "aiAnalyzed": "⚡ {{count}} revisado(s) por IA",
@@ -258,10 +265,6 @@
   "lang": {
     "label": "Idioma",
     "es": "Español",
-    "en": "English",
-    "pt": "Português",
-    "fr": "Français",
-    "de": "Deutsch",
-    "zh": "中文"
+    "en": "English"
   }
 }
