@@ -19,6 +19,9 @@ import { getDriftIncident, listDriftIncidents, saveDriftLlmAnalysis, updateDrift
 import { listTenantsByConnector } from '../store/tenant-connectors.js';
 import { TemporalClientService } from '@integrax/temporal-workflows';
 import { createLogger } from '@integrax/logger';
+import { assessImpact } from '@integrax/schema-bridge';
+import { timelineStore, eventBus } from '../platform/container.js';
+import { ulid } from 'ulid';
 
 const logger = createLogger({ service: 'drift-routes' });
 
@@ -410,6 +413,68 @@ driftRouter.post(
 
       if (!incident) {
         return res.json({ success: true, data: null, message: 'No drift detected' });
+      }
+
+      // ── Enrich timeline + event-bus with impact assessment ──────────────────
+      if (incident.bridgeReport) {
+        try {
+          const impact = assessImpact(incident.bridgeReport);
+          const tenantId = (req as any).tenantId ?? affectedTenants[0] ?? 'platform';
+
+          // Write SchemaDriftTrace for each affected tenant (or platform if none)
+          const tenants = affectedTenants.length > 0 ? affectedTenants : [tenantId];
+          for (const tid of tenants) {
+            await timelineStore.append(tid, {
+              kind: 'schema_drift',
+              tenantId: tid,
+              occurredAt: incident.detectedAt,
+              connectorAId: sourceId,
+              connectorBId: incident.bridgeReport.connectorBId ?? sourceId,
+              reportId: incident.id,
+              impactScore: impact.impactScore,
+              impactLabel: impact.impactLabel,
+              driftsDetected: incident.bridgeReport.diffs?.length ?? 0,
+              breakingChanges: incident.bridgeReport.diffs?.filter((d: any) =>
+                d.kind === 'field_removed' || d.kind === 'type_changed',
+              ).length ?? 0,
+              routingTarget: impact.primaryRoutingTarget,
+              summary: impact.summary,
+              hints: impact.remediationHints.slice(0, 5).map(h => ({
+                kind: h.kind,
+                severity: h.severity,
+                title: h.title,
+                suggestedAction: h.suggestedAction,
+              })),
+              status: 'open',
+            });
+          }
+
+          // Determine event type by severity
+          let eventType: 'schema.drift.detected' | 'schema.drift.high_impact' | 'schema.drift.critical' | 'schema.compatibility.breaking' =
+            'schema.drift.detected';
+          if (impact.impactLabel === 'critical') eventType = 'schema.drift.critical';
+          else if (impact.impactLabel === 'high') eventType = 'schema.drift.high_impact';
+          else if (impact.primaryRoutingTarget === 'incident_alert') eventType = 'schema.compatibility.breaking';
+
+          await eventBus.publish({
+            id: ulid(),
+            type: eventType,
+            tenantId,
+            sourceSystem: sourceId,
+            entityType: 'schema',
+            entityId: incident.id,
+            payload: {
+              incidentId: incident.id,
+              impactScore: impact.impactScore,
+              impactLabel: impact.impactLabel,
+              routingTarget: impact.primaryRoutingTarget,
+              affectedTenants,
+            },
+            occurredAt: incident.detectedAt,
+          });
+        } catch (err) {
+          logger.warn({ err, incidentId: incident.id }, 'Failed to write timeline/event for drift incident — non-fatal');
+        }
       }
 
       res.status(201).json({ success: true, data: incident });

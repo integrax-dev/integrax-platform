@@ -69,6 +69,17 @@ export type IntegraxEventType =
   | 'payment.reconciliation_failed'
   | 'payment.method.tokenized'
   | 'payment.reminder.sent'
+  // --- Schema drift ---------------------------------------------------------
+  | 'schema.drift.detected'
+  | 'schema.drift.high_impact'
+  | 'schema.drift.critical'
+  | 'schema.compatibility.breaking'
+  | 'schema.drift.resolved'
+  // --- Reconciliation -------------------------------------------------------
+  | 'reconciliation.conflict.detected'
+  | 'reconciliation.conflict.resolved'
+  | 'reconciliation.conflict.escalated'
+  | 'reconciliation.clean'
   // --- Suscripciones --------------------------------------------------------
   | 'subscription.created'
   | 'subscription.updated'

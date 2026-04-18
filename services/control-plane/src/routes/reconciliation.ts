@@ -43,6 +43,75 @@ import type {
   CanonicalInvoice,
   ManualLink,
 } from '@integrax/reconciliation-engine';
+import { ulid } from 'ulid';
+import { timelineStore, eventBus } from '../platform/container.js';
+import { createLogger } from '@integrax/logger';
+
+
+const logger = createLogger({ service: 'reconciliation-routes' });
+
+// ─── Helper: emit conflicts to timeline + event-bus ──────────────────────────
+
+async function emitConflicts(
+  tenantId: string,
+  entityType: string,
+  systemA: string,
+  systemB: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  evaluated: any[],
+): Promise<void> {
+  const actionable = evaluated.filter((r: any) =>
+    r.conflict?.severity === 'HIGH' || r.conflict?.severity === 'CRITICAL' ||
+    r.action === 'BLOCK' || r.action === 'ALERT',
+  );
+  if (actionable.length === 0) return;
+
+  try {
+    for (const result of actionable) {
+      const canonicalId = result.conflict.diffs[0]
+        ? String(result.conflict.diffs[0].valueA ?? result.conflict.diffs[0].valueB ?? 'unknown')
+        : 'unknown';
+
+      await timelineStore.append(tenantId, {
+        kind: 'conflict',
+        tenantId,
+        occurredAt: result.conflict.detectedAt,
+        entityType,
+        canonicalId,
+        category: result.conflict.type,
+        severity: result.conflict.severity,
+        systemA,
+        systemB,
+        snapshotIds: [ulid(), ulid()],
+        status: 'detected',
+      });
+
+      const eventType = result.conflict.severity === 'CRITICAL' || result.action === 'BLOCK'
+        ? 'reconciliation.conflict.escalated'
+        : 'reconciliation.conflict.detected';
+
+      await eventBus.publish({
+        id: ulid(),
+        type: eventType,
+        tenantId,
+        sourceSystem: systemA,
+        entityType,
+        payload: {
+          conflictType: result.conflict.type,
+          severity: result.conflict.severity,
+          action: result.action,
+          routeTo: result.routeTo,
+          systemA,
+          systemB,
+          summary: result.conflict.summary,
+        },
+        occurredAt: result.conflict.detectedAt,
+      });
+    }
+  } catch (err) {
+    logger.warn({ err, tenantId, entityType }, 'Failed to emit conflict to timeline/event-bus — non-fatal');
+  }
+}
 
 export const reconciliationRouter: IRouter = Router();
 
@@ -114,10 +183,13 @@ reconciliationRouter.post(
         externalIdB: r.external_id_b,
       }));
 
+      const { systemA, systemB } = req.body as z.infer<typeof CompareProductsSchema>;
       const match = matchProduct(productA as CanonicalProduct, productB as CanonicalProduct, manualLinks);
       const rawConflicts = diffProducts(productA as CanonicalProduct, productB as CanonicalProduct, tolerances);
       const evaluated = evaluateProductConflicts(rawConflicts);
       const recommendation = productRecommendation(evaluated);
+
+      void emitConflicts(tenantId, 'product', systemA, systemB, evaluated);
 
       // Auto-persist 'review' matches to entity_match_reviews
       if (match.decision === 'review') {
@@ -264,10 +336,14 @@ reconciliationRouter.post(
         systemB: r.system_b, externalIdB: r.external_id_b,
       }));
 
+      const customerSystemA = (req.body as z.infer<typeof CompareCustomersSchema> & { systemA?: string }).systemA ?? customerA.sourceSystem;
+      const customerSystemB = (req.body as z.infer<typeof CompareCustomersSchema> & { systemB?: string }).systemB ?? customerB.sourceSystem;
       const match = matchCustomer(customerA as CanonicalCustomer, customerB as CanonicalCustomer, manualLinks);
       const rawConflicts = diffCustomers(customerA as CanonicalCustomer, customerB as CanonicalCustomer);
       const evaluated = evaluateCustomerConflicts(rawConflicts);
       const recommendation = customerRecommendation(evaluated);
+
+      void emitConflicts(tenantId, 'customer', customerSystemA, customerSystemB, evaluated);
 
       if (match.decision === 'review') {
         const extA = customerA.externalIds[0];
@@ -399,10 +475,14 @@ reconciliationRouter.post(
         systemB: r.system_b, externalIdB: r.external_id_b,
       }));
 
+      const invoiceSystemA = invoiceA.sourceSystem;
+      const invoiceSystemB = invoiceB.sourceSystem;
       const match = matchInvoice(invoiceA as CanonicalInvoice, invoiceB as CanonicalInvoice, manualLinks);
       const rawConflicts = diffInvoices(invoiceA as CanonicalInvoice, invoiceB as CanonicalInvoice, tolerances);
       const evaluated = evaluateInvoiceConflicts(rawConflicts);
       const recommendation = invoiceRecommendation(evaluated);
+
+      void emitConflicts(tenantId, 'invoice', invoiceSystemA, invoiceSystemB, evaluated);
 
       if (match.decision === 'review') {
         const extA = invoiceA.externalIds[0];
@@ -471,6 +551,85 @@ reconciliationRouter.get(
         [tenantId, req.params.id],
       );
       res.json({ success: true, data: rows });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TENANT CONFLICT LIST  —  GET /conflicts
+// ═══════════════════════════════════════════════════════════════════════════════
+
+reconciliationRouter.get(
+  '/conflicts',
+  requireAuth,
+  requireRole('platform_admin', 'tenant_admin', 'operator', 'viewer'),
+  async (req, res, next) => {
+    try {
+      const tenantId = req.tenantId ?? (req.query.tenantId as string);
+      if (!tenantId) return res.status(400).json({ success: false, error: 'tenantId required' });
+
+      const { severity, limit = '50', after } = req.query as Record<string, string>;
+
+      const entries = await timelineStore.list(tenantId, {
+        kind: 'conflict',
+        ...(severity ? { severity: severity.split(',') as any[] } : {}),
+        limit: Math.min(Number(limit), 200),
+        ...(after ? { after } : {}),
+      });
+
+      res.json({ success: true, data: entries });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SCHEMA HEALTH SUMMARY  —  GET /schema-health
+// ═══════════════════════════════════════════════════════════════════════════════
+
+reconciliationRouter.get(
+  '/schema-health',
+  requireAuth,
+  requireRole('platform_admin', 'tenant_admin', 'operator', 'viewer'),
+  async (req, res, next) => {
+    try {
+      const tenantId = req.tenantId ?? (req.query.tenantId as string);
+      if (!tenantId) return res.status(400).json({ success: false, error: 'tenantId required' });
+
+      const [driftEntries, conflictEntries] = await Promise.all([
+        timelineStore.list(tenantId, { kind: 'schema_drift', limit: 100 }),
+        timelineStore.list(tenantId, { kind: 'conflict', limit: 100 }),
+      ]);
+
+      const openDrifts = driftEntries.filter((e: any) => e.status === 'open' || e.status === 'acknowledged');
+      const openConflicts = conflictEntries.filter((e: any) =>
+        e.status === 'detected' || e.status === 'acknowledged' || e.status === 'resolving',
+      );
+
+      const maxImpact = openDrifts.reduce((max: number, e: any) => Math.max(max, e.impactScore ?? 0), 0);
+      const criticalDrifts = openDrifts.filter((e: any) => e.impactLabel === 'critical' || e.impactLabel === 'high').length;
+      const criticalConflicts = openConflicts.filter((e: any) => e.severity === 'CRITICAL' || e.severity === 'HIGH').length;
+
+      const overallHealth: 'healthy' | 'degraded' | 'critical' =
+        criticalDrifts > 0 || criticalConflicts > 3 ? 'critical'
+        : openDrifts.length > 0 || openConflicts.length > 0 ? 'degraded'
+        : 'healthy';
+
+      res.json({
+        success: true,
+        data: {
+          overallHealth,
+          maxImpactScore: maxImpact,
+          openDrifts: openDrifts.length,
+          openConflicts: openConflicts.length,
+          criticalDrifts,
+          criticalConflicts,
+          lastCheckedAt: new Date(),
+        },
+      });
     } catch (err) {
       next(err);
     }

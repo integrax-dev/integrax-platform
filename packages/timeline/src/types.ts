@@ -11,7 +11,7 @@
 
 // --- Comun ------------------------------------------------------------------
 
-export type TimelineKind = 'entity' | 'sync' | 'conflict' | 'workflow';
+export type TimelineKind = 'entity' | 'sync' | 'conflict' | 'workflow' | 'schema_drift';
 
 export interface TimelineEntry {
   /** ulid ordenable por tiempo de creacion */
@@ -91,6 +91,34 @@ export interface ConflictTrace extends TimelineEntry {
   resolution?: string;
 }
 
+// --- Trazas de schema drift -------------------------------------------------
+
+export type SchemaDriftSeverity = 'none' | 'low' | 'medium' | 'high' | 'critical';
+
+export interface SchemaDriftTrace extends TimelineEntry {
+  kind: 'schema_drift';
+  connectorAId: string;
+  connectorBId: string;
+  reportId: string;
+  impactScore: number;
+  impactLabel: SchemaDriftSeverity;
+  driftsDetected: number;
+  breakingChanges: number;
+  /** Primary routing target from ImpactAssessment */
+  routingTarget: string;
+  /** Human-readable summary */
+  summary: string;
+  /** Top remediation hints (max 5) */
+  hints: Array<{
+    kind: string;
+    severity: string;
+    title: string;
+    suggestedAction: string;
+  }>;
+  status: 'open' | 'acknowledged' | 'resolved' | 'dismissed';
+  resolvedAt?: Date;
+}
+
 // --- Trazas de workflow -----------------------------------------------------
 
 export type WorkflowStepStatus = 'pending' | 'running' | 'success' | 'failed' | 'skipped';
@@ -146,7 +174,8 @@ export type TimelineEntryInput =
   | Omit<EntityTrace, 'id' | 'recordedAt'>
   | Omit<SyncTrace, 'id' | 'recordedAt'>
   | Omit<ConflictTrace, 'id' | 'recordedAt'>
-  | Omit<WorkflowTrace, 'id' | 'recordedAt'>;
+  | Omit<WorkflowTrace, 'id' | 'recordedAt'>
+  | Omit<SchemaDriftTrace, 'id' | 'recordedAt'>;
 
 export interface TimelineStore {
   append(tenantId: string, entry: TimelineEntryInput): Promise<TimelineEntry>;

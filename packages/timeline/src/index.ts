@@ -13,6 +13,8 @@ export type {
   WorkflowStepStatus,
   WorkflowStepTrace,
   WorkflowTrace,
+  SchemaDriftTrace,
+  SchemaDriftSeverity,
 } from './types.js';
 
 export { InMemoryTimelineStore } from './in-memory-store.js';
