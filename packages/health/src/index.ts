@@ -72,12 +72,12 @@ export class HealthManager {
                     status: 'healthy',
                     latencyMs: Date.now() - start,
                 });
-            } catch (err: any) {
+            } catch (err: unknown) {
                 results.push({
                     name,
                     status: 'unhealthy',
                     latencyMs: Date.now() - start,
-                    error: err.message || String(err),
+                    error: err instanceof Error ? err.message : String(err),
                 });
             }
         }
@@ -128,8 +128,8 @@ export class HealthManager {
                 const metricsOutput = await getMetrics();
                 res.set('Content-Type', getMetricsContentType());
                 res.end(metricsOutput);
-            } catch (err: any) {
-                res.status(500).json({ error: err.message });
+            } catch (err: unknown) {
+                res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
             }
         });
 

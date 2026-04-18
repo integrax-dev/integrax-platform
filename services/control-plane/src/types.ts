@@ -202,8 +202,8 @@ export interface WorkflowRun {
   version: number;
   status: RunStatus;
   triggeredBy: string;
-  input: Record<string, any>;
-  output: Record<string, any> | null;
+  input: Record<string, unknown>;
+  output: Record<string, unknown> | null;
   steps: StepExecution[];
   error: string | null;
   startedAt: Date;
@@ -215,8 +215,8 @@ export interface StepExecution {
   stepId: string;
   stepName: string;
   status: RunStatus;
-  input: Record<string, any>;
-  output: Record<string, any> | null;
+  input: Record<string, unknown>;
+  output: Record<string, unknown> | null;
   error: string | null;
   startedAt: Date;
   completedAt: Date | null;
@@ -234,7 +234,7 @@ export interface IncomingEvent {
   tenantId: string;
   connectorId: string;
   eventType: string;
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
   status: EventStatus;
   retryCount: number;
   lastError: string | null;
@@ -248,7 +248,7 @@ export interface DLQEntry {
   eventId: string;
   workflowId: string | null;
   error: string;
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
   retryCount: number;
   createdAt: Date;
   expiresAt: Date;
@@ -263,7 +263,7 @@ export interface AuditEntry {
   action: string;
   resource: string;
   resourceId: string;
-  details: Record<string, any>;
+  details: Record<string, unknown>;
   ipAddress: string;
   userAgent: string;
   createdAt: Date;
@@ -304,6 +304,6 @@ export interface APIResponse<T> {
   error?: {
     code: string;
     message: string;
-    details?: Record<string, any>;
+    details?: Record<string, unknown>;
   };
 }

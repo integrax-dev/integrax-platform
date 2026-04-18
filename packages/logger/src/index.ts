@@ -12,7 +12,7 @@ import pinoModule from 'pino';
 import type { IncomingMessage, ServerResponse } from 'http';
 
 // Pino ESM compat: handle default export quirks
-const pino = (pinoModule as any).default || pinoModule;
+const pino = (pinoModule as unknown as { default?: typeof pinoModule }).default ?? pinoModule;
 type PinoLogger = pinoModule.Logger;
 
 // ============================================
@@ -105,7 +105,7 @@ export function requestLogger(
     const correlationHeader = options.correlationHeader || 'x-request-id';
 
     return (req: IncomingMessage & { correlationId?: string }, res: ServerResponse, next: () => void) => {
-        const path = (req as any).path || req.url || '/';
+        const path = (req as IncomingMessage & { path?: string }).path || req.url || '/';
 
         if (excludePaths.has(path)) {
             return next();
@@ -135,7 +135,7 @@ export function requestLogger(
                 statusCode,
                 duration,
                 correlationId,
-                tenantId: (req as any).tenantId,
+                tenantId: (req as IncomingMessage & { tenantId?: string }).tenantId,
             };
 
             if (statusCode >= 500) {
