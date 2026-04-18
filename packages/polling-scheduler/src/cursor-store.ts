@@ -14,15 +14,15 @@ export class InMemoryCursorStore {
     return `${tenantId}:${jobId}`;
   }
 
-  get(tenantId: string, jobId: string): PollingCursor | null {
+  async get(tenantId: string, jobId: string): Promise<PollingCursor | null> {
     return this.store.get(this.key(tenantId, jobId)) ?? null;
   }
 
-  set(cursor: PollingCursor): void {
+  async set(cursor: PollingCursor): Promise<void> {
     this.store.set(this.key(cursor.tenantId, cursor.jobId), cursor);
   }
 
-  all(): PollingCursor[] {
+  async all(): Promise<PollingCursor[]> {
     return [...this.store.values()];
   }
 }

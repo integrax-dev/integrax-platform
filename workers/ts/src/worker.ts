@@ -1,4 +1,4 @@
-import { Worker, Job } from 'bullmq';
+import { Worker, Queue, Job } from 'bullmq';
 import { Redis } from 'ioredis';
 import { config } from './config.js';
 import { createLogger } from './logger.js';
@@ -55,12 +55,21 @@ const handlers: Record<string, (job: Job<TaskPayload>, audit: AuditLogger) => Pr
   'business.invoice.issued': processInvoiceIssued,
 };
 
+const DLQ_QUEUE_NAME = `${config.WORKER_QUEUE_NAME}-dlq`;
+
 export async function createWorker(auditLogger: AuditLogger): Promise<Worker> {
   const connection = new Redis({
     host: config.REDIS_HOST,
     port: config.REDIS_PORT,
     password: config.REDIS_PASSWORD,
     maxRetriesPerRequest: null,
+  });
+
+  // Dead-letter queue — recibe jobs que agotaron todos sus intentos.
+  // Operadores pueden inspeccionar y reintentar desde acá.
+  const dlq = new Queue<TaskPayload>(DLQ_QUEUE_NAME, {
+    connection,
+    defaultJobOptions: { removeOnComplete: false, removeOnFail: false },
   });
 
   const worker = new Worker<TaskPayload, TaskResult>(
@@ -205,7 +214,29 @@ export async function createWorker(auditLogger: AuditLogger): Promise<Worker> {
   });
 
   worker.on('failed', (job, err) => {
-    logger.error({ jobId: job?.id, error: err.message }, 'Job failed');
+    if (!job) return;
+    const maxAttempts = (job.opts.attempts ?? 1);
+    const exhausted   = job.attemptsMade >= maxAttempts;
+
+    logger.error({
+      jobId: job.id,
+      eventType: job.data.eventType,
+      attempt: job.attemptsMade,
+      maxAttempts,
+      exhausted,
+      error: err.message,
+    }, exhausted ? 'Job exhausted — moving to DLQ' : 'Job failed — will retry');
+
+    if (exhausted) {
+      // Mover a DLQ de forma fire-and-forget para no bloquear el event loop.
+      dlq.add('dead-letter', job.data, {
+        jobId: `dlq-${job.id}`,
+        // Preservar contexto original para facilitar el diagnóstico
+        // y el reintento manual desde la UI de admin.
+      }).catch(dlqErr => {
+        logger.error({ dlqErr, jobId: job.id }, 'Failed to move job to DLQ');
+      });
+    }
   });
 
   worker.on('error', (err) => {

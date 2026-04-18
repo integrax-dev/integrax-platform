@@ -2,6 +2,12 @@ import type { EventBus, IntegraxEvent } from '@integrax/event-bus';
 import type { PollingConfig, PollingCursor, PollingResult } from './types.js';
 import { InMemoryCursorStore } from './cursor-store.js';
 
+/** Interfaz mínima del cursor store — aceptada por InMemoryCursorStore y PostgresCursorStore. */
+export interface ICursorStore {
+  get(tenantId: string, jobId: string): Promise<PollingCursor | null>;
+  set(cursor: PollingCursor): Promise<void>;
+}
+
 const MIN_INTERVAL_MS = 10_000; // 10 segundos
 
 /**
@@ -23,7 +29,7 @@ const MIN_INTERVAL_MS = 10_000; // 10 segundos
 export class PollingScheduler {
   private readonly jobs = new Map<string, PollingConfig>();
   private readonly timers = new Map<string, ReturnType<typeof setInterval>>();
-  private readonly cursors: InMemoryCursorStore;
+  private readonly cursors: ICursorStore;
   private readonly bus: EventBus;
   private running = false;
   /**
@@ -32,7 +38,13 @@ export class PollingScheduler {
    */
   private readonly activePoll = new Set<string>();
 
-  constructor(bus: EventBus, cursorStore?: InMemoryCursorStore) {
+  /**
+   * @param bus        Bus de eventos donde se publican los cambios detectados
+   * @param cursorStore Implementación del cursor store.
+   *                   - Desarrollo: omitir (usa InMemoryCursorStore)
+   *                   - Producción: pasar PostgresCursorStore para sobrevivir reinicios
+   */
+  constructor(bus: EventBus, cursorStore?: ICursorStore) {
     this.bus = bus;
     this.cursors = cursorStore ?? new InMemoryCursorStore();
   }
@@ -113,27 +125,30 @@ export class PollingScheduler {
   private async runPoll(config: PollingConfig): Promise<PollingResult> {
     const key = this.jobKey(config.tenantId, config.jobId);
 
+    const defaultCursor = (): PollingCursor => ({
+      jobId: config.jobId,
+      tenantId: config.tenantId,
+      lastValue: null,
+      lastPolledAt: new Date(0),
+      itemsSeen: 0,
+    });
+
     // Mutex: skip this cycle if the previous poll is still running.
     if (this.activePoll.has(key)) {
+      const stored = await this.cursors.get(config.tenantId, config.jobId);
       return {
         jobId: config.jobId,
         polledAt: new Date(),
         itemsFetched: 0,
         eventsEmitted: 0,
-        cursor: this.cursors.get(config.tenantId, config.jobId) ?? {
-          jobId: config.jobId,
-          tenantId: config.tenantId,
-          lastValue: null,
-          lastPolledAt: new Date(0),
-          itemsSeen: 0,
-        },
+        cursor: stored ?? defaultCursor(),
         error: 'skipped: previous poll still running',
       };
     }
 
     this.activePoll.add(key);
     const polledAt = new Date();
-    const existing = this.cursors.get(config.tenantId, config.jobId);
+    const existing = await this.cursors.get(config.tenantId, config.jobId);
     const cursor: PollingCursor = existing ?? {
       jobId: config.jobId,
       tenantId: config.tenantId,
@@ -185,7 +200,7 @@ export class PollingScheduler {
         lastPolledAt: polledAt,
         itemsSeen: cursor.itemsSeen + items.length,
       };
-      this.cursors.set(updatedCursor);
+      await this.cursors.set(updatedCursor);
 
       this.activePoll.delete(key);
       return {

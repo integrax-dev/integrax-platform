@@ -225,24 +225,110 @@ async function handleBusinessEvent(topic: string, event: BusinessEvent): Promise
   }
 }
 
-// Message handler
+// ─── Retry with exponential backoff ──────────────────────────────────────────
+
+const MAX_RETRIES    = 3;
+const RETRY_BASE_MS  = 500;  // 500ms → 1s → 2s
+
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  label: string,
+): Promise<T | null> {
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const isLast = attempt === MAX_RETRIES;
+      logger.warn({
+        err,
+        label,
+        attempt,
+        maxRetries: MAX_RETRIES,
+        retryingIn: isLast ? 'never' : `${RETRY_BASE_MS * attempt}ms`,
+      }, isLast ? 'Message failed — sending to DLQ' : 'Message failed — retrying');
+
+      if (isLast) return null;
+      await new Promise(r => setTimeout(r, RETRY_BASE_MS * attempt));
+    }
+  }
+  return null;
+}
+
+// ─── Dead-letter producer ─────────────────────────────────────────────────────
+
+let _dlqProducer: Awaited<ReturnType<Kafka['producer']>> | null = null;
+
+async function sendToDlq(
+  kafka: Kafka,
+  topic: string,
+  message: EachMessagePayload['message'],
+  error: string,
+): Promise<void> {
+  try {
+    if (!_dlqProducer) {
+      _dlqProducer = kafka.producer();
+      await _dlqProducer.connect();
+    }
+    await _dlqProducer.send({
+      topic: `${topic}.dlq`,
+      messages: [{
+        key: message.key,
+        value: message.value,
+        headers: {
+          ...message.headers,
+          'x-dlq-original-topic': topic,
+          'x-dlq-error':          error,
+          'x-dlq-failed-at':      new Date().toISOString(),
+        },
+      }],
+    });
+    logger.warn({ topic, dlqTopic: `${topic}.dlq` }, 'Message sent to DLQ');
+  } catch (dlqErr) {
+    // DLQ send failing is bad but shouldn't crash the consumer.
+    // The original message offset will be committed — it's lost at this point.
+    // This is the last-resort failure mode.
+    logger.error({ dlqErr, topic }, 'CRITICAL: Failed to send message to DLQ');
+  }
+}
+
+// ─── Message handler ──────────────────────────────────────────────────────────
+
+// kafka instance is captured at runtime — set in main() before consumer.run()
+let _kafka: Kafka | null = null;
+
 async function handleMessage({ topic, partition, message }: EachMessagePayload): Promise<void> {
   if (!message.value) return;
 
-  try {
-    const value = JSON.parse(message.value.toString());
+  const label = `${topic}[${partition}]@${message.offset}`;
+  let parsed: unknown;
 
+  try {
+    parsed = JSON.parse(message.value.toString());
+  } catch {
+    logger.warn({ label }, 'Message is not valid JSON — skipping');
+    return;
+  }
+
+  const value = parsed as Record<string, unknown>;
+
+  const process = async () => {
     if (topic === 'integrax.schemas.discovery') {
-      await handleSchemaDiscovery(value as SchemaDiscoveryEvent);
-    } else if (value.payload && value.payload.op) {
-      await handleCDCEvent(topic, value as DebeziumEvent);
-    } else if (value.eventType) {
-      await handleBusinessEvent(topic, value as BusinessEvent);
+      await handleSchemaDiscovery(value as unknown as SchemaDiscoveryEvent);
+    } else if ((value['payload'] as Record<string, unknown>)?.['op']) {
+      await handleCDCEvent(topic, value as unknown as DebeziumEvent);
+    } else if (value['eventType']) {
+      await handleBusinessEvent(topic, value as unknown as BusinessEvent);
     } else {
-      logger.warn({ topic }, 'Unknown message format');
+      logger.warn({ topic, label }, 'Unknown message format — skipping');
     }
-  } catch (error) {
-    logger.error({ err: error, topic }, 'Failed to process message');
+  };
+
+  const result = await withRetry(process, label);
+
+  if (result === null && _kafka) {
+    // All retries exhausted — send raw message to DLQ so nothing is lost
+    await sendToDlq(_kafka, topic, message,
+      `Failed after ${MAX_RETRIES} attempts`);
   }
 }
 
@@ -256,6 +342,7 @@ async function main() {
     brokers: KAFKA_BROKERS,
     logLevel: logLevel.WARN,
   });
+  _kafka = kafka;  // make available to handleMessage for DLQ
 
   const consumer = kafka.consumer({ groupId: KAFKA_GROUP_ID });
 

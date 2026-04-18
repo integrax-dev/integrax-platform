@@ -1,0 +1,21 @@
+{
+  "name": "@integrax/storage",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Storage adapter interface + Cloudflare R2 and local implementations",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.500.0",
+    "@aws-sdk/s3-request-presigner": "^3.500.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.6.1"
+  }
+}

@@ -20,6 +20,11 @@ import { operationsRouter } from './routes/operations.js';
 import { modulesRouter } from './routes/modules.js';
 import { driftRouter } from './routes/drift.js';
 import { streamRouter } from './routes/stream.js';
+import { authRouter } from './routes/auth.js';
+import { creditsRouter } from './routes/credits.js';
+import { storageRouter } from './routes/storage.js';
+import { licenseAdminRouter, licensePublicRouter } from './routes/license.js';
+import { telemetryPublicRouter, telemetryAdminRouter } from './routes/telemetry.js';
 import { getAuditLogs } from './middleware/audit.js';
 import { requireAuth, requireRole } from './middleware/auth.js';
 import { createLogger, requestLogger } from '@integrax/logger';
@@ -43,13 +48,13 @@ import { pool } from './store/db.js';
 //   Descomentar el bloque de abajo. No requiere ningún otro cambio de código.
 //   Asegurar que REDIS_URL esté seteado en el entorno de producción.
 //
-// import { Redis } from 'ioredis';
-// import { RedisCacheAdapter } from './store/redis-cache-adapter.js';
-// import { setCacheAdapter } from './store/mapping-memory-repository.js';
-//
-// if (process.env.REDIS_URL) {
-//   setCacheAdapter(new RedisCacheAdapter(new Redis(process.env.REDIS_URL)));
-// }
+import { Redis } from 'ioredis';
+import { RedisCacheAdapter } from './store/redis-cache-adapter.js';
+import { setCacheAdapter } from './store/mapping-memory-repository.js';
+
+if (process.env.REDIS_URL) {
+  setCacheAdapter(new RedisCacheAdapter(new Redis(process.env.REDIS_URL)));
+}
 // ─────────────────────────────────────────────────────────────────────────────
 
 const app: express.Application = express();
@@ -119,6 +124,23 @@ app.use('/api/tenants/:tenantId/operations', operationsRouter);
 app.use('/api/tenants', modulesRouter);
 app.use('/api/drift', requireAuth, driftRouter);
 app.use('/api/stream', streamRouter);
+
+// ─── Auth (public — no JWT required) ─────────────────────────────────────────
+app.use('/api/auth', authRouter);
+
+// ─── Credits ──────────────────────────────────────────────────────────────────
+app.use('/api/tenants/:tenantId/credits', creditsRouter);
+
+// ─── Storage ──────────────────────────────────────────────────────────────────
+app.use('/api/tenants/:tenantId/storage', storageRouter);
+
+// ─── License management ───────────────────────────────────────────────────────
+app.use('/api/admin/licenses', licenseAdminRouter);
+app.use('/api/license', licensePublicRouter);
+
+// ─── Telemetry ingest (self-hosted → integrax.dev) ────────────────────────────
+app.use('/telemetry', telemetryPublicRouter);
+app.use('/api/admin/telemetry', telemetryAdminRouter);
 
 // Endpoint de logs de auditoría
 app.get(
@@ -212,9 +234,14 @@ app.use((req, res) => {
 // Iniciar servidor
 const PORT = parsePositiveInt(process.env.PORT, 3000);
 
-// Verificación de entry point ESM
-const isMainModule = import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}`;
-if (isMainModule || process.env.START_SERVER === 'true') {
+async function startServer(): Promise<void> {
+  // Migraciones ANTES de aceptar cualquier request.
+  // Si fallan, el proceso aborta — el orquestador (Docker, k8s) lo reinicia.
+  if (process.env.SKIP_MIGRATIONS !== 'true') {
+    const { runMigrations } = await import('./migrate-runner.js');
+    await runMigrations(pool, logger);
+  }
+
   app.listen(PORT, () => {
     logger.info({
       port: PORT,
@@ -229,6 +256,15 @@ if (isMainModule || process.env.START_SERVER === 'true') {
         'GET  /api/audit     Audit logs',
       ],
     }, `Control Plane API v0.1.0 running on port ${PORT}`);
+  });
+}
+
+// Verificación de entry point ESM
+const isMainModule = import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}`;
+if (isMainModule || process.env.START_SERVER === 'true') {
+  startServer().catch(err => {
+    logger.error({ err }, 'Fatal error during startup');
+    process.exit(1);
   });
 }
 

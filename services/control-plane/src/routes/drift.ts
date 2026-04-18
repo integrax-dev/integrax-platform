@@ -23,28 +23,52 @@ import { createLogger } from '@integrax/logger';
 const logger = createLogger({ service: 'drift-routes' });
 
 // ─── Rate limiter for /analyze — prevents accidental Anthropic cost spikes ────
-// Simple in-memory token bucket: 20 calls per user per 60-second window.
-// Not distributed — sufficient for a single control-plane instance (MVP).
+// 20 calls per user per 60-second window. Redis-backed when REDIS_URL is set
+// (multi-replica safe). Falls back to in-process Map for single-instance setups.
 
 const ANALYZE_WINDOW_MS = 60_000;
 const ANALYZE_MAX       = 20;
 
+let _redisClient: import('ioredis').Redis | null = null;
+async function getRedis(): Promise<import('ioredis').Redis | null> {
+  if (!process.env.REDIS_URL) return null;
+  if (_redisClient) return _redisClient;
+  try {
+    const { Redis } = await import('ioredis');
+    _redisClient = new Redis(process.env.REDIS_URL);
+    return _redisClient;
+  } catch { return null; }
+}
+
 const analyzeRateMap = new Map<string, { count: number; windowStart: number }>();
 
-function checkAnalyzeRateLimit(userId: string): { allowed: boolean; retryAfterMs: number } {
+async function checkAnalyzeRateLimit(userId: string): Promise<{ allowed: boolean; retryAfterMs: number }> {
+  const redis = await getRedis();
+
+  if (redis) {
+    const windowStart = Math.floor(Date.now() / ANALYZE_WINDOW_MS) * ANALYZE_WINDOW_MS;
+    const key = `integrax:rl:analyze:${userId}:${windowStart}`;
+    try {
+      const count = await redis.incr(key);
+      if (count === 1) await redis.expire(key, Math.ceil(ANALYZE_WINDOW_MS / 1000) + 1);
+      if (count > ANALYZE_MAX) {
+        const retryAfterMs = windowStart + ANALYZE_WINDOW_MS - Date.now();
+        return { allowed: false, retryAfterMs };
+      }
+      return { allowed: true, retryAfterMs: 0 };
+    } catch { /* fall through to in-memory */ }
+  }
+
+  // In-process fallback
   const now    = Date.now();
   const bucket = analyzeRateMap.get(userId);
-
   if (!bucket || now - bucket.windowStart >= ANALYZE_WINDOW_MS) {
     analyzeRateMap.set(userId, { count: 1, windowStart: now });
     return { allowed: true, retryAfterMs: 0 };
   }
-
   if (bucket.count >= ANALYZE_MAX) {
-    const retryAfterMs = ANALYZE_WINDOW_MS - (now - bucket.windowStart);
-    return { allowed: false, retryAfterMs };
+    return { allowed: false, retryAfterMs: ANALYZE_WINDOW_MS - (now - bucket.windowStart) };
   }
-
   bucket.count += 1;
   return { allowed: true, retryAfterMs: 0 };
 }
@@ -189,7 +213,7 @@ driftRouter.post(
     try {
       // Enforce rate limit before any DB or LLM work
       const userId = (req as any).user?.id ?? (req as any).user?.sub ?? req.ip ?? 'anonymous';
-      const { allowed, retryAfterMs } = checkAnalyzeRateLimit(userId);
+      const { allowed, retryAfterMs } = await checkAnalyzeRateLimit(userId);
       if (!allowed) {
         res.setHeader('Retry-After', String(Math.ceil(retryAfterMs / 1000)));
         return res.status(429).json({

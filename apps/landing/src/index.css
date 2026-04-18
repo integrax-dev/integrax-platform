@@ -1,0 +1,22 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --purple: #7c3aed;
+  --purple-dark: #5b21b6;
+  --purple-light: #ede9fe;
+  --slate: #0f172a;
+  --slate-mid: #334155;
+  --slate-light: #94a3b8;
+  --white: #ffffff;
+  --bg: #f8fafc;
+  --border: #e2e8f0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--white);
+  color: var(--slate);
+  line-height: 1.6;
+}
+
+a { color: inherit; text-decoration: none; }

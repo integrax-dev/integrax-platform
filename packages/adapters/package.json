@@ -1,0 +1,21 @@
+{
+  "name": "@integrax/adapters",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Provider-agnostic adapter interfaces for LLM, queue, email, and cache",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "bullmq": "^5.1.1",
+    "ioredis": "^5.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.6.1"
+  }
+}
