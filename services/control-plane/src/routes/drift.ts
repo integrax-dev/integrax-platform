@@ -15,7 +15,7 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { driftService, driftEventEmitter } from '../platform/drift-service.js';
-import { getDriftIncident, listDriftIncidents, saveDriftLlmAnalysis, updateDriftIncidentStatus, type DriftProtocol } from '../store/drift-store.js';
+import { getDriftIncident, listDriftIncidents, saveDriftLlmAnalysis, updateDriftIncidentStatus, type DriftProtocol, type DriftSeverity, type DriftStatus, type LLMAnalysisResult } from '../store/drift-store.js';
 import { listTenantsByConnector } from '../store/tenant-connectors.js';
 import { TemporalClientService } from '@integrax/temporal-workflows';
 import { createLogger } from '@integrax/logger';
@@ -145,9 +145,9 @@ driftRouter.get(
   requireRole('platform_admin', 'tenant_admin', 'operator', 'viewer'),
   async (req, res, _next) => {
     try {
-      const status   = req.query['status']   ? (req.query['status']   as string).split(',') as any[] : undefined;
-      const protocol = req.query['protocol'] ? (req.query['protocol'] as string).split(',') as any[] : undefined;
-      const severity = req.query['severity'] ? (req.query['severity'] as string).split(',') as any[] : undefined;
+      const status   = req.query['status']   ? (req.query['status']   as string).split(',') as DriftStatus[]   : undefined;
+      const protocol = req.query['protocol'] ? (req.query['protocol'] as string).split(',') as DriftProtocol[] : undefined;
+      const severity = req.query['severity'] ? (req.query['severity'] as string).split(',') as DriftSeverity[] : undefined;
       const sourceId = req.query['sourceId'] as string | undefined;
       const limit    = req.query['limit']  ? Number(req.query['limit'])  : 50;
       const offset   = req.query['offset'] ? Number(req.query['offset']) : 0;
@@ -192,7 +192,7 @@ driftRouter.post(
       if (!allowed.includes(status)) {
         return res.status(400).json({ success: false, error: `status must be one of: ${allowed.join(', ')}` });
       }
-      await driftService.updateStatus(req.params['id'], status as any);
+      await driftService.updateStatus(req.params['id'], status as DriftStatus);
       res.json({ success: true, id: req.params['id'], status });
     } catch (err) {
       next(err);
@@ -215,7 +215,7 @@ driftRouter.post(
   async (req, res, _next) => {
     try {
       // Enforce rate limit before any DB or LLM work
-      const userId = (req as any).user?.id ?? (req as any).user?.sub ?? req.ip ?? 'anonymous';
+      const userId = req.user?.id ?? req.ip ?? 'anonymous';
       const { allowed, retryAfterMs } = await checkAnalyzeRateLimit(userId);
       if (!allowed) {
         res.setHeader('Retry-After', String(Math.ceil(retryAfterMs / 1000)));
@@ -234,8 +234,11 @@ driftRouter.post(
       const incident = await getDriftIncident(req.params['id']);
       if (!incident) return res.status(404).json({ success: false, error: 'Incident not found' });
 
-      const escalations = (incident.bridgeReport as any)?.requirementsReport?.llmEscalations ?? [];
+      const report = incident.bridgeReport as Record<string, unknown> | null | undefined;
+      const reqReport = report?.['requirementsReport'] as Record<string, unknown> | undefined;
+      const escalations = (reqReport?.['llmEscalations'] as Array<{ promptSeed?: string; reason?: string }>) ?? [];
       const escalation  = escalations[escalationIndex] as { promptSeed?: string; reason?: string } | undefined;
+
 
       if (!escalation?.promptSeed) {
         return res.status(404).json({ success: false, error: 'Escalation or promptSeed not found at that index' });
@@ -250,9 +253,9 @@ driftRouter.post(
       }
 
       // Dynamic import keeps the control-plane startable even without the SDK installed
-      let sdk: any;
+      let sdk: { default: new (opts: { apiKey: string }) => { messages: { create(opts: unknown): Promise<{ content: Array<{ type: string; text: string }> }> } } };
       try {
-        sdk = await import('@anthropic-ai/sdk');
+        sdk = await import('@anthropic-ai/sdk') as typeof sdk;
       } catch {
         return res.status(503).json({
           success: false,
@@ -303,7 +306,7 @@ Respond with exactly this JSON shape (no markdown, no extra text):
 
       // Persist result so the UI can show it without re-calling the LLM
       await saveDriftLlmAnalysis(req.params['id'], {
-        ...(analysis as any),
+        ...(analysis as Omit<LLMAnalysisResult, 'escalationIndex' | 'analyzedAt'>),
         escalationIndex,
         analyzedAt: new Date().toISOString(),
       });
@@ -311,7 +314,8 @@ Respond with exactly this JSON shape (no markdown, no extra text):
       res.json({ success: true, data: analysis });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      const status = (err as any)?.status ?? (err as any)?.statusCode ?? 500;
+      const errObj = err as { status?: number; statusCode?: number } | null;
+      const status = errObj?.status ?? errObj?.statusCode ?? 500;
       if (status === 401) {
         return res.status(503).json({ success: false, error: 'ANTHROPIC_API_KEY inválida o expirada' });
       }
@@ -365,7 +369,7 @@ driftRouter.post(
           try {
             const outcomes = await Promise.allSettled(handles.map(h => h.result()));
             const allOk = outcomes.every(
-              o => o.status === 'fulfilled' && (o.value as any)?.success === true,
+              o => o.status === 'fulfilled' && (o.value as { success?: boolean })?.success === true,
             );
             if (allOk) {
               await updateDriftIncidentStatus(incidentId, 'resolved');
@@ -419,7 +423,7 @@ driftRouter.post(
       if (incident.bridgeReport) {
         try {
           const impact = assessImpact(incident.bridgeReport);
-          const tenantId = (req as any).tenantId ?? affectedTenants[0] ?? 'platform';
+          const tenantId = req.tenantId ?? affectedTenants[0] ?? 'platform';
 
           // Write SchemaDriftTrace for each affected tenant (or platform if none)
           const tenants = affectedTenants.length > 0 ? affectedTenants : [tenantId];
@@ -434,7 +438,7 @@ driftRouter.post(
               impactScore: impact.impactScore,
               impactLabel: impact.impactLabel,
               driftsDetected: incident.bridgeReport.diffs?.length ?? 0,
-              breakingChanges: incident.bridgeReport.diffs?.filter((d: any) =>
+              breakingChanges: incident.bridgeReport.diffs?.filter((d: { kind: string }) =>
                 d.kind === 'field_removed' || d.kind === 'type_changed',
               ).length ?? 0,
               routingTarget: impact.primaryRoutingTarget,
@@ -520,7 +524,7 @@ driftRouter.get(
   '/baselines',
   requireAuth,
   requireRole('platform_admin', 'tenant_admin', 'operator', 'viewer'),
-  async (req, res, next) => {
+  async (_req, res, next) => {
     try {
       const baselines = await driftService.listBaselines();
       res.json({ success: true, data: baselines });

@@ -19,7 +19,7 @@ function encodeTime(now: number, len: number): string {
 
 function encodeRandom(len: number): string {
   const bytes = new Uint8Array(len);
-  (globalThis as any).crypto.getRandomValues(bytes);
+  crypto.getRandomValues(bytes);
   let str = '';
   for (const byte of bytes) {
     str += ENCODING[byte % 32];

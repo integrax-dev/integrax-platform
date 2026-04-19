@@ -357,7 +357,9 @@ export class DriftService {
     }
 
     // ── Auto LLM analysis for critical incidents ──────────────────────────────
-    const escalations = (report as any).requirementsReport?.llmEscalations ?? [];
+    const reportObj = report as unknown as Record<string, unknown> | null | undefined;
+    const reqReport = reportObj?.['requirementsReport'] as Record<string, unknown> | undefined;
+    const escalations = (reqReport?.['llmEscalations'] as Array<{ promptSeed?: string }>) ?? [];
     if (severity === 'critical' && escalations.length > 0 && process.env.ANTHROPIC_API_KEY) {
       this.analyzeEscalationsInBackground(incident.id, escalations);
     }

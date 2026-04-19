@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Response } from 'express';
 import { createEngine, IntegrationEngineError } from '@integrax/integration-engine';
 import type { IntegrationEngine } from '@integrax/integration-engine';
 import { requireAuth, requireRole, requireTenant } from '../middleware/auth.js';
@@ -21,7 +21,7 @@ function getEngine(): IntegrationEngine | null {
   return _engine;
 }
 
-function engineUnavailable(res: any) {
+function engineUnavailable(res: Response) {
   return res.status(503).json({
     success: false,
     error: {

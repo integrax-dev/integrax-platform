@@ -5,7 +5,7 @@ import type { InferredJsonSchema, SchemaField, JsonPrimitiveType } from '../type
 import type { SchemaAdapter } from './sql-adapter.js';
 
 export class ParquetAdapter implements SchemaAdapter {
-  private schema: any;
+  private schema: { fields: Record<string, { primitiveType: string; originalType?: string | null; optional?: boolean }> } | undefined;
 
   constructor(private readonly filePath: string) {}
 

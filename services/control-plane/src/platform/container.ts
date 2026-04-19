@@ -18,6 +18,6 @@ export { eventBus } from './container/event-bus.js';
 export { snapshotStore, timelineStore, approvalStore, identityAliasStore } from './container/stores.js';
 export { connectorRegistry, facadeResolver } from './container/connectors.js';
 export { commandRegistry } from './container/commands.js';
-export { ordersService, inventoryService, billingService, catalogService, paymentsService, consistencyInspector } from './container/modules.js';
+export { ordersService, inventoryService, billingService, catalogService, paymentsService, consistencyInspector, ecommerceService } from './container/modules.js';
 export { orchestrator, pollingScheduler, registerTenantPolling } from './container/orchestrator.js';
 export { operationEngine } from './container/engine.js';

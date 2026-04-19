@@ -67,7 +67,7 @@ export function matchCustomer(
   }
 
   // 7. Fuzzy Identity (probabilistic evaluation of weak signals)
-  const fuzzy = evaluateFuzzyIdentity(a, b);
+  const fuzzy = evaluateFuzzyIdentity(a as unknown as Record<string, unknown>, b as unknown as Record<string, unknown>);
   if (fuzzy.decision !== 'no_match') {
     return fuzzy;
   }

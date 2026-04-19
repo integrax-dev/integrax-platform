@@ -12,7 +12,9 @@ import pinoModule from 'pino';
 import type { IncomingMessage, ServerResponse } from 'http';
 
 // Pino ESM compat: handle default export quirks
-const pino = (pinoModule as unknown as { default?: typeof pinoModule }).default ?? pinoModule;
+type PinoCallable = (opts: pinoModule.LoggerOptions) => pinoModule.Logger;
+const pinoWithDefault = pinoModule as unknown as { default?: PinoCallable } & PinoCallable;
+const pino: PinoCallable = pinoWithDefault.default ?? pinoWithDefault;
 type PinoLogger = pinoModule.Logger;
 
 // ============================================

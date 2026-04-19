@@ -17,7 +17,7 @@ export function audit(action: string) {
     // Guardar el res.json original para capturar la respuesta
     const originalJson = res.json.bind(res);
 
-    res.json = (body: any) => {
+    res.json = (body: unknown) => {
       // Registrar la entrada de auditoría
       const entry: AuditEntry = {
         id: `aud_${ulid()}`,
@@ -31,7 +31,7 @@ export function audit(action: string) {
           query: req.query,
           body: maskSensitiveData(req.body),
           responseStatus: res.statusCode,
-          success: body?.success ?? res.statusCode < 400,
+          success: (body as Record<string, unknown>)?.['success'] ?? res.statusCode < 400,
         },
         ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.ip || '',
         userAgent: req.headers['user-agent'] || '',
@@ -71,7 +71,7 @@ function maskSensitiveData<T extends object>(obj: T): T {
     'credentials',
   ];
 
-  const masked: any = Array.isArray(obj) ? [] : {};
+  const masked: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(obj)) {
     const lowerKey = key.toLowerCase();
@@ -85,7 +85,7 @@ function maskSensitiveData<T extends object>(obj: T): T {
     }
   }
 
-  return masked;
+  return masked as unknown as T;
 }
 
 /**

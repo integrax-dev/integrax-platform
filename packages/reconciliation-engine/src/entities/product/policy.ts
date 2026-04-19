@@ -26,7 +26,7 @@ export function evaluateProductConflicts(
   conflicts: EntityConflict<ProductConflictType>[],
   tenantOverrides?: Partial<Record<ProductConflictType, PolicyAction>>,
 ): PolicyEvaluationResult<ProductConflictType>[] {
-  const merged: Record<ProductConflictType, { action: PolicyAction; reason: string }> = {} as any;
+  const merged = {} as Record<ProductConflictType, { action: PolicyAction; reason: string }>;
 
   for (const rule of DEFAULT_PRODUCT_POLICY) {
     merged[rule.conflictType] = { action: rule.action, reason: rule.reason };

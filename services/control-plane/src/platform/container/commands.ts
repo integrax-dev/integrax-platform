@@ -80,6 +80,29 @@ commandRegistry.register({
   capability: 'send_notification',
 });
 
+// ─── Ecommerce commands ───────────────────────────────────────────────────────
+
+commandRegistry.register({
+  commandName: 'ingest_catalog_item',
+  description: 'Ingest a catalog item into the platform snapshot store',
+  capability: 'create_record',
+  profileIds: ['ecommerce'],
+});
+
+commandRegistry.register({
+  commandName: 'start_checkout',
+  description: 'Start a checkout session for a cart',
+  capability: 'create_record',
+  profileIds: ['ecommerce'],
+});
+
+commandRegistry.register({
+  commandName: 'request_fulfillment',
+  description: 'Request fulfillment for a placed order',
+  capability: 'create_record',
+  profileIds: ['ecommerce'],
+});
+
 // ─── Conflict resolution commands ────────────────────────────────────────────
 
 commandRegistry.register({

@@ -46,6 +46,7 @@ import type {
 import { ulid } from 'ulid';
 import { timelineStore, eventBus } from '../platform/container.js';
 import { createLogger } from '@integrax/logger';
+import type { SchemaDriftTrace, ConflictTrace } from '@integrax/timeline';
 
 
 const logger = createLogger({ service: 'reconciliation-routes' });
@@ -574,7 +575,7 @@ reconciliationRouter.get(
 
       const entries = await timelineStore.list(tenantId, {
         kind: 'conflict',
-        ...(severity ? { severity: severity.split(',') as any[] } : {}),
+        ...(severity ? { severity: severity.split(',') as Array<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'> } : {}),
         limit: Math.min(Number(limit), 200),
         ...(after ? { after } : {}),
       });
@@ -604,14 +605,14 @@ reconciliationRouter.get(
         timelineStore.list(tenantId, { kind: 'conflict', limit: 100 }),
       ]);
 
-      const openDrifts = driftEntries.filter((e: any) => e.status === 'open' || e.status === 'acknowledged');
-      const openConflicts = conflictEntries.filter((e: any) =>
+      const openDrifts = (driftEntries as SchemaDriftTrace[]).filter(e => e.status === 'open' || e.status === 'acknowledged');
+      const openConflicts = (conflictEntries as ConflictTrace[]).filter(e =>
         e.status === 'detected' || e.status === 'acknowledged' || e.status === 'resolving',
       );
 
-      const maxImpact = openDrifts.reduce((max: number, e: any) => Math.max(max, e.impactScore ?? 0), 0);
-      const criticalDrifts = openDrifts.filter((e: any) => e.impactLabel === 'critical' || e.impactLabel === 'high').length;
-      const criticalConflicts = openConflicts.filter((e: any) => e.severity === 'CRITICAL' || e.severity === 'HIGH').length;
+      const maxImpact = openDrifts.reduce((max, e) => Math.max(max, e.impactScore ?? 0), 0);
+      const criticalDrifts = openDrifts.filter(e => e.impactLabel === 'critical' || e.impactLabel === 'high').length;
+      const criticalConflicts = openConflicts.filter(e => e.severity === 'CRITICAL' || e.severity === 'HIGH').length;
 
       const overallHealth: 'healthy' | 'degraded' | 'critical' =
         criticalDrifts > 0 || criticalConflicts > 3 ? 'critical'

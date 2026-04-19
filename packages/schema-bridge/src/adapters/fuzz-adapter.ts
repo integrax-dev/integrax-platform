@@ -10,9 +10,9 @@ import type { SchemaAdapter } from './sql-adapter.js';
  */
 export class FuzzAdapter implements SchemaAdapter {
   private inferrer = new SchemaInferrer();
-  private samples: any[];
+  private samples: Record<string, unknown>[];
 
-  constructor(samplesOrPath: any[] | string) {
+  constructor(samplesOrPath: Record<string, unknown>[] | string) {
     if (typeof samplesOrPath === 'string') {
       const content = fs.readFileSync(samplesOrPath, 'utf8');
       this.samples = JSON.parse(content);

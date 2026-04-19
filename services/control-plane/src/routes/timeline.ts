@@ -9,6 +9,7 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { timelineStore } from '../platform/container.js';
+import type { TimelineKind } from '@integrax/timeline';
 
 export const timelineRouter = Router();
 
@@ -23,12 +24,12 @@ timelineRouter.get(
       const q = req.query;
 
       const entries = await timelineStore.list(tenantId, {
-        kind: q['kind'] as any,
+        kind: q['kind'] as TimelineKind | TimelineKind[] | undefined,
         entityType: q['entityType'] as string | undefined,
         canonicalId: q['canonicalId'] as string | undefined,
         sourceSystem: q['sourceSystem'] as string | undefined,
         severity: q['severity']
-          ? (q['severity'] as string).split(',') as any[]
+          ? (q['severity'] as string).split(',') as Array<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>
           : undefined,
         from: q['from'] ? new Date(q['from'] as string) : undefined,
         to: q['to'] ? new Date(q['to'] as string) : undefined,

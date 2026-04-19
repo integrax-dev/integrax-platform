@@ -99,7 +99,7 @@ operationsRouter.post('/approvals/:approvalId/decide', async (req, res) => {
     return;
   }
 
-  const approvalService = (operationEngine as any)['approvalService'] as import('@integrax/operation-engine').ApprovalService;
+  const approvalService = operationEngine.getApprovalService();
   const result = await approvalService.decide({
     approvalId,
     tenantId,

@@ -68,11 +68,11 @@ export function parseJsonl(raw: string): SchemaField[] {
  */
 export function parseAvro(raw: string): SchemaField[] {
   try {
-    const schema = JSON.parse(raw) as any;
-    const fields: any[] = schema.fields ?? schema.schema?.fields ?? [];
-    return fields.map((f: any) => field(
-      String(f.name ?? f),
-      Array.isArray(f.type) && f.type.includes('null'),
+    const schema = JSON.parse(raw) as Record<string, unknown>;
+    const rawFields = (schema['fields'] ?? (schema['schema'] as Record<string, unknown>)?.['fields'] ?? []) as Array<Record<string, unknown>>;
+    return rawFields.map(f => field(
+      String(f['name'] ?? f),
+      Array.isArray(f['type']) && (f['type'] as unknown[]).includes('null'),
     ));
   } catch {
     return [];
@@ -138,13 +138,13 @@ export function parseGraphql(raw: string): SchemaField[] {
  */
 export function parseParquet(raw: string): SchemaField[] {
   try {
-    const obj = JSON.parse(raw) as any;
-    const cols: any[] =
-      obj.columns ?? obj.fields ?? obj.schema?.fields ?? obj.schema?.columns ?? [];
+    const obj = JSON.parse(raw) as Record<string, unknown>;
+    const schemaObj = obj['schema'] as Record<string, unknown> | undefined;
+    const cols = (obj['columns'] ?? obj['fields'] ?? schemaObj?.['fields'] ?? schemaObj?.['columns'] ?? []) as Array<Record<string, unknown>>;
     if (cols.length > 0) {
-      return cols.map((c: any) => field(
-        String(c.name ?? c.field_name ?? c),
-        c.nullable ?? false,
+      return cols.map(c => field(
+        String(c['name'] ?? c['field_name'] ?? c),
+        (c['nullable'] as boolean | undefined) ?? false,
       ));
     }
   } catch { /* fall through to DDL parser */ }

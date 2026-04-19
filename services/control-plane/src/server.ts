@@ -208,14 +208,14 @@ app.get(
 );
 
 // Manejo de errores
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   logger.error({ err, path: req.path, method: req.method }, 'Unhandled error');
-
-  res.status(err.status || 500).json({
+  const e = err as { status?: number; code?: string; message?: string };
+  res.status(e.status ?? 500).json({
     success: false,
     error: {
-      code: err.code || 'INTERNAL_ERROR',
-      message: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message,
+      code: e.code ?? 'INTERNAL_ERROR',
+      message: process.env.NODE_ENV === 'production' ? 'Internal server error' : (e.message ?? 'Unknown error'),
     },
   });
 });

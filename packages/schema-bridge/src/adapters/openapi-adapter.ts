@@ -58,7 +58,7 @@ export class OpenApiAdapter implements SchemaAdapter {
     if (schema.type === 'object' && schema.properties) {
       for (const [propName, propSchema] of Object.entries(schema.properties)) {
         const fullPath = prefix ? `${prefix}.${propName}` : propName;
-        const s = propSchema as any;
+        const s = propSchema as OpenAPIV3.SchemaObject & { nullable?: boolean };
         const type = this.mapOpenApiType(s.type);
         const required = schema.required?.includes(propName) || false;
 
@@ -95,7 +95,7 @@ export class OpenApiAdapter implements SchemaAdapter {
       const operations = ['get', 'post', 'put', 'patch', 'delete'];
       
       for (const op of operations) {
-        const operation = (pathItem as any)[op] as OpenAPIV3.OperationObject;
+        const operation = (pathItem as Record<string, unknown>)[op] as OpenAPIV3.OperationObject | undefined;
         if (!operation) continue;
 
         // Process request body

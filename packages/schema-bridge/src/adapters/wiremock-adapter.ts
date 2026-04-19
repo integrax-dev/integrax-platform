@@ -20,7 +20,7 @@ export class WireMockAdapter implements SchemaAdapter {
   }
 
   adapt(): InferredJsonSchema {
-    const samples: any[] = [];
+    const samples: Record<string, unknown>[] = [];
 
     if (!fs.existsSync(this.filesDir)) {
       return { fields: [], fingerprint: '', sampleCount: 0 };

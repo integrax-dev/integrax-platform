@@ -314,8 +314,10 @@ router.post(
       // We load it dynamically so the control-plane starts even without it.
       let analysis: unknown = null;
       try {
-        const mod = await import('../../llm-orchestrator/src/drift-analyzer.js' as string);
-        const analyzer = new (mod as any).DriftAnalyzer({
+        const mod = await import('../../llm-orchestrator/src/drift-analyzer.js' as string) as {
+          DriftAnalyzer: new (opts: { anthropicApiKey: string | undefined; model: string }) => { analyze(pack: unknown): Promise<unknown> }
+        };
+        const analyzer = new mod.DriftAnalyzer({
           anthropicApiKey: process.env.ANTHROPIC_API_KEY,
           model: 'claude-haiku-4-5-20251001',
         });

@@ -102,6 +102,8 @@ export class OperationEngine {
 
   // ─── Public API ────────────────────────────────────────────────────────────
 
+  getApprovalService(): ApprovalService { return this.approvalService; }
+
   async submit(request: OperationRequest): Promise<OperationResult> {
     const start = Date.now();
 

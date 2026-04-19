@@ -6,12 +6,12 @@
  */
 
 import { ulid } from '@integrax/entities';
-import type { EventBus } from '@integrax/event-bus';
+import type { EventBus, IntegraxEventType } from '@integrax/event-bus';
 import type { EntitySnapshot } from '@integrax/snapshot-store';
 
 // Maps canonical entity types to the most specific IntegraxEventType available.
 // All values must exist in IntegraxEventType (event-bus/src/event-types.ts).
-const ENTITY_CHANGED_EVENTS: Record<string, string> = {
+const ENTITY_CHANGED_EVENTS: Record<string, IntegraxEventType> = {
   order:    'order.updated',
   payment:  'snapshot.updated',   // no payment.* type yet
   invoice:  'invoice.created',    // webhooks typically fire on new invoices
@@ -28,12 +28,12 @@ export class EventPublisher {
     tenantId: string,
     snapshot: EntitySnapshot,
   ): Promise<void> {
-    const eventType =
-      ENTITY_CHANGED_EVENTS[snapshot.entityType] ?? 'entity.updated';
+    const eventType: IntegraxEventType =
+      ENTITY_CHANGED_EVENTS[snapshot.entityType] ?? 'snapshot.updated';
 
     await this.bus.publish({
       id: ulid(),
-      type: eventType as any,
+      type: eventType,
       tenantId,
       sourceSystem: snapshot.sourceSystem,
       entityType: snapshot.entityType,

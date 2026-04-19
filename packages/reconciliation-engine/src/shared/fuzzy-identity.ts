@@ -26,8 +26,8 @@ const DEFAULT_CONFIG: FuzzyIdentityConfig = {
  * A score > 0.85 is generally considered a fuzzy match.
  */
 export function evaluateFuzzyIdentity(
-  entityA: Record<string, any>,
-  entityB: Record<string, any>,
+  entityA: Record<string, unknown>,
+  entityB: Record<string, unknown>,
   config: Partial<FuzzyIdentityConfig> = {}
 ): MatchResult {
   const cfg = { ...DEFAULT_CONFIG, ...config };
@@ -42,14 +42,18 @@ export function evaluateFuzzyIdentity(
   }
 
   // 2. Email deterministic match
-  if (entityA.email && entityB.email && entityA.email.toLowerCase().trim() === entityB.email.toLowerCase().trim()) {
+  const emailA = typeof entityA.email === 'string' ? entityA.email : undefined;
+  const emailB = typeof entityB.email === 'string' ? entityB.email : undefined;
+  if (emailA && emailB && emailA.toLowerCase().trim() === emailB.toLowerCase().trim()) {
     score += cfg.emailWeight;
     reason = score > 0 ? 'taxId_and_email_match' : 'email_match';
   }
 
   // 3. Name similarity (Fallback)
-  if (score === 0 && entityA.name && entityB.name) {
-     const nameSim = combinedSimilarity(entityA.name, entityB.name);
+  const nameA = typeof entityA.name === 'string' ? entityA.name : undefined;
+  const nameB = typeof entityB.name === 'string' ? entityB.name : undefined;
+  if (score === 0 && nameA && nameB) {
+     const nameSim = combinedSimilarity(nameA, nameB);
      if (nameSim >= cfg.nameSimilarityThreshold) {
        score = nameSim * 0.8; // Penality because name alone is not as strong as taxId
        reason = 'name_similarity_match';

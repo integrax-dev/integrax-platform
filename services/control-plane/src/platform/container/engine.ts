@@ -25,7 +25,15 @@ import { eventBus } from './event-bus.js';
 import { timelineStore } from './stores.js';
 import { commandRegistry } from './commands.js';
 import { facadeResolver } from './connectors.js';
-import { billingService, inventoryService, paymentsService } from './modules.js';
+import { billingService, inventoryService, paymentsService, ecommerceService } from './modules.js';
+import type { CreateInvoiceInput } from '@integrax/module-billing';
+import type { UpdateStockInput } from '@integrax/module-inventory';
+import type {
+  CreatePaymentInput, AuthorizePaymentInput, CapturePaymentInput,
+  RefundPaymentInput, CancelPaymentInput, TokenizePaymentMethodInput,
+  CreateSubscriptionInput, CancelSubscriptionInput, SendPaymentReminderInput,
+  ReconcilePaymentInput,
+} from '@integrax/module-payments';
 
 // ─── Validator ────────────────────────────────────────────────────────────────
 
@@ -67,6 +75,7 @@ const operationValidator = new Validator({
     inventory: ['update_record', 'sync_record'],
     orders: ['update_record', 'sync_record'],
     catalog: ['create_record', 'update_record', 'publish_record', 'archive_record'],
+    ecommerce: ['create_record', 'sync_record'],
   },
   snapshotStore,
 });
@@ -88,38 +97,51 @@ export const operationEngine = new OperationEngine({
     resolveFacade: (connectorId, tenantId) => facadeResolver.resolve(connectorId, tenantId),
     moduleHandlers: {
       billing: async (_tenantId, action, payload) => {
-        if (action === 'create_invoice') return billingService.createInvoice(payload as any);
+        if (action === 'create_invoice') return billingService.createInvoice(payload as unknown as CreateInvoiceInput);
         throw new Error(`billing: unknown action '${action}'`);
       },
       inventory: async (_tenantId, action, payload) => {
-        if (action === 'update_stock') return inventoryService.updateStock(payload as any);
+        if (action === 'update_stock') return inventoryService.updateStock(payload as unknown as UpdateStockInput);
         throw new Error(`inventory: unknown action '${action}'`);
       },
-      payments: async (tenantId, action, payload) => {
+      payments: async (_tenantId, action, payload) => {
         const p = payload as Record<string, unknown>;
         switch (action) {
           case 'create_payment':
-            return paymentsService.createPayment(p['input'] as any, p['externalId'] as string, p['initialStatus'] as any);
+            return paymentsService.createPayment(p['input'] as unknown as CreatePaymentInput, p['externalId'] as string, p['initialStatus'] as unknown as import('@integrax/module-payments').PaymentStatus | undefined);
           case 'authorize_payment':
-            return paymentsService.authorizePayment(p as any);
+            return paymentsService.authorizePayment(payload as unknown as AuthorizePaymentInput);
           case 'capture_payment':
-            return paymentsService.capturePayment(p as any);
+            return paymentsService.capturePayment(payload as unknown as CapturePaymentInput);
           case 'refund_payment':
-            return paymentsService.refundPayment(p['input'] as any, p['externalRefundId'] as string);
+            return paymentsService.refundPayment(p['input'] as unknown as RefundPaymentInput, p['externalRefundId'] as string);
           case 'cancel_payment':
-            return paymentsService.cancelPayment(p as any);
+            return paymentsService.cancelPayment(payload as unknown as CancelPaymentInput);
           case 'tokenize_payment_method':
-            return paymentsService.tokenizePaymentMethod(p['input'] as any, p['pspToken'] as string, p['details'] as any);
+            return paymentsService.tokenizePaymentMethod(p['input'] as unknown as TokenizePaymentMethodInput, p['pspToken'] as string, p['details'] as Record<string, string>);
           case 'create_subscription':
-            return paymentsService.createSubscription(p['input'] as any, p['externalId'] as string);
+            return paymentsService.createSubscription(p['input'] as unknown as CreateSubscriptionInput, p['externalId'] as string);
           case 'cancel_subscription':
-            return paymentsService.cancelSubscription(p as any);
+            return paymentsService.cancelSubscription(payload as unknown as CancelSubscriptionInput);
           case 'send_payment_reminder':
-            return paymentsService.sendPaymentReminder(p as any);
+            return paymentsService.sendPaymentReminder(payload as unknown as SendPaymentReminderInput);
           case 'reconcile_payment':
-            return paymentsService.reconcilePayment(p['input'] as any, p['livePayment'] as any);
+            return paymentsService.reconcilePayment(p['input'] as unknown as ReconcilePaymentInput, p['livePayment'] as never);
           default:
             throw new Error(`payments: unknown action '${action}'`);
+        }
+      },
+      ecommerce: async (tenantId, action, payload) => {
+        const p = payload as Record<string, unknown>;
+        switch (action) {
+          case 'ingest_catalog_item':
+            return ecommerceService.ingestCatalogItem(tenantId, p['item'] as Parameters<typeof ecommerceService.ingestCatalogItem>[1]);
+          case 'start_checkout':
+            return ecommerceService.startCheckout(tenantId, p['cartId'] as string);
+          case 'request_fulfillment':
+            return ecommerceService.requestFulfillment(tenantId, p['request'] as Parameters<typeof ecommerceService.requestFulfillment>[1]);
+          default:
+            throw new Error(`ecommerce: unknown action '${action}'`);
         }
       },
     },

@@ -11,6 +11,7 @@ import { BillingService } from '@integrax/module-billing';
 import { CatalogService } from '@integrax/module-catalog';
 import { SnapshotConsistencyInspector } from '@integrax/module-consistency-inspector';
 import { PaymentsService } from '@integrax/module-payments';
+import { EcommerceService } from '@integrax/module-ecommerce';
 import { snapshotStore, timelineStore } from './stores.js';
 import { eventBus } from './event-bus.js';
 
@@ -24,3 +25,6 @@ export const consistencyInspector = new SnapshotConsistencyInspector(
   eventBus,
   timelineStore,
 );
+// Medusa is optional — null means fallback to snapshot-store for reads.
+// Wire Medusa per-tenant via PUT /api/tenants/:tenantId/modules/ecommerce (Phase 2).
+export const ecommerceService = new EcommerceService(snapshotStore, eventBus, timelineStore, null);

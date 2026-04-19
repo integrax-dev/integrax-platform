@@ -16,7 +16,9 @@ import {
   billingService,
   catalogService,
   consistencyInspector,
+  ecommerceService,
 } from '../platform/container.js';
+import type { OrderStatus, InvoiceStatus, ProductStatus } from '@integrax/entities';
 
 export const platformRouter = Router();
 
@@ -48,7 +50,7 @@ platformRouter.get(
     try {
       const orders = await ordersService.listOrders({
         tenantId: req.params['tenantId'],
-        status: req.query['status'] as string | undefined as any,
+        status: req.query['status'] as OrderStatus | undefined,
         sourceSystem: req.query['sourceSystem'] as string | undefined,
         since: req.query['since'] ? new Date(req.query['since'] as string) : undefined,
         limit: req.query['limit'] ? Number(req.query['limit']) : undefined,
@@ -247,7 +249,7 @@ platformRouter.get(
   async (req, res, next) => {
     try {
       const invoices = await billingService.listInvoices(req.params['tenantId'], {
-        status: req.query['status'] as any,
+        status: req.query['status'] as InvoiceStatus | undefined,
         since: req.query['since'] ? new Date(req.query['since'] as string) : undefined,
         limit: req.query['limit'] ? Number(req.query['limit']) : undefined,
       });
@@ -362,7 +364,7 @@ platformRouter.get(
   async (req, res, next) => {
     try {
       const products = await catalogService.listProducts(req.params['tenantId'], {
-        status: req.query['status'] as any,
+        status: req.query['status'] as ProductStatus | undefined,
         since: req.query['since'] ? new Date(req.query['since'] as string) : undefined,
         limit: req.query['limit'] ? Number(req.query['limit']) : undefined,
       });
@@ -475,7 +477,7 @@ platformRouter.get(
         ? (req.query['entityTypes'] as string).split(',')
         : undefined;
       const severity = req.query['severity']
-        ? (req.query['severity'] as string).split(',') as any[]
+        ? (req.query['severity'] as string).split(',') as Array<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>
         : undefined;
 
       const reports = await consistencyInspector.inspectAll(req.params['tenantId'], {
@@ -486,5 +488,91 @@ platformRouter.get(
     } catch (err) {
       next(err);
     }
+  },
+);
+
+// ─── Ecommerce ────────────────────────────────────────────────────────────────
+
+// GET /api/tenants/:tenantId/ecommerce/catalog
+platformRouter.get(
+  '/tenants/:tenantId/ecommerce/catalog',
+  requireAuth,
+  requireRole('platform_admin', 'tenant_admin', 'operator', 'viewer'),
+  async (req, res, next) => {
+    try {
+      const items = await ecommerceService.listCatalogItems(req.params['tenantId'], {
+        status: req.query['status'] as 'draft' | 'published' | 'archived' | undefined,
+        limit: req.query['limit'] ? Number(req.query['limit']) : undefined,
+        offset: req.query['offset'] ? Number(req.query['offset']) : undefined,
+      });
+      res.json({ success: true, data: items });
+    } catch (err) { next(err); }
+  },
+);
+
+// GET /api/tenants/:tenantId/ecommerce/catalog/:id
+platformRouter.get(
+  '/tenants/:tenantId/ecommerce/catalog/:id',
+  requireAuth,
+  requireRole('platform_admin', 'tenant_admin', 'operator', 'viewer'),
+  async (req, res, next) => {
+    try {
+      const item = await ecommerceService.getCatalogItem(req.params['tenantId'], req.params['id']);
+      if (!item) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Catalog item not found' } });
+      res.json({ success: true, data: item });
+    } catch (err) { next(err); }
+  },
+);
+
+// POST /api/tenants/:tenantId/ecommerce/catalog/ingest
+platformRouter.post(
+  '/tenants/:tenantId/ecommerce/catalog/ingest',
+  requireAuth,
+  requireRole('platform_admin', 'tenant_admin', 'operator'),
+  async (req, res, next) => {
+    try {
+      const item = await ecommerceService.ingestCatalogItem(req.params['tenantId'], req.body);
+      res.status(201).json({ success: true, data: item });
+    } catch (err) { next(err); }
+  },
+);
+
+// GET /api/tenants/:tenantId/ecommerce/carts/:cartId
+platformRouter.get(
+  '/tenants/:tenantId/ecommerce/carts/:cartId',
+  requireAuth,
+  requireRole('platform_admin', 'tenant_admin', 'operator', 'viewer'),
+  async (req, res, next) => {
+    try {
+      const cart = await ecommerceService.getCart(req.params['tenantId'], req.params['cartId']);
+      if (!cart) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Cart not found' } });
+      res.json({ success: true, data: cart });
+    } catch (err) { next(err); }
+  },
+);
+
+// POST /api/tenants/:tenantId/ecommerce/carts/:cartId/checkout
+platformRouter.post(
+  '/tenants/:tenantId/ecommerce/carts/:cartId/checkout',
+  requireAuth,
+  requireRole('platform_admin', 'tenant_admin', 'operator'),
+  async (req, res, next) => {
+    try {
+      const session = await ecommerceService.startCheckout(req.params['tenantId'], req.params['cartId']);
+      res.status(201).json({ success: true, data: session });
+    } catch (err) { next(err); }
+  },
+);
+
+// POST /api/tenants/:tenantId/ecommerce/fulfillment
+platformRouter.post(
+  '/tenants/:tenantId/ecommerce/fulfillment',
+  requireAuth,
+  requireRole('platform_admin', 'tenant_admin', 'operator'),
+  async (req, res, next) => {
+    try {
+      await ecommerceService.requestFulfillment(req.params['tenantId'], req.body);
+      res.status(202).json({ success: true, data: { queued: true } });
+    } catch (err) { next(err); }
   },
 );
