@@ -12,6 +12,7 @@ import { EcommerceService, createMedusaAdapter } from '@integrax/module-ecommerc
 import { findTenantModuleConfig } from '../../store/tenant-module-config.js';
 import { snapshotStore, timelineStore } from './stores.js';
 import { eventBus } from './event-bus.js';
+import { registerModuleEviction } from '../module-eviction-registry.js';
 
 const cache = new Map<string, EcommerceService>();
 
@@ -36,3 +37,5 @@ export async function getEcommerceService(tenantId: string): Promise<EcommerceSe
 export function evictEcommerceService(tenantId: string): void {
   cache.delete(tenantId);
 }
+
+registerModuleEviction('ecommerce', evictEcommerceService);

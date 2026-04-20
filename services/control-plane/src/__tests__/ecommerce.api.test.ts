@@ -50,7 +50,7 @@ let currentRole = 'operator';
 
 vi.mock('../middleware/auth.js', () => ({
   requireAuth: (req: express.Request, _res: express.Response, next: express.NextFunction) => {
-    req.user = { id: 'u1', email: 'e2e@test.com', role: currentRole, tenantId: null };
+    req.user = { id: 'u1', email: 'e2e@test.com', role: currentRole as 'operator', tenantId: null };
     next();
   },
   requireRole:

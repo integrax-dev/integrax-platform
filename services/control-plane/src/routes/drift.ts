@@ -17,10 +17,11 @@ import { requireAuth, requireRole } from '../middleware/auth.js';
 import { driftService, driftEventEmitter } from '../platform/drift-service.js';
 import { getDriftIncident, listDriftIncidents, saveDriftLlmAnalysis, updateDriftIncidentStatus, type DriftProtocol, type DriftSeverity, type DriftStatus, type LLMAnalysisResult } from '../store/drift-store.js';
 import { listTenantsByConnector } from '../store/tenant-connectors.js';
-import { TemporalClientService } from '@integrax/temporal-workflows';
 import { createLogger } from '@integrax/logger';
 import { assessImpact } from '@integrax/schema-bridge';
 import { timelineStore, eventBus } from '../platform/container.js';
+import { getTemporalClient } from '../platform/container/temporal.js';
+import { llm } from '../platform/container/llm.js';
 import { ulid } from 'ulid';
 
 const logger = createLogger({ service: 'drift-routes' });
@@ -74,20 +75,6 @@ async function checkAnalyzeRateLimit(userId: string): Promise<{ allowed: boolean
   }
   bucket.count += 1;
   return { allowed: true, retryAfterMs: 0 };
-}
-
-// Lazy singleton — only connects if TEMPORAL_ADDRESS is set
-let _temporalPromise: Promise<TemporalClientService | null> | null = null;
-function getTemporalClient(): Promise<TemporalClientService | null> {
-  if (!process.env.TEMPORAL_ADDRESS) return Promise.resolve(null);
-  if (!_temporalPromise) {
-    _temporalPromise = (async () => {
-      const c = new TemporalClientService();
-      await c.connect();
-      return c;
-    })().catch(() => { _temporalPromise = null; return null; });
-  }
-  return _temporalPromise;
 }
 
 export const driftRouter = Router();
@@ -244,27 +231,13 @@ driftRouter.post(
         return res.status(404).json({ success: false, error: 'Escalation or promptSeed not found at that index' });
       }
 
-      if (!process.env.ANTHROPIC_API_KEY) {
+      if (!llm.isAvailable()) {
         return res.status(503).json({
           success: false,
-          error: 'LLM analysis unavailable: add ANTHROPIC_API_KEY to services/control-plane/.env and restart',
-          code: 'MISSING_API_KEY',
+          error: 'LLM analysis unavailable — configure LLM_API_KEY and restart',
+          code: 'LLM_UNAVAILABLE',
         });
       }
-
-      // Dynamic import keeps the control-plane startable even without the SDK installed
-      let sdk: { default: new (opts: { apiKey: string }) => { messages: { create(opts: unknown): Promise<{ content: Array<{ type: string; text: string }> }> } } };
-      try {
-        sdk = await import('@anthropic-ai/sdk') as typeof sdk;
-      } catch {
-        return res.status(503).json({
-          success: false,
-          error: 'LLM analysis unavailable: run `pnpm add @anthropic-ai/sdk` in services/control-plane',
-          code: 'MISSING_SDK',
-        });
-      }
-
-      const client = new sdk.default({ apiKey: process.env.ANTHROPIC_API_KEY });
 
       const LOCALE_NAMES: Record<string, string> = {
         es: 'Spanish', en: 'English', pt: 'Portuguese',
@@ -288,15 +261,10 @@ Respond with exactly this JSON shape (no markdown, no extra text):
   "reasoning": "<two-sentence max explanation, in ${langName}>"
 }`;
 
-      const message = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 256,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }],
-      });
+      const response = await llm.complete({ systemPrompt, userPrompt, maxTokens: 256 });
 
-      const rawText: string = message.content[0]?.type === 'text' ? message.content[0].text : '';
       let analysis: unknown;
+      const rawText = response?.text ?? '';
       try {
         const jsonMatch = rawText.match(/\{[\s\S]*\}/);
         analysis = jsonMatch ? JSON.parse(jsonMatch[0]) : { action: 'needs_investigation', suggestion: rawText, confidence: 0.5, reasoning: rawText };
@@ -304,7 +272,6 @@ Respond with exactly this JSON shape (no markdown, no extra text):
         analysis = { action: 'needs_investigation', suggestion: rawText, confidence: 0.5, reasoning: rawText };
       }
 
-      // Persist result so the UI can show it without re-calling the LLM
       await saveDriftLlmAnalysis(req.params['id'], {
         ...(analysis as Omit<LLMAnalysisResult, 'escalationIndex' | 'analyzedAt'>),
         escalationIndex,
@@ -316,12 +283,8 @@ Respond with exactly this JSON shape (no markdown, no extra text):
       const msg = err instanceof Error ? err.message : String(err);
       const errObj = err as { status?: number; statusCode?: number } | null;
       const status = errObj?.status ?? errObj?.statusCode ?? 500;
-      if (status === 401) {
-        return res.status(503).json({ success: false, error: 'ANTHROPIC_API_KEY inválida o expirada' });
-      }
-      if (status === 429) {
-        return res.status(503).json({ success: false, error: 'Rate limit de Anthropic — reintentá en unos segundos' });
-      }
+      if (status === 401) return res.status(503).json({ success: false, error: 'LLM API key inválida o expirada' });
+      if (status === 429) return res.status(503).json({ success: false, error: 'LLM rate limit — reintentá en unos segundos' });
       console.error('[drift/analyze] LLM error:', msg);
       return res.status(500).json({ success: false, error: `LLM call failed: ${msg}` });
     }

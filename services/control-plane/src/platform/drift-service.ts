@@ -30,6 +30,7 @@ import {
   type SchemaField,
 } from '@integrax/schema-bridge';
 import { createLogger } from '@integrax/logger';
+import { llm } from './container/llm.js';
 import {
   getBaseline,
   getDriftIncident,
@@ -53,6 +54,7 @@ import {
   parseGraphql, parseParquet, parseProtobuf,
 } from './protocol-parsers.js';
 import { emitPlatformEvent } from './platform-emitter.js';
+import { eventBus } from './container/event-bus.js';
 
 const logger = createLogger({ service: 'drift-service' });
 
@@ -145,18 +147,15 @@ Respond with exactly this JSON shape (no markdown, no extra text):
 }`;
 
 async function callLlm(promptSeed: string): Promise<Omit<LLMAnalysisResult, 'escalationIndex' | 'analyzedAt'> | null> {
-  if (!process.env.ANTHROPIC_API_KEY) return null;
+  if (!llm.isAvailable()) return null;
   try {
-    const sdk = await import('@anthropic-ai/sdk');
-    const client = new sdk.default({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 256,
-      system: LLM_SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: promptSeed + LLM_RESPONSE_SCHEMA }],
+    const response = await llm.complete({
+      systemPrompt: LLM_SYSTEM_PROMPT,
+      userPrompt: promptSeed + LLM_RESPONSE_SCHEMA,
+      maxTokens: 256,
     });
-    const raw = message.content[0]?.type === 'text' ? message.content[0].text : '';
-    const match = raw.match(/\{[\s\S]*\}/);
+    if (!response) return null;
+    const match = response.text.match(/\{[\s\S]*\}/);
     const parsed = match ? JSON.parse(match[0]) : null;
     return parsed as Omit<LLMAnalysisResult, 'escalationIndex' | 'analyzedAt'> | null;
   } catch {
@@ -172,51 +171,31 @@ async function callLlm(promptSeed: string): Promise<Omit<LLMAnalysisResult, 'esc
 export const driftEventEmitter = new EventEmitter();
 driftEventEmitter.setMaxListeners(200); // one per connected admin tab
 
-// ─── Outbound notifications ───────────────────────────────────────────────────
+// ─── Outbound notifications via event-bus ────────────────────────────────────
 //
-// Fire-and-forget. Reads env vars at call time so they can be set after startup.
-//   SLACK_WEBHOOK_URL  — Slack incoming webhook
-//   DRIFT_WEBHOOK_URL  — generic HTTP POST target (your own alerting stack)
-//
-// Only fires for critical/major incidents. Never blocks the ingest response.
+// Publishes a 'conflict.detected' event. Notification handlers (Slack, webhook,
+// email) subscribe to the event-bus independently — drift-service has no knowledge
+// of delivery channels. Wire new channels in container/notification-handler.ts.
 
 function notifyInBackground(incident: DriftIncident): void {
-  const slackUrl  = process.env.SLACK_WEBHOOK_URL;
-  const driftUrl  = process.env.DRIFT_WEBHOOK_URL;
-  if (!slackUrl && !driftUrl) return;
-
-  const severityEmoji = incident.severity === 'critical' ? '🔴' : '🟡';
-  const text = `${severityEmoji} *Schema drift detected* — \`${incident.sourceId}\` (${incident.protocol.toUpperCase()})\n` +
-    `Severity: *${incident.severity}* · Impact: ${Math.round((incident.impactScore ?? 0) * 100)}% · ` +
-    `Blast radius: ${incident.affectedTenants.length} tenant(s)\n` +
-    `Incident ID: \`${incident.id}\``;
-
-  const run = async () => {
-    if (slackUrl) {
-      await fetch(slackUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-      });
-    }
-    if (driftUrl) {
-      await fetch(driftUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event: 'drift.incident.created',
-          severity: incident.severity,
-          sourceId: incident.sourceId,
-          protocol: incident.protocol,
-          incidentId: incident.id,
-          impactScore: incident.impactScore,
-          affectedTenants: incident.affectedTenants,
-          detectedAt: incident.detectedAt,
-        }),
-      });
-    }
-  };
-  run().catch(err => logger.warn({ err, incidentId: incident.id }, 'Drift notification failed'));
+  if (incident.severity === 'minor') return;
+  eventBus.publish({
+    id: ulid(),
+    type: 'conflict.detected',
+    tenantId: incident.affectedTenants[0] ?? 'platform',
+    sourceSystem: 'drift',
+    entityType: 'drift_incident',
+    entityId: incident.id,
+    payload: {
+      severity: incident.severity,
+      sourceId: incident.sourceId,
+      protocol: incident.protocol,
+      impactScore: incident.impactScore,
+      affectedTenants: incident.affectedTenants,
+      detectedAt: incident.detectedAt,
+    },
+    occurredAt: new Date(),
+  }).catch(err => logger.warn({ err, incidentId: incident.id }, 'Drift event publish failed'));
 }
 
 // ─── DriftService ─────────────────────────────────────────────────────────────

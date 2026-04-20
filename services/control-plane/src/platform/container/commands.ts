@@ -3,9 +3,24 @@
  *
  * These commands are always available regardless of profile.
  * Profile-specific commands are registered by their respective module manifests.
+ *
+ * Timeouts are read from env vars so they can be tuned per-deployment:
+ *   PAYMENT_TIMEOUT_MS        (default 30 000)
+ *   PAYMENT_SHORT_TIMEOUT_MS  (default 15 000)
+ *   RECONCILE_TIMEOUT_MS      (default 60 000)
  */
 
 import { CommandRegistry } from '@integrax/operation-engine';
+
+function envMs(key: string, fallback: number): number {
+  const v = process.env[key];
+  const n = v ? parseInt(v, 10) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+const PAYMENT_TIMEOUT_MS       = envMs('PAYMENT_TIMEOUT_MS',       30_000);
+const PAYMENT_SHORT_TIMEOUT_MS = envMs('PAYMENT_SHORT_TIMEOUT_MS', 15_000);
+const RECONCILE_TIMEOUT_MS     = envMs('RECONCILE_TIMEOUT_MS',     60_000);
 
 export const commandRegistry = new CommandRegistry();
 
@@ -33,11 +48,10 @@ commandRegistry.register({
 
 commandRegistry.register({
   commandName: 'issue_invoice',
-  description: 'Generate and authorize a fiscal invoice (e.g. AFIP WSFE)',
+  description: 'Generate and authorize a fiscal invoice via the tenant-configured fiscal connector',
   capability: 'create_document',
-  defaultConnectorId: 'afip-wsfe',
   requiresApproval: false,
-  timeoutMs: 30_000,
+  timeoutMs: PAYMENT_TIMEOUT_MS,
 });
 
 commandRegistry.register({
@@ -118,21 +132,21 @@ commandRegistry.register({
   commandName: 'create_payment',
   description: 'Initiate a new payment through the target PSP',
   capability: 'create_payment',
-  timeoutMs: 30_000,
+  timeoutMs: PAYMENT_TIMEOUT_MS,
 });
 
 commandRegistry.register({
   commandName: 'authorize_payment',
   description: 'Authorize (hold) funds without capturing them',
   capability: 'authorize_payment',
-  timeoutMs: 30_000,
+  timeoutMs: PAYMENT_TIMEOUT_MS,
 });
 
 commandRegistry.register({
   commandName: 'capture_payment',
   description: 'Capture a previously authorized payment',
   capability: 'capture_payment',
-  timeoutMs: 30_000,
+  timeoutMs: PAYMENT_TIMEOUT_MS,
 });
 
 commandRegistry.register({
@@ -140,61 +154,61 @@ commandRegistry.register({
   description: 'Issue a full or partial refund for a captured payment',
   capability: 'refund_payment',
   requiresApproval: false,
-  timeoutMs: 30_000,
+  timeoutMs: PAYMENT_TIMEOUT_MS,
 });
 
 commandRegistry.register({
   commandName: 'cancel_payment',
   description: 'Void a pending or authorized payment',
   capability: 'cancel_payment',
-  timeoutMs: 15_000,
+  timeoutMs: PAYMENT_SHORT_TIMEOUT_MS,
 });
 
 commandRegistry.register({
   commandName: 'tokenize_payment_method',
   description: 'Store a payment instrument as a reusable PSP token',
   capability: 'tokenize_payment_method',
-  timeoutMs: 15_000,
+  timeoutMs: PAYMENT_SHORT_TIMEOUT_MS,
 });
 
 commandRegistry.register({
   commandName: 'create_subscription',
   description: 'Set up a recurring billing agreement',
   capability: 'create_subscription',
-  timeoutMs: 30_000,
+  timeoutMs: PAYMENT_TIMEOUT_MS,
 });
 
 commandRegistry.register({
   commandName: 'cancel_subscription',
   description: 'Terminate a recurring billing agreement',
   capability: 'cancel_subscription',
-  timeoutMs: 15_000,
+  timeoutMs: PAYMENT_SHORT_TIMEOUT_MS,
 });
 
 commandRegistry.register({
   commandName: 'create_checkout_link',
   description: 'Generate a hosted payment link or checkout URL',
   capability: 'create_checkout_link',
-  timeoutMs: 15_000,
+  timeoutMs: PAYMENT_SHORT_TIMEOUT_MS,
 });
 
 commandRegistry.register({
   commandName: 'generate_qr_payment',
   description: 'Create a QR code payment request',
   capability: 'generate_qr_payment',
-  timeoutMs: 15_000,
+  timeoutMs: PAYMENT_SHORT_TIMEOUT_MS,
 });
 
 commandRegistry.register({
   commandName: 'reconcile_payment',
   description: 'Reconcile canonical payment state against live PSP state',
   capability: 'reconcile_payment',
-  timeoutMs: 60_000,
+  timeoutMs: RECONCILE_TIMEOUT_MS,
 });
 
 commandRegistry.register({
   commandName: 'send_payment_reminder',
   description: 'Send a payment reminder to a payer via email, WhatsApp, or SMS',
   capability: 'send_payment_reminder',
-  timeoutMs: 15_000,
+  timeoutMs: PAYMENT_SHORT_TIMEOUT_MS,
 });

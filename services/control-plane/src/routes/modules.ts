@@ -14,7 +14,7 @@ import {
   saveTenantModuleConfig,
   deleteTenantModuleConfig,
 } from '../store/tenant-module-config.js';
-import { evictEcommerceService } from '../platform/container/ecommerce-registry.js';
+import { evictModule } from '../platform/module-eviction-registry.js';
 import { createMedusaAdapter } from '@integrax/module-ecommerce';
 
 export const modulesRouter = Router();
@@ -74,7 +74,7 @@ modulesRouter.put(
         updatedAt: now,
       });
 
-      evictEcommerceService(tenantId);
+      evictModule(moduleId, tenantId);
 
       const saved = await findTenantModuleConfig(tenantId, moduleId);
       res.json({ success: true, data: saved });
@@ -94,7 +94,7 @@ modulesRouter.delete(
     try {
       const { tenantId, moduleId } = req.params as { tenantId: string; moduleId: string };
       await deleteTenantModuleConfig(tenantId, moduleId);
-      evictEcommerceService(tenantId);
+      evictModule(moduleId, tenantId);
       res.json({ success: true });
     } catch (err) {
       next(err);

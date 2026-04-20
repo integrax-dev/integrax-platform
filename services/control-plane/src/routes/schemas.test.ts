@@ -100,10 +100,11 @@ describe('schemas router', () => {
 
   // ── Tests que deben correr antes de que el singleton de Temporal se popule ────
 
-  it('POST /diff devuelve 500 si Temporal falla al conectar', async () => {
+  it('POST /diff devuelve 503 si Temporal falla al conectar', async () => {
     // Forzar fallo en el próximo intento de conexión.
     // El singleton está vacío acá (es el primer test que llama a POST /diff),
     // así que getTemporalClient() intentará conectar y fallará.
+    // El container absorbe el error y devuelve null → la ruta responde 503.
     temporalState.connectShouldFail = true;
     // Asegurar que TEMPORAL_ADDRESS esté configurado para que intente conectar
     process.env.TEMPORAL_ADDRESS = 'localhost:7233';
@@ -119,10 +120,10 @@ describe('schemas router', () => {
       }),
     });
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(503);
     const payload = await response.json() as Record<string, any>;
     expect(payload.success).toBe(false);
-    expect(payload.error.code).toBe('WORKFLOW_START_FAILED');
+    expect(payload.error.code).toBe('TEMPORAL_UNAVAILABLE');
   });
 
   it('POST /diff devuelve 503 si TEMPORAL_ADDRESS no está configurado', async () => {

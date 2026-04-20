@@ -57,6 +57,9 @@ if (process.env.REDIS_URL) {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { registerNotificationHandlers } from './platform/container/notification-handler.js';
+registerNotificationHandlers();
+
 const app: express.Application = express();
 
 function parsePositiveInt(value: string | undefined, fallback: number): number {

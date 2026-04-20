@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { ulid } from 'ulid';
-import { TemporalClientService } from '@integrax/temporal-workflows';
 import { requireAuth, requireTenant } from '../middleware/auth.js';
+import { getTemporalClient } from '../platform/container/temporal.js';
 import { audit } from '../middleware/audit.js';
 import { validate } from '../middleware/validate.js';
 import { z } from 'zod';
@@ -13,26 +13,6 @@ import { createLogger } from '@integrax/logger';
 const router: Router = Router();
 const logger = createLogger({ service: 'control-plane:schemas', version: '0.1.0' });
 
-// Lock basado en Promise: requests concurrentes comparten la misma Promise de init
-// en vez de crear múltiples clientes (lo que filtraría conexiones).
-// Si la Promise rechaza (Temporal caído), se nullea para que el próximo request vuelva a intentarlo.
-// Si TEMPORAL_ADDRESS no está configurado, devuelve null sin intentar conectar.
-let _temporalClientPromise: Promise<TemporalClientService | null> | null = null;
-
-function getTemporalClient(): Promise<TemporalClientService | null> {
-  if (!process.env.TEMPORAL_ADDRESS) return Promise.resolve(null);
-  if (!_temporalClientPromise) {
-    _temporalClientPromise = (async () => {
-      const c = new TemporalClientService();
-      await c.connect();
-      return c;
-    })().catch(err => {
-      _temporalClientPromise = null; // permite reintentar en la próxima request
-      throw err;
-    });
-  }
-  return _temporalClientPromise;
-}
 
 const startSchemaDiffOpts = z.object({
   sourceSchemaId: z.string(),
