@@ -6,7 +6,7 @@
  *
  * Sub-module layout:
  *   container/event-bus.ts    — InMemoryEventBus singleton
- *   container/stores.ts       — All storage singletons (Postgres or InMemory)
+ *   container/stores.ts       — All storage singletons (Postgres — requires DATABASE_URL)
  *   container/connectors.ts   — ConnectorManifestRegistry + FacadeResolver
  *   container/commands.ts     — CommandRegistry with built-in commands
  *   container/modules.ts      — Domain module singletons (Orders, Billing, etc.)

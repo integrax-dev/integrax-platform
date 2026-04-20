@@ -29,6 +29,8 @@ Thumbs.db
 # Logs and audit trails
 logs/
 audit/
+.drift/reports/
+.tmp/
 *.log
 *.jsonl
 npm-debug.log*
