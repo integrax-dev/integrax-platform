@@ -1,14 +1,10 @@
 /**
  * Rutas del panel de administración (admin-panel).
  *
- * Separadas de /api/tenants para:
- *  - Permitir autenticación con credenciales de plataforma sin contexto de tenant.
- *  - Adaptar shapes de respuesta al formato esperado por el admin-panel React.
- *
- * Variables de entorno:
- *   ADMIN_EMAIL    — email del administrador (default: admin@integrax.io)
- *   ADMIN_PASSWORD — contraseña en texto plano para MVP (default: integrax-dev)
- *                    En producción, reemplazar por una implementación con bcrypt o OIDC.
+ * Variables de entorno requeridas:
+ *   JWT_SECRET     — FATAL si falta
+ *   ADMIN_EMAIL    — default: admin@integrax.io
+ *   ADMIN_PASSWORD — FATAL en producción si falta; dev default: integrax-dev
  */
 
 import { Router, Request, Response } from 'express';
@@ -20,15 +16,23 @@ import { getAuditLogs } from '../middleware/audit.js';
 const router: Router = Router();
 
 function getJwtSecret(): Uint8Array {
-  return new TextEncoder().encode(
-    process.env.JWT_SECRET ?? 'integrax-dev-secret-DO-NOT-USE-IN-PRODUCTION',
-  );
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    // server.ts already fatals, but guard here too for tests
+    throw new Error('JWT_SECRET is not set');
+  }
+  return new TextEncoder().encode(secret);
 }
 
 function getAdminCredentials() {
+  const password = process.env.ADMIN_PASSWORD;
+  if (!password && process.env.NODE_ENV === 'production') {
+    console.error('[FATAL] ADMIN_PASSWORD is not set in production.');
+    process.exit(1);
+  }
   return {
     email: process.env.ADMIN_EMAIL ?? 'admin@integrax.io',
-    password: process.env.ADMIN_PASSWORD ?? 'integrax-dev',
+    password: password ?? 'integrax-dev',
   };
 }
 

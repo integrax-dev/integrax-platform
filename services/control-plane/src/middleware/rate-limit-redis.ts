@@ -11,7 +11,7 @@
  *   import { redisRateLimit } from './rate-limit-redis.js';
  *   router.post('/feedback', redisRateLimit({ maxRequests: 60, windowMs: 60_000 }), handler)
  *
- * Falls back gracefully: if Redis is unavailable, the middleware passes through.
+ * If Redis is unavailable, returns 503 to prevent rate-limit bypass.
  *
  * TD-001 note: Only activated when REDIS_URL is set. Single-instance deployments
  * continue to use the in-process rate-limit.ts.
@@ -49,9 +49,11 @@ export function redisRateLimit(options: RedisRateLimitOptions = {}) {
   const maxRequests = options.maxRequests ?? 60;
   const windowMs = options.windowMs ?? 60_000;
   const windowSec = Math.ceil(windowMs / 1000);
-  const keyFn = options.keyFn ?? ((req: Request) =>
-    `rl:${req.tenantId ?? 'anon'}:${req.user?.id ?? 'anon'}`
-  );
+  const keyFn = options.keyFn ?? ((req: Request) => {
+    const tenant = req.tenantId ?? req.ip ?? 'unknown';
+    const user = req.user?.id ?? req.ip ?? 'unknown';
+    return `rl:${tenant}:${user}`;
+  });
 
   return async function redisRateLimitMiddleware(
     req: Request,
@@ -92,7 +94,11 @@ export function redisRateLimit(options: RedisRateLimitOptions = {}) {
         return;
       }
     } catch {
-      // Redis error — fail open rather than blocking legitimate traffic
+      res.status(503).json({
+        success: false,
+        error: { code: 'RATE_LIMITER_UNAVAILABLE', message: 'Rate limiter temporarily unavailable' },
+      });
+      return;
     }
 
     next();

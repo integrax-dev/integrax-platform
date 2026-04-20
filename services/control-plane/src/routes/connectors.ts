@@ -376,22 +376,18 @@ async function testTiendaNube(credentials: Record<string, string>): Promise<Test
 
 const router: Router = Router();
 
-function getCredentialEncryptionKey(): string {
+const ENCRYPTION_KEY = ((): string => {
   const key = process.env.CREDENTIAL_ENCRYPTION_KEY;
-
-  if (process.env.NODE_ENV === 'production' && (!key || key.length < 32)) {
-    throw new Error('CREDENTIAL_ENCRYPTION_KEY is required in production and must be at least 32 characters');
-  }
-
   if (!key) {
-    console.warn('[Connectors] WARNING: Using ephemeral encryption key outside production');
-    return randomBytes(32).toString('hex');
+    console.error('[FATAL] CREDENTIAL_ENCRYPTION_KEY is not set. Connector credentials cannot be stored safely.');
+    process.exit(1);
   }
-
+  if (key.length < 32) {
+    console.error('[FATAL] CREDENTIAL_ENCRYPTION_KEY must be at least 32 characters.');
+    process.exit(1);
+  }
   return key;
-}
-
-const ENCRYPTION_KEY = getCredentialEncryptionKey();
+})();
 
 // Catálogo de conectores disponibles
 const CONNECTOR_CATALOG: ConnectorDefinition[] = [
@@ -531,7 +527,9 @@ const CONNECTOR_CATALOG: ConnectorDefinition[] = [
 // ============ Helpers de Cifrado ============
 
 function encrypt(text: string): string {
-  const key = Buffer.from(ENCRYPTION_KEY.slice(0, 32), 'utf-8');
+  const key = ENCRYPTION_KEY.length >= 64 && /^[0-9a-fA-F]+$/.test(ENCRYPTION_KEY)
+    ? Buffer.from(ENCRYPTION_KEY.slice(0, 64), 'hex')
+    : Buffer.from(ENCRYPTION_KEY.slice(0, 32), 'utf-8');
   const iv = randomBytes(16);
   const cipher = createCipheriv('aes-256-cbc', key, iv);
   let encrypted = cipher.update(text, 'utf8', 'hex');
@@ -540,7 +538,9 @@ function encrypt(text: string): string {
 }
 
 function decrypt(encrypted: string): string {
-  const key = Buffer.from(ENCRYPTION_KEY.slice(0, 32), 'utf-8');
+  const key = ENCRYPTION_KEY.length >= 64 && /^[0-9a-fA-F]+$/.test(ENCRYPTION_KEY)
+    ? Buffer.from(ENCRYPTION_KEY.slice(0, 64), 'hex')
+    : Buffer.from(ENCRYPTION_KEY.slice(0, 32), 'utf-8');
   const [ivHex, encryptedText] = encrypted.split(':');
   const iv = Buffer.from(ivHex, 'hex');
   const decipher = createDecipheriv('aes-256-cbc', key, iv);

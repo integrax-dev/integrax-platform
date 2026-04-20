@@ -28,7 +28,11 @@ interface WindowEntry {
 export function rateLimit(options: RateLimitOptions = {}) {
   const maxRequests = options.maxRequests ?? 60;
   const windowMs = options.windowMs ?? 60_000;
-  const keyFn = options.keyFn ?? ((req: Request) => `${req.tenantId ?? 'anon'}:${req.user?.id ?? 'anon'}`);
+  const keyFn = options.keyFn ?? ((req: Request) => {
+    const tenant = req.tenantId ?? req.ip ?? 'unknown';
+    const user = req.user?.id ?? req.ip ?? 'unknown';
+    return `${tenant}:${user}`;
+  });
 
   const windows = new Map<string, WindowEntry>();
 

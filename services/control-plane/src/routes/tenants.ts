@@ -89,12 +89,12 @@ router.post(
     };
 
     await saveTenant(tenant);
-    emitPlatformEvent('tenant.created', { ...tenant, apiKeyHash: undefined });
+    emitPlatformEvent('tenant.created', { ...tenant, apiKeyHash: undefined, webhookSecret: undefined });
 
     res.status(201).json({
       success: true,
       data: {
-        tenant: { ...tenant, apiKeyHash: undefined },
+        tenant: { ...tenant, apiKeyHash: undefined, webhookSecret: undefined },
         apiKey,
         webhookSecret,
       },
@@ -162,7 +162,7 @@ router.get(
 
     res.json({
       success: true,
-      data: { ...tenant, apiKeyHash: undefined },
+      data: { ...tenant, apiKeyHash: undefined, webhookSecret: undefined },
     });
   }
 );
@@ -203,11 +203,11 @@ router.patch(
 
     tenant.updatedAt = new Date();
     await saveTenant(tenant);
-    emitPlatformEvent('tenant.updated', { ...tenant, apiKeyHash: undefined });
+    emitPlatformEvent('tenant.updated', { ...tenant, apiKeyHash: undefined, webhookSecret: undefined });
 
     res.json({
       success: true,
-      data: { ...tenant, apiKeyHash: undefined },
+      data: { ...tenant, apiKeyHash: undefined, webhookSecret: undefined },
     });
   }
 );
@@ -233,11 +233,11 @@ router.post(
     tenant.status = 'suspended';
     tenant.updatedAt = new Date();
     await saveTenant(tenant);
-    emitPlatformEvent('tenant.suspended', { ...tenant, apiKeyHash: undefined });
+    emitPlatformEvent('tenant.suspended', { ...tenant, apiKeyHash: undefined, webhookSecret: undefined });
 
     res.json({
       success: true,
-      data: { ...tenant, apiKeyHash: undefined },
+      data: { ...tenant, apiKeyHash: undefined, webhookSecret: undefined },
     });
   }
 );
@@ -263,11 +263,11 @@ router.post(
     tenant.status = 'active';
     tenant.updatedAt = new Date();
     await saveTenant(tenant);
-    emitPlatformEvent('tenant.activated', { ...tenant, apiKeyHash: undefined });
+    emitPlatformEvent('tenant.activated', { ...tenant, apiKeyHash: undefined, webhookSecret: undefined });
 
     res.json({
       success: true,
-      data: { ...tenant, apiKeyHash: undefined },
+      data: { ...tenant, apiKeyHash: undefined, webhookSecret: undefined },
     });
   }
 );
@@ -302,6 +302,7 @@ router.post(
     tenant.updatedAt = new Date();
     await saveTenant(tenant);
 
+    res.setHeader('Cache-Control', 'no-store');
     res.json({
       success: true,
       data: {
