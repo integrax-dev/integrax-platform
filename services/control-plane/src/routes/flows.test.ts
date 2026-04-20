@@ -93,7 +93,9 @@ function mapping(overrides = {}) {
 // ── Flow mappings CRUD ────────────────────────────────────────────────────────
 
 describe('GET /api/tenants/:tenantId/flow-mappings', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('returns list of mappings', async () => {
     listFlowMappingsMock.mockResolvedValue([mapping()]);
@@ -113,7 +115,9 @@ describe('GET /api/tenants/:tenantId/flow-mappings', () => {
 });
 
 describe('GET /api/tenants/:tenantId/flow-mappings/:eventType', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('returns single mapping', async () => {
     getFlowMappingMock.mockResolvedValue(mapping());
@@ -131,7 +135,9 @@ describe('GET /api/tenants/:tenantId/flow-mappings/:eventType', () => {
 });
 
 describe('PUT /api/tenants/:tenantId/flow-mappings/:eventType', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('creates new mapping when none exists', async () => {
     getFlowMappingMock
@@ -189,7 +195,9 @@ describe('PUT /api/tenants/:tenantId/flow-mappings/:eventType', () => {
 });
 
 describe('DELETE /api/tenants/:tenantId/flow-mappings/:eventType', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('deletes mapping and returns success', async () => {
     deleteFlowMappingMock.mockResolvedValue(undefined);
