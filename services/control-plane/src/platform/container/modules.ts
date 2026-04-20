@@ -14,7 +14,8 @@ import { PaymentsService } from '@integrax/module-payments';
 import { EcommerceService } from '@integrax/module-ecommerce';
 import { snapshotStore, timelineStore } from './stores.js';
 import { eventBus } from './event-bus.js';
-import './ecommerce-registry.js'; // registers per-tenant eviction handler
+import './ecommerce-registry.js';        // registers per-tenant eviction handler
+import './module-testers/ecommerce.js'; // registers ecommerce connectivity tester
 
 export const ordersService = new OrdersService(snapshotStore, eventBus, timelineStore);
 export const inventoryService = new InventoryService(snapshotStore, eventBus, timelineStore);

@@ -18,6 +18,7 @@ import { platformRouter } from './routes/platform.js';
 import { timelineRouter } from './routes/timeline.js';
 import { operationsRouter } from './routes/operations.js';
 import { modulesRouter } from './routes/modules.js';
+import { flowsRouter } from './routes/flows.js';
 import { driftRouter } from './routes/drift.js';
 import { streamRouter } from './routes/stream.js';
 import { authRouter } from './routes/auth.js';
@@ -58,7 +59,9 @@ if (process.env.REDIS_URL) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { registerNotificationHandlers } from './platform/container/notification-handler.js';
+import { registerActivepiecesBridge } from './platform/activepieces-bridge.js';
 registerNotificationHandlers();
+registerActivepiecesBridge();
 
 const app: express.Application = express();
 
@@ -146,6 +149,7 @@ app.use('/api', platformRouter);
 app.use('/api/tenants', timelineRouter);
 app.use('/api/tenants/:tenantId/operations', operationsRouter);
 app.use('/api/tenants', modulesRouter);
+app.use('/api/tenants/:tenantId/flow-mappings', flowsRouter);
 app.use('/api/drift', requireAuth, driftRouter);
 app.use('/api/stream', streamRouter);
 
@@ -171,14 +175,13 @@ app.get(
   '/api/audit',
   requireAuth,
   requireRole('platform_admin', 'tenant_admin'),
-  (req, res) => {
+  async (req, res) => {
     const { tenantId, userId, action, startDate, endDate, limit, offset } = req.query;
 
-    // Los tenant admins solo pueden ver los logs de su propio tenant
     const effectiveTenantId =
       req.user?.role === 'tenant_admin' ? req.tenantId : (tenantId as string);
 
-    const result = getAuditLogs({
+    const result = await getAuditLogs({
       tenantId: effectiveTenantId,
       userId: userId as string,
       action: action as string,

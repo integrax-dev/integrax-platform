@@ -15,7 +15,7 @@ import {
   deleteTenantModuleConfig,
 } from '../store/tenant-module-config.js';
 import { evictModule } from '../platform/module-eviction-registry.js';
-import { createMedusaAdapter } from '@integrax/module-ecommerce';
+import { testModule } from '../platform/module-tester-registry.js';
 
 export const modulesRouter = Router();
 
@@ -102,37 +102,23 @@ modulesRouter.delete(
   },
 );
 
-// ─── Test Medusa connectivity ─────────────────────────────────────────────────
+// ─── Test module connectivity (generic — works for any module with a registered tester) ──
 
 modulesRouter.post(
-  '/:tenantId/modules/ecommerce/test',
+  '/:tenantId/modules/:moduleId/test',
   requireAuth,
   requireRole('platform_admin', 'tenant_admin'),
   async (req, res, next) => {
     try {
-      const { tenantId } = req.params as { tenantId: string };
-      const cfg = await findTenantModuleConfig(tenantId, 'ecommerce');
+      const { tenantId, moduleId } = req.params as { tenantId: string; moduleId: string };
+      const cfg = await findTenantModuleConfig(tenantId, moduleId);
       if (!cfg || cfg.status !== 'active') {
-        return res.status(400).json({ success: false, error: 'Ecommerce module not configured' });
+        return res.status(400).json({ success: false, error: `Module '${moduleId}' not configured` });
       }
-
-      const adapter = createMedusaAdapter({
-        medusaBaseUrl: cfg.config['medusaBaseUrl'] ?? '',
-        medusaAdminApiKey: cfg.config['medusaAdminApiKey'] ?? '',
-        tenantId,
-      });
-
-      if (!adapter) {
-        return res.status(400).json({ success: false, error: 'Invalid Medusa configuration' });
-      }
-
-      await adapter.listProducts({ limit: 1 });
-      res.json({ success: true, data: { connected: true } });
+      const result = await testModule(moduleId, cfg.config);
+      res.json({ success: true, data: result });
     } catch (err) {
-      res.json({
-        success: true,
-        data: { connected: false, error: err instanceof Error ? err.message : String(err) },
-      });
+      next(err);
     }
   },
 );

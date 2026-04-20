@@ -1,5 +1,6 @@
 export type { IntegrationEngine, FlowRun, FlowRunOutput, Flow, TriggerFlowInput, IdMapper } from './types.js';
 export { IntegrationEngineError } from './errors.js';
+export { ActivepiecesAdapter } from './activepieces/index.js';
 
 import { ActivepiecesAdapter } from './activepieces/index.js';
 import type { IntegrationEngine, IdMapper } from './types.js';

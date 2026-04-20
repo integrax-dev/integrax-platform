@@ -254,6 +254,18 @@ export interface DLQEntry {
   expiresAt: Date;
 }
 
+// ============ Flow Mapping Types ============
+
+export interface TenantFlowMapping {
+  id: string;
+  tenantId: string;
+  eventType: string;
+  flowId: string;
+  enabled: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // ============ Audit Types ============
 
 export interface AuditEntry {
