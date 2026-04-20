@@ -117,14 +117,19 @@ describe('InMemoryEventBus - dead-letter queue', () => {
 
   it('replayDlq puede filtrar por tipo de evento', async () => {
     const bus = new InMemoryEventBus();
-    bus.subscribe('order.created', async () => { throw new Error('e1'); }, { catchErrors: true });
+    let orderCallCount = 0;
+    // El handler de order.created falla la primera vez y tiene éxito en el replay.
+    bus.subscribe('order.created', async () => {
+      orderCallCount++;
+      if (orderCallCount === 1) throw new Error('e1');
+    }, { catchErrors: true });
     bus.subscribe('product.updated', async () => { throw new Error('e2'); }, { catchErrors: true });
     await bus.publish(makeEvent('order.created'));
     await bus.publish(makeEvent('product.updated'));
     expect(bus.deadLetterQueue()).toHaveLength(2);
 
     await bus.replayDlq('order.created');
-    // Se removio order.created; product.updated sigue en la DLQ.
+    // order.created fue reprocesado y tuvo éxito; product.updated sigue en la DLQ.
     expect(bus.deadLetterQueue()).toHaveLength(1);
     expect(bus.deadLetterQueue()[0].event.type).toBe('product.updated');
   });

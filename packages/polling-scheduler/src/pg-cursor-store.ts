@@ -21,7 +21,7 @@ interface PgPool {
   ): Promise<{ rows: R[] }>;
 }
 
-interface CursorRow {
+interface CursorRow extends Record<string, unknown> {
   job_id: string;
   tenant_id: string;
   last_value: string | null;
