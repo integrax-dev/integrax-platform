@@ -211,20 +211,20 @@ export interface ReconciliationAnomaly {
 // ─── Module interface ─────────────────────────────────────────────────────────
 
 export interface PaymentsModule {
-  // Payment lifecycle
-  createPayment(input: CreatePaymentInput): Promise<Payment & { canonicalId: string }>;
+  // Payment lifecycle — extra params supplied by the operation-engine after facade execution
+  createPayment(input: CreatePaymentInput, externalId: string, initialStatus?: PaymentStatus): Promise<Payment & { canonicalId: string }>;
   authorizePayment(input: AuthorizePaymentInput): Promise<void>;
   capturePayment(input: CapturePaymentInput): Promise<void>;
-  refundPayment(input: RefundPaymentInput): Promise<Refund & { canonicalId: string }>;
+  refundPayment(input: RefundPaymentInput, externalRefundId: string): Promise<Refund & { canonicalId: string }>;
   cancelPayment(input: CancelPaymentInput): Promise<void>;
   getPayment(input: GetPaymentInput): Promise<Payment | null>;
   listPayments(input: ListPaymentsInput): Promise<Payment[]>;
 
   // Payment methods
-  tokenizePaymentMethod(input: TokenizePaymentMethodInput): Promise<PaymentMethod & { canonicalId: string }>;
+  tokenizePaymentMethod(input: TokenizePaymentMethodInput, pspToken: string, details?: Partial<PaymentMethod>): Promise<PaymentMethod & { canonicalId: string }>;
 
   // Subscriptions
-  createSubscription(input: CreateSubscriptionInput): Promise<Subscription & { canonicalId: string }>;
+  createSubscription(input: CreateSubscriptionInput, externalId: string): Promise<Subscription & { canonicalId: string }>;
   cancelSubscription(input: CancelSubscriptionInput): Promise<void>;
   getSubscription(input: GetSubscriptionInput): Promise<Subscription | null>;
   listSubscriptions(input: ListSubscriptionsInput): Promise<Subscription[]>;
@@ -235,5 +235,5 @@ export interface PaymentsModule {
 
   // Reminders & reconciliation
   sendPaymentReminder(input: SendPaymentReminderInput): Promise<void>;
-  reconcilePayment(input: ReconcilePaymentInput): Promise<ReconciliationAnomaly[]>;
+  reconcilePayment(input: ReconcilePaymentInput, livePayment: Payment): Promise<ReconciliationAnomaly[]>;
 }

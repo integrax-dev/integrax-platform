@@ -20,9 +20,7 @@ import { hashPayload } from '@integrax/snapshot-store';
 import type { TimelineStore } from '@integrax/timeline';
 import type {
   CreatePaymentInput,
-  CapturePaymentInput,
   RefundPaymentInput,
-  CancelPaymentInput,
   GetPaymentInput,
   ListPaymentsInput,
 } from './types.js';
@@ -122,7 +120,7 @@ export class PaymentService {
     tenantId: string,
     canonicalId: string,
     newStatus: Payment['status'],
-    sourceSystem: string,
+    _sourceSystem: string,
     extra: Partial<Payment> = {},
   ): Promise<void> {
     const snap = await this.store.get(tenantId, 'payment', canonicalId);

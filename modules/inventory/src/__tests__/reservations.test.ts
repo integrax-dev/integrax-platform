@@ -5,7 +5,7 @@
  * rather than in-memory state — reservations survive across service instances.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { InMemorySnapshotStore } from '@integrax/snapshot-store';
 import { InMemoryEventBus } from '@integrax/event-bus';
 import { InventoryService } from '../inventory-service.js';
@@ -83,7 +83,7 @@ describe('InventoryService reservations', () => {
     await svc1.reserveStock({ tenantId: 'T1', sourceSystem: 's', sku: 'SKU-Y', quantity: 1, referenceId: 'r2' });
 
     // New instance sharing the same store — simulates restart or second replica
-    const svc2 = new InventoryService(store, bus);
+    new InventoryService(store, bus);
     const snap = await store.get('T1', 'stock_reservation', 'T1:SKU-Y:r2');
     expect(snap).not.toBeNull();
     expect(snap!.payload['quantity']).toBe(1);
