@@ -89,14 +89,15 @@ services:
       - "8080:80"
     environment:
       - AP_API_KEY=ap-internal-key-changeme
-      - AP_ENCRYPTION_KEY=changemechangemechangemechangem
+      # 32-char hex (16 bytes). Dev-only value; replace for prod.
+      - AP_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef
       - AP_JWT_SECRET=ap-jwt-secret-changeme-please-32
       - AP_FRONTEND_URL=http://localhost:8080
-      - AP_POSTGRES_DATABASE_HOST=postgres
-      - AP_POSTGRES_DATABASE_PORT=5432
-      - AP_POSTGRES_DATABASE_USERNAME=integrax
-      - AP_POSTGRES_DATABASE_PASSWORD=integrax
-      - AP_POSTGRES_DATABASE_NAME=activepieces
+      - AP_POSTGRES_HOST=postgres
+      - AP_POSTGRES_PORT=5432
+      - AP_POSTGRES_USERNAME=integrax
+      - AP_POSTGRES_PASSWORD=integrax
+      - AP_POSTGRES_DATABASE=activepieces
       - AP_REDIS_URL=redis://redis:6379
       - AP_EXECUTION_MODE=UNSANDBOXED
       - AP_QUEUE_MODE=REDIS

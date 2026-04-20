@@ -1,5 +1,9 @@
--- Create n8n database
-CREATE DATABASE n8n;
+-- Create databases required by the stack (idempotent for local dev)
+SELECT 'CREATE DATABASE n8n'
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'n8n')\gexec
+
+SELECT 'CREATE DATABASE activepieces'
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'activepieces')\gexec
 
 -- Create audit_logs table in main database
 \c integrax;

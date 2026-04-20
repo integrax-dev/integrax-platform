@@ -20,7 +20,6 @@ type RedisClient = {
 
 const STREAM_KEY = 'integrax:events';
 const CONSUMER_GROUP = 'integrax-control-plane';
-const DLQ_KEY = 'integrax:events:dlq';
 const BLOCK_MS = 2000;
 const MAX_DLQ = 1000;
 
@@ -67,6 +66,11 @@ export class RedisStreamsEventBus implements EventBus {
     const { Redis } = await import('ioredis');
     this.producer = new Redis(this.redisUrl, { lazyConnect: true, enableOfflineQueue: false }) as unknown as RedisClient;
     this.consumer = (this.producer as unknown as { duplicate(): RedisClient }).duplicate();
+
+    // With lazyConnect + enableOfflineQueue=false, issuing commands before the socket is ready
+    // throws "Stream isn't writeable...". Explicitly connect before creating the consumer group.
+    await (this.producer as unknown as { connect(): Promise<void> }).connect();
+    await (this.consumer as unknown as { connect(): Promise<void> }).connect();
 
     await this.ensureConsumerGroup();
     this.running = true;

@@ -26,7 +26,7 @@ const { Client } = pg;
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '../../../../db/migrations');
+const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '../../../db/migrations');
 const ADVISORY_LOCK_ID = 7_432_891_234; // arbitrary unique int for this app
 const DRY_RUN = process.env.MIGRATE_DRY_RUN === 'true';
 

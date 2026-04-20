@@ -19,10 +19,14 @@ import { getSubscriptionsByEvent } from '../store/webhook-trigger-subscriptions.
 import type { IntegraxEvent } from '@integrax/event-bus';
 
 function buildAdapter(): IntegrationEngine | null {
-  const url = process.env.ACTIVEPIECES_BASE_URL;
+  const rawUrl = process.env.ACTIVEPIECES_BASE_URL;
   const key = process.env.ACTIVEPIECES_API_KEY;
-  if (!url || !key) return null;
-  return new ActivepiecesAdapter(url, key);
+  if (!rawUrl || !key) return null;
+
+  const trimmed = rawUrl.replace(/\/$/, '');
+  const baseUrl = trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+
+  return new ActivepiecesAdapter(baseUrl, key);
 }
 
 async function fanoutWebhookSubscribers(event: IntegraxEvent): Promise<void> {

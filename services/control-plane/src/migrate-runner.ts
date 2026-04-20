@@ -21,7 +21,7 @@ interface Logger {
   error(meta: object | string, msg?: string): void;
 }
 
-const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '../../../../db/migrations');
+const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '../../../db/migrations');
 const ADVISORY_LOCK_ID = 7_432_891_234;
 
 type MigStatus = 'running' | 'done' | 'failed';

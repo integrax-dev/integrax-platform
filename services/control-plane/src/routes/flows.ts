@@ -22,10 +22,14 @@ export const flowsRouter = Router({ mergeParams: true });
 // ─── Activepieces adapter (optional — only active when env vars are set) ───────
 
 function getAdapter(): ActivepiecesAdapter | null {
-  const url = process.env.ACTIVEPIECES_BASE_URL;
+  const rawUrl = process.env.ACTIVEPIECES_BASE_URL;
   const key = process.env.ACTIVEPIECES_API_KEY;
-  if (!url || !key) return null;
-  return new ActivepiecesAdapter(url, key);
+  if (!rawUrl || !key) return null;
+
+  const trimmed = rawUrl.replace(/\/$/, '');
+  const baseUrl = trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+
+  return new ActivepiecesAdapter(baseUrl, key);
 }
 
 // ─── Flow mappings (event_type → flow_id) ──────────────────────────────────────

@@ -32,7 +32,8 @@ export class ActivepiecesApiClient {
   }
 
   private headers() {
-    return { Authorization: `Bearer ${this.apiKey}` };
+    // Activepieces uses x-api-key for service-to-service auth.
+    return { 'x-api-key': this.apiKey };
   }
 
   private async parse<T>(res: Response): Promise<T> {

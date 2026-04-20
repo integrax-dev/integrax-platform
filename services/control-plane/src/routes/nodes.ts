@@ -47,12 +47,18 @@ nodesRouter.get('/api/nodes/:id(*)', (req, res) => {
 // all available AP pieces (Gmail, Slack, Shopify, etc.) without hardcoding them.
 
 function apBase(): string | null {
-  return process.env.ACTIVEPIECES_BASE_URL ?? null;
+  const raw = process.env.ACTIVEPIECES_BASE_URL;
+  if (!raw) return null;
+  const trimmed = raw.replace(/\/$/, '');
+  // Activepieces REST API lives under /api (e.g. http://localhost:8080/api/v1/health).
+  // Accept both forms to reduce local-dev footguns.
+  return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
 }
 
 function apHeaders(): Record<string, string> {
   const key = process.env.ACTIVEPIECES_API_KEY;
-  return key ? { Authorization: `Bearer ${key}` } : {};
+  // Activepieces expects API key via x-api-key header.
+  return key ? { 'x-api-key': key } : {};
 }
 
 nodesRouter.get('/api/ap/pieces', requireAuth, async (req, res, next) => {
@@ -71,7 +77,8 @@ nodesRouter.get('/api/ap/pieces', requireAuth, async (req, res, next) => {
       return res.status(503).json({ success: false, error: 'AP_UNREACHABLE', message: `Activepieces at ${base} is not responding` });
     }
     const data = await upstream.json();
-    res.status(upstream.status).json(data);
+    if (!upstream.ok) return res.status(upstream.status).json({ success: false, error: data });
+    res.json({ success: true, data });
   } catch (err) { next(err); }
 });
 
@@ -90,7 +97,8 @@ nodesRouter.get('/api/ap/pieces/:name', requireAuth, async (req, res, next) => {
       return res.status(503).json({ success: false, error: 'AP_UNREACHABLE', message: `Activepieces at ${base} is not responding` });
     }
     const data = await upstream.json();
-    res.status(upstream.status).json(data);
+    if (!upstream.ok) return res.status(upstream.status).json({ success: false, error: data });
+    res.json({ success: true, data });
   } catch (err) { next(err); }
 });
 
