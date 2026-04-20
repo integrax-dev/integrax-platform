@@ -19,6 +19,7 @@ import { timelineRouter } from './routes/timeline.js';
 import { operationsRouter } from './routes/operations.js';
 import { modulesRouter } from './routes/modules.js';
 import { flowsRouter } from './routes/flows.js';
+import { nodesRouter } from './routes/nodes.js';
 import { driftRouter } from './routes/drift.js';
 import { streamRouter } from './routes/stream.js';
 import { authRouter } from './routes/auth.js';
@@ -60,8 +61,8 @@ if (process.env.REDIS_URL) {
 
 import { registerNotificationHandlers } from './platform/container/notification-handler.js';
 import { registerActivepiecesBridge } from './platform/activepieces-bridge.js';
-registerNotificationHandlers();
-registerActivepiecesBridge();
+import { eventBusReady } from './platform/container/event-bus.js';
+
 
 const app: express.Application = express();
 
@@ -115,7 +116,7 @@ health.register('postgres', async () => { await pool.query('SELECT 1'); });
 app.use(health.router());
 
 // API info
-app.get('/api', (req, res) => {
+app.get('/api', (_req, res) => {
   res.json({
     name: 'IntegraX Control Plane API',
     version: '0.1.0',
@@ -150,6 +151,7 @@ app.use('/api/tenants', timelineRouter);
 app.use('/api/tenants/:tenantId/operations', operationsRouter);
 app.use('/api/tenants', modulesRouter);
 app.use('/api/tenants/:tenantId/flow-mappings', flowsRouter);
+app.use(nodesRouter);
 app.use('/api/drift', requireAuth, driftRouter);
 app.use('/api/stream', streamRouter);
 
@@ -262,8 +264,12 @@ app.use((req, res) => {
 const PORT = parsePositiveInt(process.env.PORT, 3000);
 
 async function startServer(): Promise<void> {
-  // Migraciones ANTES de aceptar cualquier request.
-  // Si fallan, el proceso aborta — el orquestador (Docker, k8s) lo reinicia.
+  // 1. Bus de eventos — Redis Streams si REDIS_URL está set, InMemory si no.
+  await eventBusReady;
+  registerNotificationHandlers();
+  registerActivepiecesBridge();
+
+  // 2. Migraciones ANTES de aceptar cualquier request.
   if (process.env.SKIP_MIGRATIONS !== 'true') {
     const { runMigrations } = await import('./migrate-runner.js');
     await runMigrations(pool, logger);

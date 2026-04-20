@@ -577,6 +577,19 @@ importers:
         specifier: ^5.3.0
         version: 5.9.3
 
+  packages/activepieces-piece:
+    dependencies:
+      '@activepieces/pieces-framework':
+        specifier: 0.27.2
+        version: 0.27.2
+    devDependencies:
+      '@types/node':
+        specifier: ^20.10.0
+        version: 20.19.35
+      typescript:
+        specifier: ^5.3.0
+        version: 5.9.3
+
   packages/adapters:
     dependencies:
       bullmq:
@@ -823,28 +836,6 @@ importers:
         specifier: ^1.0.0
         version: 1.6.1(@types/node@20.19.35)
 
-  packages/schema-bridge-piece:
-    dependencies:
-      '@activepieces/pieces-framework':
-        specifier: '>=0.20.0'
-        version: 0.26.0
-      '@integrax/connector-sdk':
-        specifier: workspace:*
-        version: link:../../connectors/sdk/typescript
-      '@integrax/schema-bridge':
-        specifier: workspace:*
-        version: link:../schema-bridge
-    devDependencies:
-      '@types/node':
-        specifier: ^20.10.0
-        version: 20.19.35
-      typescript:
-        specifier: ^5.3.0
-        version: 5.9.3
-      vitest:
-        specifier: ^1.0.0
-        version: 1.6.1(@types/node@20.19.35)
-
   packages/snapshot-store:
     dependencies:
       '@integrax/entities':
@@ -924,22 +915,6 @@ importers:
         specifier: ^1.6.1
         version: 1.6.1(@types/node@20.19.35)
 
-  packages/workflow-engine:
-    dependencies:
-      '@integrax/entities':
-        specifier: workspace:*
-        version: link:../entities
-      '@integrax/event-bus':
-        specifier: workspace:*
-        version: link:../event-bus
-    devDependencies:
-      '@types/node':
-        specifier: ^20.10.0
-        version: 20.19.35
-      typescript:
-        specifier: ^5.3.0
-        version: 5.9.3
-
   profiles/ecommerce:
     dependencies:
       '@integrax/module-billing':
@@ -954,22 +929,6 @@ importers:
       '@integrax/module-orders':
         specifier: workspace:*
         version: link:../../modules/orders
-    devDependencies:
-      '@types/node':
-        specifier: ^20.10.0
-        version: 20.19.35
-      typescript:
-        specifier: ^5.3.0
-        version: 5.9.3
-
-  runtime/activepieces-adapter:
-    dependencies:
-      '@integrax/integration-engine':
-        specifier: workspace:*
-        version: link:../../packages/integration-engine
-      '@integrax/workflow-engine':
-        specifier: workspace:*
-        version: link:../../packages/workflow-engine
     devDependencies:
       '@types/node':
         specifier: ^20.10.0
@@ -1029,6 +988,9 @@ importers:
 
   services/control-plane:
     dependencies:
+      '@integrax/activepieces-piece':
+        specifier: workspace:*
+        version: link:../../packages/activepieces-piece
       '@integrax/adapters':
         specifier: workspace:*
         version: link:../../packages/adapters
@@ -1446,13 +1408,23 @@ importers:
 
 packages:
 
-  /@activepieces/pieces-framework@0.26.0:
-    resolution: {integrity: sha512-Ot5cZuKel+I+ZfO8/QjRCCvUiICQHjr0QiyTW7TtsiSMDvjhydEPq75btTvE/WQ+BartUvLmZhtsWRmjPboUIg==}
+  /@activepieces/pieces-framework@0.27.2:
+    resolution: {integrity: sha512-42BXzGATfKAAmNyX1NTE8oK6BkvQVZJfZmSM6qsQ3Xq8UjT236IRWq6Es5/EBL2/W4TUeGXNDCGYsq3WyhVXaA==}
     dependencies:
-      '@activepieces/shared': 0.42.0
+      '@activepieces/shared': 0.60.0
+      '@ai-sdk/gateway': 3.0.80(zod@4.3.6)
+      '@ai-sdk/provider': 3.0.8
+      '@ai-sdk/provider-utils': 4.0.21(zod@4.3.6)
+      '@opentelemetry/api': 1.9.0
+      '@standard-schema/spec': 1.1.0
+      '@vercel/oidc': 3.1.0
       ai: 6.0.138(zod@4.3.6)
+      eventsource-parser: 3.0.6
+      json-schema: 0.4.0
+      lru-cache: 6.0.0
       semver: 7.6.0
       tslib: 2.6.2
+      yallist: 4.0.0
       zod: 4.3.6
     transitivePeerDependencies:
       - bufferutil
@@ -1460,14 +1432,25 @@ packages:
       - utf-8-validate
     dev: false
 
-  /@activepieces/shared@0.42.0:
-    resolution: {integrity: sha512-z/A/Bp9/MfE7v1Le0fvNhNc9perW/EVyv15WlNbKa1gQOJsh9m5bM2WLk6uX6q40AX2Q7E4EU+Yz3W1/JCIqRg==}
+  /@activepieces/shared@0.60.0:
+    resolution: {integrity: sha512-2S3uhF//f+g7zxcOT46WUkD5l2lcOT3hs6B/4GR1inOEJ5I0sN2Ps9xxMAqgh7yIbKryWsr4YngJeL9jMXIJag==}
     dependencies:
+      '@socket.io/component-emitter': 3.1.2
+      dayjs: 1.11.9
+      debug: 4.3.7
       deepmerge-ts: 7.1.0
+      engine.io-client: 6.6.4
+      engine.io-parser: 5.2.3
+      lru-cache: 6.0.0
+      ms: 2.1.3
       nanoid: 3.3.8
       semver: 7.6.0
       socket.io-client: 4.8.1
+      socket.io-parser: 4.2.6
       tslib: 2.6.2
+      ws: 8.18.3
+      xmlhttprequest-ssl: 2.1.2
+      yallist: 4.0.0
       zod: 4.3.6
     transitivePeerDependencies:
       - bufferutil
@@ -13481,6 +13464,10 @@ packages:
 
   /dateformat@4.6.3:
     resolution: {integrity: sha512-2P0p0pFGzHS5EMnhdxQi7aJN+iMheud0UhG4dlE1DLAlvL8JHjJJTX/CSm4JXwV0Ka5nGk3zC5mcb5bUQUxxMA==}
+    dev: false
+
+  /dayjs@1.11.9:
+    resolution: {integrity: sha512-QvzAURSbQ0pKdIye2txOzNaHmxtUBXerpY0FJsFXUMKbIZeFm5ht1LS/jFsrncjnmtv8HsG0W2g6c0zUjZWmpA==}
     dev: false
 
   /debug@2.6.9:

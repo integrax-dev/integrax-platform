@@ -13,6 +13,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@integrax/activepieces-piece": "workspace:*",
     "@integrax/adapters": "workspace:*",
     "@integrax/connector-learning": "workspace:*",
     "@integrax/connector-sdk": "workspace:*",

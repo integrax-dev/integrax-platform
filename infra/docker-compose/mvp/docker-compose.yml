@@ -78,6 +78,40 @@ services:
       - integrax
 
   # ===========================================
+  # Activepieces - Workflow Automation
+  # ===========================================
+
+  activepieces:
+    image: activepieces/activepieces:latest
+    container_name: integrax-activepieces
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      - AP_API_KEY=ap-internal-key-changeme
+      - AP_ENCRYPTION_KEY=changemechangemechangemechangem
+      - AP_JWT_SECRET=ap-jwt-secret-changeme-please-32
+      - AP_FRONTEND_URL=http://localhost:8080
+      - AP_POSTGRES_DATABASE_HOST=postgres
+      - AP_POSTGRES_DATABASE_PORT=5432
+      - AP_POSTGRES_DATABASE_USERNAME=integrax
+      - AP_POSTGRES_DATABASE_PASSWORD=integrax
+      - AP_POSTGRES_DATABASE_NAME=activepieces
+      - AP_REDIS_URL=redis://redis:6379
+      - AP_EXECUTION_MODE=UNSANDBOXED
+      - AP_QUEUE_MODE=REDIS
+      - AP_TELEMETRY_ENABLED=false
+      - AP_SIGN_UP_ENABLED=true
+      - AP_SANDBOX_MEMORY_LIMIT=131072
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - integrax
+
+  # ===========================================
   # Worker - Event Processing
   # ===========================================
 
@@ -173,6 +207,7 @@ volumes:
   postgres_data:
   redis_data:
   n8n_data:
+  activepieces_data:
   prometheus_data:
   loki_data:
   grafana_data:

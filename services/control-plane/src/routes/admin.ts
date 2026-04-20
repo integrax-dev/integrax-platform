@@ -117,9 +117,9 @@ router.get(
   '/events',
   requireAuth,
   requireRole('platform_admin', 'tenant_admin'),
-  (req: Request, res: Response) => {
+  async (req: Request, res: Response) => {
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
-    const result = getAuditLogs({ limit });
+    const result = await getAuditLogs({ limit });
 
     const events = result.entries.map((e) => ({
       id: e.id,
@@ -146,7 +146,7 @@ router.get(
   async (_req: Request, res: Response) => {
     const { data: tenants, totalItems } = await listTenants({});
     const activeTenants = tenants.filter((t) => t.status === 'active').length;
-    const auditResult = getAuditLogs({ limit: 10 });
+    const auditResult = await getAuditLogs({ limit: 10 });
 
     const recentEvents = auditResult.entries.slice(0, 5).map((e) => ({
       id: e.id,

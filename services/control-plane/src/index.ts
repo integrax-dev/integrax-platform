@@ -21,7 +21,7 @@ export { workflowsRouter } from './routes/workflows.js';
 
 // Middleware
 export { requireAuth, requireRole, requireTenant, generateToken, verifyWebhookSignature } from './middleware/auth.js';
-export { audit, getAuditLogs, auditLog } from './middleware/audit.js';
+export { audit, getAuditLogs } from './middleware/audit.js';
 export { validate, validateQuery, validateParams } from './middleware/validate.js';
 
 // Tipos
