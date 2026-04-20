@@ -54,14 +54,12 @@ const PLACEHOLDER_TOKENS = new Set([
   '',
   '<null>',
   '<undefined>',
-  'n/a',
-  'na',
-  'none',
-  'null',
-  'undefined',
-  'unknown',
-  '-',
-  'tbd',
+  // English
+  'n/a', 'na', 'none', 'null', 'undefined', 'unknown', '-', 'tbd', 'not_applicable', 'not_available',
+  // Spanish (Argentina / Mexico / Spain)
+  'nulo', 'nula', 'sin_datos', 'sin_valor', 'desconocido', 'desconocida', 'no_aplica', 'nd', 's/d',
+  // Portuguese (Brazil)
+  'nulo', 'nula', 'sem_dados', 'sem_valor', 'desconhecido', 'desconhecida', 'nao_aplicavel', 'n/d',
 ]);
 
 export function normalizeName(value: string): string {
@@ -183,14 +181,24 @@ function normalizeValueForMatching(value: unknown): string {
       }
     }
 
-    // Decimal comma: "1234,56" → canonical float string ("1234.56")
-    // Usa parseFloat para eliminar ceros finales: "15000,00" → "15000" (no "15000.00").
-    // Esto permite matching con valores numéricos JS: 15000.0 → String(15000) = "15000".
-    // Solo aplica cuando: toda la parte entera son dígitos, hay una coma,
-    // y la parte decimal tiene 1-4 dígitos. Permite separadores de miles de punto (LatAm).
-    const withoutDots = s.replace(/\./g, '');
-    if (/^-?\d+,\d{1,4}$/.test(withoutDots)) {
-      return String(parseFloat(withoutDots.replace(',', '.'))).toLowerCase();
+    // Decimal comma normalization — locale-aware:
+    //   LatAm/Europe: "1.234,56" (dot=thousands, comma=decimal) → "1234.56"
+    //   LatAm legacy:  "1234,56" (no thousands sep)             → "1234.56"
+    // Guard: only applies when there is exactly ONE comma AND the digits after
+    // the comma are 1–4 (typical decimal precision). This prevents treating
+    // German thousand-separated "1.234" (no decimal part) as a decimal number.
+    const commaCount = (s.match(/,/g) ?? []).length;
+    const dotCount   = (s.match(/\./g) ?? []).length;
+    if (commaCount === 1) {
+      const [intPart, decPart] = s.split(',');
+      // Only treat as decimal comma if decimal part is 1–4 digits (not a thousand sep)
+      if (decPart && /^\d{1,4}$/.test(decPart)) {
+        // Strip thousand-separator dots from the integer part
+        const cleanInt = dotCount >= 1 ? intPart.replace(/\./g, '') : intPart;
+        if (/^-?\d+$/.test(cleanInt)) {
+          return String(parseFloat(`${cleanInt}.${decPart}`)).toLowerCase();
+        }
+      }
     }
 
     // Decimal dot trailing zeros: "1500.50" → "1500.5", "15000.00" → "15000"

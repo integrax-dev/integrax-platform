@@ -588,6 +588,60 @@ reconciliationRouter.get(
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// RESOLVE CONFLICT  —  POST /conflicts/:id/resolve
+// ═══════════════════════════════════════════════════════════════════════════════
+
+reconciliationRouter.post(
+  '/conflicts/:id/resolve',
+  requireAuth,
+  requireRole('platform_admin', 'tenant_admin', 'operator'),
+  async (req, res, next) => {
+    try {
+      const tenantId = req.tenantId ?? (req.query.tenantId as string);
+      if (!tenantId) return res.status(400).json({ success: false, error: 'tenantId required' });
+
+      const { id } = req.params;
+      const { resolution, note } = req.body as { resolution?: string; note?: string };
+
+      const result = await pool.query(
+        `UPDATE timeline_entries
+         SET data = jsonb_set(
+               jsonb_set(
+                 jsonb_set(data, '{status}', '"resolved"'),
+                 '{resolvedAt}', to_jsonb(NOW()::text)
+               ),
+               '{resolvedBy}', to_jsonb($3::text)
+             )
+             || CASE WHEN $4::text IS NOT NULL
+                     THEN jsonb_build_object('resolution', $4::text)
+                     ELSE '{}'::jsonb END
+         WHERE id = $1 AND tenant_id = $2 AND kind = 'conflict'
+         RETURNING id, data`,
+        [id, tenantId, req.user?.email ?? 'unknown', resolution ?? null],
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Conflict not found' } });
+      }
+
+      if (note) {
+        await timelineStore.append(tenantId, {
+          kind: 'conflict',
+          tenantId,
+          occurredAt: new Date(),
+          status: 'resolved',
+          note,
+        } as Parameters<typeof timelineStore.append>[1]);
+      }
+
+      res.json({ success: true, data: result.rows[0] });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // SCHEMA HEALTH SUMMARY  —  GET /schema-health
 // ═══════════════════════════════════════════════════════════════════════════════
 

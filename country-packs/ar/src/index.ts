@@ -17,3 +17,6 @@ export {
   requiresCae,
 } from './invoice-types.js';
 export type { AfipInvoiceTypeInfo } from './invoice-types.js';
+
+// --- Reconciliation profile -------------------------------------------------
+export { AR_RECONCILIATION_PROFILE } from './reconciliation-profile.js';

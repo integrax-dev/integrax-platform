@@ -25,28 +25,86 @@ function leafToken(path: string): string {
 }
 
 const GENERIC_SYNONYM_PAIRS: Array<[string, string]> = [
+  // ── IDs / codes ────────────────────────────────────────────────────────────
   ['id', 'codigo'], ['id', 'identificador'], ['id', 'numero'], ['id', 'nro'],
+  ['id', 'codigo'], ['id', 'identificador'],  // ES
+  ['id', 'codigo'], ['id', 'numero'],          // PT: código, número
   ['codigo', 'code'], ['codigo', 'identificador'],
-  ['nombre', 'name'], ['nombre', 'first_name'], ['nombre', 'fname'], ['nick_name', 'name'], ['apellido', 'last_name'], ['apellido', 'lname'],
-  ['given_name', 'first_name'], ['given_name', 'fname'], ['family_name', 'last_name'], ['family_name', 'lname'],
+  ['codigo', 'codigo'],   // ES/PT shared
+
+  // ── Names ──────────────────────────────────────────────────────────────────
+  ['nombre', 'name'], ['nombre', 'first_name'], ['nombre', 'fname'],
+  ['nick_name', 'name'], ['apellido', 'last_name'], ['apellido', 'lname'],
+  ['given_name', 'first_name'], ['given_name', 'fname'],
+  ['family_name', 'last_name'], ['family_name', 'lname'],
   ['first_name', 'fname'], ['last_name', 'lname'],
+  // PT: nome, sobrenome
+  ['nome', 'name'], ['nome', 'nombre'], ['nome', 'first_name'],
+  ['sobrenome', 'last_name'], ['sobrenome', 'apellido'],
+
+  // ── Parties ────────────────────────────────────────────────────────────────
   ['cliente', 'customer'], ['cliente', 'buyer'],
   ['proveedor', 'supplier'], ['proveedor', 'vendor'],
+  // PT: cliente (same), fornecedor
+  ['fornecedor', 'supplier'], ['fornecedor', 'vendor'], ['fornecedor', 'proveedor'],
+
+  // ── Money ──────────────────────────────────────────────────────────────────
   ['monto', 'amount'], ['monto', 'importe'], ['monto', 'total'],
   ['precio', 'price'], ['precio', 'rate'],
+  // PT: valor, preço, montante
+  ['valor', 'amount'], ['valor', 'monto'], ['valor', 'value'],
+  ['preco', 'price'], ['preco', 'precio'],
+  ['montante', 'amount'], ['montante', 'monto'],
+  ['importe', 'amount'], ['importe', 'monto'],
+
+  // ── Dates ──────────────────────────────────────────────────────────────────
   ['fecha', 'date'], ['fecha_creacion', 'created_at'], ['fecha_actualizacion', 'updated_at'],
+  // PT: data, criado_em, atualizado_em
+  ['data', 'date'], ['data', 'fecha'],
+  ['criado_em', 'created_at'], ['criado_em', 'fecha_creacion'],
+  ['atualizado_em', 'updated_at'], ['atualizado_em', 'fecha_actualizacion'],
+
+  // ── Contact ────────────────────────────────────────────────────────────────
   ['email', 'mail'], ['email', 'correo'],
-  ['user_handle', 'username'], ['handle', 'username'], ['login_name', 'login'], ['login_name', 'username'],
-  ['account_ref', 'account_id'], ['account_ref', 'accountid'],
   ['telefono', 'phone'], ['telefono', 'mobile'],
+  ['telefone', 'phone'], ['telefone', 'telefono'],   // PT
   ['direccion', 'address'], ['calle', 'street'],
+  ['endereco', 'address'], ['endereco', 'direccion'], // PT: endereço
+
+  // ── Auth ───────────────────────────────────────────────────────────────────
+  ['user_handle', 'username'], ['handle', 'username'],
+  ['login_name', 'login'], ['login_name', 'username'],
+  ['account_ref', 'account_id'], ['account_ref', 'accountid'],
+
+  // ── Documents ─────────────────────────────────────────────────────────────
   ['factura', 'invoice'], ['pedido', 'order'], ['orden', 'order'],
+  // PT: nota_fiscal, pedido (same), fatura
+  ['nota_fiscal', 'invoice'], ['nota_fiscal', 'factura'],
+  ['fatura', 'invoice'], ['fatura', 'factura'],
+
+  // ── Products / inventory ───────────────────────────────────────────────────
   ['producto', 'product'], ['articulo', 'item'],
-  ['cantidad', 'quantity'], ['cantidad', 'qty'], ['stock', 'quantity'], ['qty_value', 'quantity'], ['qty_value', 'qty'],
+  ['produto', 'product'], ['produto', 'producto'],    // PT
+  ['quantidade', 'quantity'], ['quantidade', 'qty'], ['quantidade', 'cantidad'],
+  ['cantidad', 'quantity'], ['cantidad', 'qty'],
+  ['stock', 'quantity'], ['qty_value', 'quantity'], ['qty_value', 'qty'],
+
+  // ── Status / type ──────────────────────────────────────────────────────────
   ['estado', 'status'], ['estado', 'state'],
+  ['situacao', 'status'], ['situacao', 'estado'],     // PT: situação
   ['moneda', 'currency'], ['moneda', 'currency_code'],
+  ['moeda', 'currency'], ['moeda', 'moneda'],         // PT
   ['descripcion', 'description'], ['descripcion', 'detail'],
+  ['descricao', 'description'], ['descricao', 'descripcion'], // PT: descrição
   ['tipo', 'type'], ['tipo', 'kind'],
+
+  // ── Tax IDs (cross-language labels) ───────────────────────────────────────
+  ['cuit', 'tax_id'], ['cuit', 'fiscal_id'], ['cuit', 'rut'],
+  ['cnpj', 'tax_id'], ['cnpj', 'fiscal_id'],
+  ['cpf', 'tax_id'], ['cpf', 'fiscal_id'],
+  ['rfc', 'tax_id'], ['rfc', 'fiscal_id'],
+  ['nit', 'tax_id'], ['nit', 'fiscal_id'],
+  ['rut', 'tax_id'], ['rut', 'cuit'],
 ];
 
 function buildSynonymIndex(pairs: Array<[string, string]>): Map<string, Set<string>> {
