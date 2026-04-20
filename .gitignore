@@ -6,6 +6,7 @@ node_modules/
 dist/
 build/
 *.tsbuildinfo
+src/**/*.js.map
 
 # Environment — never commit real env files
 .env
