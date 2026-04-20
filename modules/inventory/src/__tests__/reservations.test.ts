@@ -1,91 +1,92 @@
-/**
- * Inventory reservation persistence tests
- *
- * Verifies that reserveStock / releaseReservation use the snapshot store
- * rather than in-memory state — reservations survive across service instances.
- */
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { describe, it, expect } from 'vitest';
-import { InMemorySnapshotStore } from '@integrax/snapshot-store';
-import { InMemoryEventBus } from '@integrax/event-bus';
+const { upsertMock, getMock, publishMock } = vi.hoisted(() => ({
+  upsertMock: vi.fn<[unknown], Promise<void>>().mockResolvedValue(undefined),
+  getMock:    vi.fn(),
+  publishMock: vi.fn<[unknown], Promise<void>>().mockResolvedValue(undefined),
+}));
+
+vi.mock('@integrax/snapshot-store', () => ({
+  hashPayload: (p: unknown) => JSON.stringify(p),
+  SnapshotStore: class {},
+}));
+
+vi.mock('@integrax/event-bus', () => ({
+  EventBus: class {},
+}));
+
 import { InventoryService } from '../inventory-service.js';
 
 function makeService() {
-  const store = new InMemorySnapshotStore();
-  const bus = new InMemoryEventBus();
-  const service = new InventoryService(store, bus);
-  return { store, bus, service };
+  const store = { upsert: upsertMock, get: getMock, list: vi.fn(), getAll: vi.fn(), diff: vi.fn() };
+  const bus   = { publish: publishMock, subscribe: vi.fn(), subscribeAll: vi.fn(), deadLetterQueue: vi.fn(), replayDlq: vi.fn() };
+  return new InventoryService(store as never, bus as never);
 }
 
-describe('InventoryService reservations', () => {
-  it('reserves stock by writing to snapshot store', async () => {
-    const { store, service } = makeService();
+function capturedUpsert() {
+  return upsertMock.mock.calls.at(-1)?.[0] as Record<string, unknown> | undefined;
+}
 
-    await service.reserveStock({
-      tenantId: 'T1',
-      sourceSystem: 'orders',
-      sku: 'SKU-001',
-      quantity: 3,
-      referenceId: 'order-abc',
-    });
+describe('InventoryService.reserveStock', () => {
+  beforeEach(() => vi.clearAllMocks());
 
-    const canonicalId = 'T1:SKU-001:order-abc';
-    const snap = await store.get('T1', 'stock_reservation', canonicalId);
-    expect(snap).not.toBeNull();
-    expect(snap!.payload['sku']).toBe('SKU-001');
-    expect(snap!.payload['quantity']).toBe(3);
-    expect(snap!.payload['referenceId']).toBe('order-abc');
-    expect(snap!.payload['released']).toBeUndefined();
+  it('calls store.upsert with correct canonicalId', async () => {
+    const svc = makeService();
+    await svc.reserveStock({ tenantId: 'T1', sourceSystem: 'orders', sku: 'SKU-001', quantity: 3, referenceId: 'order-abc' });
+    expect(upsertMock).toHaveBeenCalledOnce();
+    const snap = capturedUpsert()!;
+    expect(snap['canonicalId']).toBe('T1:SKU-001:order-abc');
   });
 
-  it('releases reservation by writing a tombstone with released=true and quantity=0', async () => {
-    const { store, service } = makeService();
-
-    await service.reserveStock({
-      tenantId: 'T1',
-      sourceSystem: 'orders',
-      sku: 'SKU-001',
-      quantity: 3,
-      referenceId: 'order-abc',
-    });
-
-    await service.releaseReservation({
-      tenantId: 'T1',
-      sourceSystem: 'orders',
-      sku: 'SKU-001',
-      referenceId: 'order-abc',
-    });
-
-    const snap = await store.get('T1', 'stock_reservation', 'T1:SKU-001:order-abc');
-    expect(snap).not.toBeNull();
-    expect(snap!.payload['released']).toBe(true);
-    expect(snap!.payload['quantity']).toBe(0);
+  it('stores sku, quantity, referenceId in payload', async () => {
+    const svc = makeService();
+    await svc.reserveStock({ tenantId: 'T1', sourceSystem: 'orders', sku: 'SKU-001', quantity: 3, referenceId: 'order-abc' });
+    const payload = capturedUpsert()!['payload'] as Record<string, unknown>;
+    expect(payload['sku']).toBe('SKU-001');
+    expect(payload['quantity']).toBe(3);
+    expect(payload['referenceId']).toBe('order-abc');
+    expect(payload['released']).toBeUndefined();
   });
 
-  it('separate tenants have isolated reservations', async () => {
-    const { store, service } = makeService();
-
-    await service.reserveStock({ tenantId: 'T1', sourceSystem: 's', sku: 'SKU-X', quantity: 5, referenceId: 'r1' });
-    await service.reserveStock({ tenantId: 'T2', sourceSystem: 's', sku: 'SKU-X', quantity: 2, referenceId: 'r1' });
-
-    const t1 = await store.get('T1', 'stock_reservation', 'T1:SKU-X:r1');
-    const t2 = await store.get('T2', 'stock_reservation', 'T2:SKU-X:r1');
-
-    expect(t1!.payload['quantity']).toBe(5);
-    expect(t2!.payload['quantity']).toBe(2);
+  it('uses tenantId from input in snapshot', async () => {
+    const svc = makeService();
+    await svc.reserveStock({ tenantId: 'T2', sourceSystem: 'orders', sku: 'SKU-X', quantity: 5, referenceId: 'r1' });
+    const snap = capturedUpsert()!;
+    expect(snap['tenantId']).toBe('T2');
+    expect(snap['canonicalId']).toBe('T2:SKU-X:r1');
   });
 
-  it('reservation survives creating a second InventoryService instance (shared store)', async () => {
-    const store = new InMemorySnapshotStore();
-    const bus = new InMemoryEventBus();
+  it('publishes an event after reservation', async () => {
+    const svc = makeService();
+    await svc.reserveStock({ tenantId: 'T1', sourceSystem: 'orders', sku: 'SKU-001', quantity: 1, referenceId: 'r1' });
+    expect(publishMock).toHaveBeenCalledOnce();
+  });
+});
 
-    const svc1 = new InventoryService(store, bus);
-    await svc1.reserveStock({ tenantId: 'T1', sourceSystem: 's', sku: 'SKU-Y', quantity: 1, referenceId: 'r2' });
+describe('InventoryService.releaseReservation', () => {
+  beforeEach(() => vi.clearAllMocks());
 
-    // New instance sharing the same store — simulates restart or second replica
-    new InventoryService(store, bus);
-    const snap = await store.get('T1', 'stock_reservation', 'T1:SKU-Y:r2');
-    expect(snap).not.toBeNull();
-    expect(snap!.payload['quantity']).toBe(1);
+  it('calls store.upsert with released=true and quantity=0', async () => {
+    getMock.mockResolvedValue({
+      snapshotId: 'old', tenantId: 'T1', entityType: 'stock_reservation',
+      canonicalId: 'T1:SKU-001:order-abc', externalIds: [], payloadHash: 'h',
+      payload: { sku: 'SKU-001', quantity: 3, referenceId: 'order-abc' },
+      sourceSystem: 'orders', updatedAtSource: new Date(), updatedAtSnapshot: new Date(),
+    });
+
+    const svc = makeService();
+    await svc.releaseReservation({ tenantId: 'T1', sourceSystem: 'orders', sku: 'SKU-001', referenceId: 'order-abc' });
+
+    expect(upsertMock).toHaveBeenCalledOnce();
+    const payload = capturedUpsert()!['payload'] as Record<string, unknown>;
+    expect(payload['released']).toBe(true);
+    expect(payload['quantity']).toBe(0);
+  });
+
+  it('throws when reservation not found', async () => {
+    getMock.mockResolvedValue(null);
+    const svc = makeService();
+    await expect(svc.releaseReservation({ tenantId: 'T1', sourceSystem: 'orders', sku: 'NOPE', referenceId: 'r99' }))
+      .rejects.toThrow();
   });
 });

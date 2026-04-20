@@ -124,11 +124,22 @@ export class InventoryService implements InventoryModule {
       updatedAtSource: now,
       updatedAtSnapshot: now,
     });
+    await this.bus.publish({
+      id: ulid(),
+      type: 'stock.changed',
+      tenantId: input.tenantId,
+      sourceSystem: input.sourceSystem,
+      entityType: 'stock_reservation',
+      entityId: canonicalId,
+      payload: reservation,
+      occurredAt: now,
+    });
   }
 
   async releaseReservation(input: ReleaseReservationInput): Promise<void> {
     const canonicalId = `${input.tenantId}:${input.sku}:${input.referenceId}`;
-    // Mark reservation as released by writing a tombstone payload
+    const existing = await this.store.get(input.tenantId, 'stock_reservation', canonicalId);
+    if (!existing) throw new Error(`Reservation not found: ${canonicalId}`);
     const now = new Date();
     const tombstone = {
       tenantId: input.tenantId,

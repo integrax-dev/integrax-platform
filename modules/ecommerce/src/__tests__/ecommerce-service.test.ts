@@ -1,17 +1,69 @@
 /**
  * EcommerceService tests
  *
- * All operations run natively (no Medusa). Medusa-specific operations
- * (createCart, addLineItem, etc.) now work natively via SnapshotStore.
+ * All operations run natively (no Medusa). Uses local Map-backed test doubles
+ * instead of InMemorySnapshotStore / InMemoryEventBus.
  */
 
-import { describe, it, expect } from 'vitest';
-import { InMemorySnapshotStore } from '@integrax/snapshot-store';
-import { InMemoryEventBus } from '@integrax/event-bus';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { EntitySnapshot } from '@integrax/snapshot-store';
+
+// ── Mocks ─────────────────────────────────────────────────────────────────────
+
+vi.mock('@integrax/snapshot-store', () => ({
+  hashPayload: (p: unknown) => JSON.stringify(p),
+  SnapshotStore: class {},
+}));
+
+vi.mock('@integrax/event-bus', () => ({
+  EventBus: class {},
+}));
+
 import { EcommerceService } from '../ecommerce-service.js';
 import type { CatalogItem, Discount } from '../types.js';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ── Local test doubles ────────────────────────────────────────────────────────
+
+function makeStore() {
+  const map = new Map<string, EntitySnapshot>();
+  return {
+    async get(tenantId: string, entityType: string, canonicalId: string): Promise<EntitySnapshot | null> {
+      return map.get(`${tenantId}:${entityType}:${canonicalId}`) ?? null;
+    },
+    async upsert(snap: EntitySnapshot): Promise<void> {
+      map.set(`${snap.tenantId}:${snap.entityType}:${snap.canonicalId}`, snap);
+    },
+    async list(tenantId: string, entityType: string): Promise<EntitySnapshot[]> {
+      return [...map.values()].filter(s => s.tenantId === tenantId && s.entityType === entityType);
+    },
+    async getAll(tenantId: string): Promise<EntitySnapshot[]> {
+      return [...map.values()].filter(s => s.tenantId === tenantId);
+    },
+    async diff(_a: EntitySnapshot, _b: EntitySnapshot) {
+      return { conflicts: [], hasConflicts: false, worstSeverity: null };
+    },
+  };
+}
+
+function makeBus() {
+  const handlers = new Map<string, ((e: unknown) => Promise<void>)[]>();
+  return {
+    async publish(event: unknown): Promise<void> {
+      const type = (event as { type: string }).type;
+      for (const h of handlers.get(type) ?? []) await h(event);
+    },
+    subscribe(type: string, handler: (e: unknown) => Promise<void>) {
+      if (!handlers.has(type)) handlers.set(type, []);
+      handlers.get(type)!.push(handler);
+      return () => {};
+    },
+    subscribeAll: vi.fn(),
+    deadLetterQueue: vi.fn(),
+    replayDlq: vi.fn(),
+  };
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function makeCatalogItem(overrides: Partial<CatalogItem> = {}): CatalogItem {
   return {
@@ -35,13 +87,17 @@ function makeCatalogItem(overrides: Partial<CatalogItem> = {}): CatalogItem {
 }
 
 function makeService() {
-  const store = new InMemorySnapshotStore();
-  const bus = new InMemoryEventBus();
-  const service = new EcommerceService(store, bus, undefined, null);
+  const store = makeStore();
+  const bus   = makeBus();
+  const service = new EcommerceService(store as never, bus as never, undefined, null);
   return { store, bus, service };
 }
 
-async function seedItem(store: InMemorySnapshotStore, item: CatalogItem) {
+async function seedItem(
+  store: ReturnType<typeof makeStore>,
+  item: CatalogItem,
+) {
+  const now = new Date();
   await store.upsert({
     snapshotId: `snap-${item.id}`, tenantId: item.tenantId,
     entityType: 'catalog_item', canonicalId: item.id,
@@ -49,13 +105,15 @@ async function seedItem(store: InMemorySnapshotStore, item: CatalogItem) {
     payloadHash: item.id,
     payload: item as unknown as Record<string, unknown>,
     sourceSystem: 'test',
-    updatedAtSource: new Date(), updatedAtSnapshot: new Date(),
+    updatedAtSource: now, updatedAtSnapshot: now,
   });
 }
 
-// ─── Catalog ──────────────────────────────────────────────────────────────────
+// ── Catalog ───────────────────────────────────────────────────────────────────
 
 describe('Catalog', () => {
+  beforeEach(() => vi.clearAllMocks());
+
   it('listCatalogItems returns items from snapshot-store', async () => {
     const { store, service } = makeService();
     await seedItem(store, makeCatalogItem());
@@ -90,7 +148,7 @@ describe('Catalog', () => {
   it('ingestCatalogItem publishes product.updated event', async () => {
     const { bus, service } = makeService();
     const received: unknown[] = [];
-    bus.subscribe('product.updated', e => { received.push(e); return Promise.resolve(); });
+    bus.subscribe('product.updated', async e => { received.push(e); });
     await service.ingestCatalogItem('T1', makeCatalogItem({ id: 'evt-item' }));
     expect(received).toHaveLength(1);
     const evt = received[0] as { type: string; entityId: string };
@@ -106,9 +164,11 @@ describe('Catalog', () => {
   });
 });
 
-// ─── Carts (native) ───────────────────────────────────────────────────────────
+// ── Carts (native) ────────────────────────────────────────────────────────────
 
 describe('Carts — native (no Medusa)', () => {
+  beforeEach(() => vi.clearAllMocks());
+
   it('createCart returns a cart with correct defaults', async () => {
     const { service } = makeService();
     const cart = await service.createCart('T1', { currency: 'USD' });
@@ -139,7 +199,7 @@ describe('Carts — native (no Medusa)', () => {
 
   it('addLineItem adds item with correct price and total', async () => {
     const { store, service } = makeService();
-    await seedItem(store, makeCatalogItem()); // has var-001 @ 1000 ARS
+    await seedItem(store, makeCatalogItem());
     const cart = await service.createCart('T1', { currency: 'ARS' });
     const updated = await service.addLineItem('T1', cart.id, 'var-001', 2);
     expect(updated.lineItems).toHaveLength(1);
@@ -203,9 +263,11 @@ describe('Carts — native (no Medusa)', () => {
   });
 });
 
-// ─── Discounts / Promotions ───────────────────────────────────────────────────
+// ── Discounts / Promotions ────────────────────────────────────────────────────
 
 describe('Discounts', () => {
+  beforeEach(() => vi.clearAllMocks());
+
   function makeDiscount(overrides: Partial<Omit<Discount, 'id' | 'usageCount'>> = {}): Omit<Discount, 'id' | 'usageCount'> {
     return {
       code: 'SAVE10',
@@ -251,12 +313,12 @@ describe('Discounts', () => {
 
   it('applyPromotion (percentage) reduces cart total correctly', async () => {
     const { store, service } = makeService();
-    await seedItem(store, makeCatalogItem()); // var-001 @ 1000 ARS
-    await service.createDiscount('T1', makeDiscount({ code: 'SAVE10' })); // 10%
+    await seedItem(store, makeCatalogItem());
+    await service.createDiscount('T1', makeDiscount({ code: 'SAVE10' }));
     const cart = await service.createCart('T1', { currency: 'ARS' });
-    await service.addLineItem('T1', cart.id, 'var-001', 2); // subtotal 2000
+    await service.addLineItem('T1', cart.id, 'var-001', 2);
     const updated = await service.applyPromotion('T1', cart.id, 'SAVE10');
-    expect(updated.discountTotal).toBe(200); // 10% of 2000
+    expect(updated.discountTotal).toBe(200);
     expect(updated.total).toBe(1800);
   });
 
@@ -269,7 +331,7 @@ describe('Discounts', () => {
       isDisabled: false,
     });
     const cart = await service.createCart('T1', { currency: 'ARS' });
-    await service.addLineItem('T1', cart.id, 'var-001', 1); // subtotal 1000
+    await service.addLineItem('T1', cart.id, 'var-001', 1);
     const updated = await service.applyPromotion('T1', cart.id, 'FIXED500');
     expect(updated.discountTotal).toBe(500);
     expect(updated.total).toBe(500);
@@ -294,9 +356,11 @@ describe('Discounts', () => {
   });
 });
 
-// ─── Checkout ─────────────────────────────────────────────────────────────────
+// ── Checkout ──────────────────────────────────────────────────────────────────
 
 describe('Checkout', () => {
+  beforeEach(() => vi.clearAllMocks());
+
   it('startCheckout throws if cart does not exist', async () => {
     const { service } = makeService();
     await expect(service.startCheckout('T1', 'ghost-cart')).rejects.toThrow('not found');
@@ -315,20 +379,22 @@ describe('Checkout', () => {
     const { bus, service } = makeService();
     const cart = await service.createCart('T1');
     const received: unknown[] = [];
-    bus.subscribe('order.created', e => { received.push(e); return Promise.resolve(); });
+    bus.subscribe('order.created', async e => { received.push(e); });
     await service.startCheckout('T1', cart.id);
     expect(received).toHaveLength(1);
     expect((received[0] as { type: string }).type).toBe('order.created');
   });
 });
 
-// ─── Customers ────────────────────────────────────────────────────────────────
+// ── Customers ─────────────────────────────────────────────────────────────────
 
 describe('Customer accounts', () => {
+  beforeEach(() => vi.clearAllMocks());
+
   it('createCustomerAccount assigns id and publishes customer.created', async () => {
     const { bus, service } = makeService();
     const received: unknown[] = [];
-    bus.subscribe('customer.created', e => { received.push(e); return Promise.resolve(); });
+    bus.subscribe('customer.created', async e => { received.push(e); });
     const account = await service.createCustomerAccount('T1', {
       tenantId: 'T1', email: 'lautaro@test.com', hasAccount: true,
     });
@@ -361,9 +427,11 @@ describe('Customer accounts', () => {
   });
 });
 
-// ─── Draft Orders ─────────────────────────────────────────────────────────────
+// ── Draft Orders ──────────────────────────────────────────────────────────────
 
 describe('Draft Orders', () => {
+  beforeEach(() => vi.clearAllMocks());
+
   it('createDraftOrder persists and returns order with status=open', async () => {
     const { service } = makeService();
     const order = await service.createDraftOrder('T1', {
@@ -391,7 +459,7 @@ describe('Draft Orders', () => {
   it('cancelDraftOrder transitions to canceled and emits event', async () => {
     const { bus, service } = makeService();
     const received: unknown[] = [];
-    bus.subscribe('order.status_changed', e => { received.push(e); return Promise.resolve(); });
+    bus.subscribe('order.status_changed', async e => { received.push(e); });
     const order = await service.createDraftOrder('T1', { currency: 'ARS', total: 0, lineItems: [] });
     const canceled = await service.cancelDraftOrder('T1', order.id);
     expect(canceled.status).toBe('canceled');
@@ -400,7 +468,6 @@ describe('Draft Orders', () => {
 
   it('cancelDraftOrder throws for already completed orders', async () => {
     const { store, service } = makeService();
-    // Seed a completed order
     const now = new Date();
     await store.upsert({
       snapshotId: 'sn', tenantId: 'T1', entityType: 'draft_order', canonicalId: 'ord-done',
@@ -412,13 +479,15 @@ describe('Draft Orders', () => {
   });
 });
 
-// ─── Fulfillment & Returns ────────────────────────────────────────────────────
+// ── Fulfillment & Returns ─────────────────────────────────────────────────────
 
 describe('Fulfillment & Returns', () => {
+  beforeEach(() => vi.clearAllMocks());
+
   it('requestFulfillment publishes shipment.created event', async () => {
     const { bus, service } = makeService();
     const received: unknown[] = [];
-    bus.subscribe('shipment.created', e => { received.push(e); return Promise.resolve(); });
+    bus.subscribe('shipment.created', async e => { received.push(e); });
     await service.requestFulfillment('T1', {
       orderId: 'ord-xyz', tenantId: 'T1',
       items: [{ variantId: 'var-1', quantity: 2 }],
@@ -430,7 +499,7 @@ describe('Fulfillment & Returns', () => {
   it('requestReturn persists return and publishes shipment.status_changed', async () => {
     const { bus, service } = makeService();
     const received: unknown[] = [];
-    bus.subscribe('shipment.status_changed', e => { received.push(e); return Promise.resolve(); });
+    bus.subscribe('shipment.status_changed', async e => { received.push(e); });
     const result = await service.requestReturn('T1', {
       orderId: 'ord-abc', tenantId: 'T1',
       items: [{ lineItemId: 'li-1', quantity: 1, reason: 'defective' }],
