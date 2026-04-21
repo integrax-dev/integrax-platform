@@ -110,7 +110,7 @@ export function Dashboard() {
     };
     load();
     return () => { cancelled = true; };
-  }, []);
+  }, [t]);
 
   // ── Real-time stream ──────────────────────────────────────────────────────
   const getToken = useCallback(() => useAuthStore.getState().token, []);
@@ -142,17 +142,17 @@ export function Dashboard() {
           time: 'ahora',
         }, ...prev].slice(0, 5));
       },
-      'event.dlq': (_env: PlatformEvent) => {
+      'event.dlq': () => {
         setLiveFailed(n => n + 1);
       },
-      'tenant.created': (_env: PlatformEvent) => {
+      'tenant.created': () => {
         setLiveTenants(n => n + 1);
         setData(prev => prev ? { ...prev, stats: { ...prev.stats, tenants: prev.stats.tenants + 1 } } : prev);
       },
-      'tenant.suspended': (_env: PlatformEvent) => {
+      'tenant.suspended': () => {
         setData(prev => prev ? { ...prev, stats: { ...prev.stats, tenants: Math.max(0, prev.stats.tenants - 1) } } : prev);
       },
-      'connector.created': (_env: PlatformEvent) => {
+      'connector.created': () => {
         setLiveConnectors(n => n + 1);
         setData(prev => prev ? { ...prev, stats: { ...prev.stats, connectors: prev.stats.connectors + 1 } } : prev);
       },
