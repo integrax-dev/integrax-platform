@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuthStore } from '../stores/auth';
 import { useTranslation } from 'react-i18next';
@@ -16,21 +16,24 @@ const LANGUAGES = [
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t, i18n } = useTranslation();
   const [langOpen, setLangOpen] = useState(false);
 
   const navItems = [
-    { path: '/',               label: t('nav.dashboard'),     icon: '📊' },
-    { path: '/tenants',        label: t('nav.tenants'),        icon: '🏢' },
-    { path: '/connectors',     label: t('nav.connectors'),     icon: '🔌' },
-    { path: '/workflows',      label: t('nav.workflows'),      icon: '⚡' },
-    { path: '/events',         label: t('nav.events'),         icon: '📨' },
-    { path: '/audit',          label: t('nav.audit'),          icon: '📋' },
-    { path: '/incidents',      label: t('nav.incidents'),      icon: '🚨' },
-    { path: '/schema-diffs',   label: t('nav.schemaDiffs'),    icon: '🔀' },
-    { path: '/mapping-memory', label: t('nav.mappingMemory'),  icon: '🧠' },
-    { path: '/settings',       label: t('nav.settings'),       icon: '⚙️' },
+    { path: '/',               label: t('nav.dashboard'),     icon: '📊', section: 'overview' },
+    { path: '/tenants',        label: t('nav.tenants'),        icon: '🏢', section: 'operate'  },
+    { path: '/connectors',     label: t('nav.connectors'),     icon: '🔌', section: 'operate'  },
+    { path: '/workflows',      label: t('nav.workflows'),      icon: '⚡', section: 'operate'  },
+    { path: '/events',         label: t('nav.events'),         icon: '📨', section: 'observe'  },
+    { path: '/audit',          label: t('nav.audit'),          icon: '📋', section: 'observe'  },
+    { path: '/incidents',      label: t('nav.incidents'),      icon: '🚨', section: 'observe'  },
+    { path: '/schema-diffs',   label: t('nav.schemaDiffs'),    icon: '🔀', section: 'data'     },
+    { path: '/mapping-memory', label: t('nav.mappingMemory'),  icon: '🧠', section: 'data'     },
+    { path: '/settings',       label: t('nav.settings'),       icon: '⚙️', section: 'settings' },
   ];
+
+  const NAV_SECTIONS = ['overview', 'operate', 'observe', 'data', 'settings'] as const;
 
   const handleLogout = () => {
     logout();
@@ -39,6 +42,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const currentLang = i18n.language?.slice(0, 2) ?? 'es';
   const activeLang = LANGUAGES.find(l => l.code === currentLang) ?? LANGUAGES[0];
+  const activeNavItem = navItems.find(i => i.path === '/'
+    ? location.pathname === '/'
+    : location.pathname.startsWith(i.path)
+  ) ?? navItems[0];
 
   return (
     <div className="layout">
@@ -51,19 +58,25 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="sidebar-nav">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              end={item.path === '/'}
-              className={({ isActive }) =>
-                `nav-item ${isActive ? 'active' : ''}`
-              }
-            >
-              <span className="nav-icon">{item.icon}</span>
-              <span className="nav-label">{item.label}</span>
-            </NavLink>
-          ))}
+          {NAV_SECTIONS.map(section => {
+            const items = navItems.filter(i => i.section === section);
+            return (
+              <div key={section} className="nav-section">
+                <div className="nav-section-label">{t(`navSections.${section}`)}</div>
+                {items.map((item) => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    end={item.path === '/'}
+                    className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                  >
+                    <span className="nav-icon">{item.icon}</span>
+                    <span className="nav-label">{item.label}</span>
+                  </NavLink>
+                ))}
+              </div>
+            );
+          })}
         </nav>
 
         <div className="sidebar-footer">
@@ -107,7 +120,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </aside>
 
       <main className="main-content">
-        {children}
+        <div className="topbar">
+          <div className="breadcrumb">
+            <span className="breadcrumb-brand">IntegraX</span>
+            <span className="breadcrumb-sep">/</span>
+            <span className="breadcrumb-current">{activeNavItem.label}</span>
+          </div>
+          <div className="topbar-right">
+            <span className="pill">{t('common.admin')}</span>
+          </div>
+        </div>
+
+        <div className="content">
+          {children}
+        </div>
       </main>
     </div>
   );

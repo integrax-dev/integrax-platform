@@ -65,10 +65,10 @@ function LiveBadge({ count }: { count: number }) {
     <span style={{
       position: 'absolute', top: -6, right: -6,
       minWidth: 18, height: 18, borderRadius: 9,
-      background: '#ef4444', color: '#fff',
+      background: 'var(--color-error)', color: '#fff',
       fontSize: 10, fontWeight: 700,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '0 4px', boxShadow: '0 0 0 2px #fff',
+      padding: '0 4px', boxShadow: '0 0 0 2px var(--bg-secondary)',
     }}>
       {count > 99 ? '99+' : count}
     </span>
@@ -226,15 +226,15 @@ export function Dashboard() {
               <AreaChart data={data.eventsData}>
                 <defs>
                   <linearGradient id="colorEvents" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                    <stop offset="5%"  stopColor="var(--color-primary)" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} />
-                <YAxis stroke="#94a3b8" fontSize={11} />
-                <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: 12 }} />
-                <Area type="monotone" dataKey="events" stroke="#6366f1" strokeWidth={2} fillOpacity={1} fill="url(#colorEvents)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={11} />
+                <YAxis stroke="var(--text-muted)" fontSize={11} />
+                <Tooltip contentStyle={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: 12 }} />
+                <Area type="monotone" dataKey="events" stroke="var(--color-primary)" strokeWidth={2} fillOpacity={1} fill="url(#colorEvents)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -245,11 +245,11 @@ export function Dashboard() {
           <div className="chart-container">
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={data.connectorUsage} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis type="number" stroke="#94a3b8" fontSize={11} />
-                <YAxis dataKey="name" type="category" stroke="#94a3b8" fontSize={11} width={100} />
-                <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: 12 }} />
-                <Bar dataKey="calls" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                <XAxis type="number" stroke="var(--text-muted)" fontSize={11} />
+                <YAxis dataKey="name" type="category" stroke="var(--text-muted)" fontSize={11} width={100} />
+                <Tooltip contentStyle={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: 12 }} />
+                <Bar dataKey="calls" fill="var(--color-primary)" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -262,7 +262,7 @@ export function Dashboard() {
           <h3>
             {t('dashboard.recentEvents')}
             {liveRecent.length > 0 && (
-              <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 600, color: '#10b981', background: 'rgba(16,185,129,0.1)', padding: '2px 7px', borderRadius: 4, border: '1px solid rgba(16,185,129,0.25)' }}>
+              <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 600, color: 'var(--color-success)', background: 'rgba(16,185,129,0.10)', padding: '2px 7px', borderRadius: 4, border: '1px solid rgba(16,185,129,0.25)' }}>
                 ● {t('common.live')}
               </span>
             )}

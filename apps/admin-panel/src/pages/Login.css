@@ -3,7 +3,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--bg-primary) 0%, #1a1a2e 100%);
+  background:
+    radial-gradient(1200px circle at 20% 10%, rgba(20, 184, 166, 0.20), transparent 55%),
+    radial-gradient(900px circle at 80% 60%, rgba(2, 132, 199, 0.14), transparent 50%),
+    #050712;
 }
 
 .login-container {
@@ -15,6 +18,7 @@
 .login-header {
   text-align: center;
   margin-bottom: var(--spacing-xl);
+  color: #f8fafc;
 }
 
 .login-logo {
@@ -32,13 +36,13 @@
 .login-logo .logo-text {
   font-size: 2rem;
   font-weight: 700;
-  background: linear-gradient(135deg, var(--color-primary), #8b5cf6);
+  background: linear-gradient(135deg, var(--color-primary), #2dd4bf);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .login-subtitle {
-  color: var(--text-secondary);
+  color: rgba(226, 232, 240, 0.75);
   font-size: 1rem;
 }
 
@@ -47,6 +51,7 @@
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: var(--spacing-xl);
+  box-shadow: var(--shadow-lg);
 }
 
 .form-group {

@@ -1,37 +1,43 @@
 /* IntegraX Admin Panel - Global Styles */
 
 :root {
+  /* Fonts */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+
   /* Colors */
-  --color-primary: #6366f1;
-  --color-primary-dark: #4f46e5;
-  --color-primary-light: rgba(99, 102, 241, 0.12);
+  /* Slightly different accent than integrax-dashboard (teal instead of indigo) */
+  --color-primary: #14b8a6;
+  --color-primary-dark: #0d9488;
+  --color-primary-light: rgba(20, 184, 166, 0.12);
   --color-secondary: #64748b;
   --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-error: #ef4444;
 
   /* Background */
-  --bg-primary: #f1f5f9;
+  --bg-primary: #f6f7fb;
   --bg-secondary: #ffffff;
-  --bg-tertiary: #f8fafc;
+  --bg-tertiary: #f1f5f9;
   --bg-card: #ffffff;
 
   /* Text */
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
+  --text-primary: #0b1220;
+  --text-secondary: #334155;
   --text-muted: #94a3b8;
 
   /* Border */
   --border-color: #e2e8f0;
+  --ring-color: rgba(20, 184, 166, 0.25);
 
   /* Sidebar — dark theme tokens */
-  --sidebar-bg: #0f172a;
+  --sidebar-bg: #0b1220;
   --sidebar-border: rgba(255,255,255,0.06);
   --sidebar-text: #94a3b8;
   --sidebar-text-active: #f8fafc;
   --sidebar-hover-bg: rgba(255,255,255,0.05);
-  --sidebar-active-bg: rgba(99, 102, 241, 0.2);
-  --sidebar-active-border: #6366f1;
+  --sidebar-active-bg: rgba(20, 184, 166, 0.16);
+  --sidebar-active-border: var(--color-primary);
 
   /* Sidebar */
   --sidebar-width: 240px;
@@ -50,11 +56,11 @@
 
   /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 10px 24px rgb(15 23 42 / 0.10);
+  --shadow-lg: 0 20px 50px rgb(15 23 42 / 0.18);
 
   /* Font */
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.5;
 }
@@ -66,7 +72,7 @@
 }
 
 body {
-  background-color: #f0f2f5;
+  background-color: var(--bg-primary);
   color: var(--text-primary);
   min-height: 100vh;
 }
@@ -144,6 +150,7 @@ a:hover {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 /* Forms */
@@ -160,7 +167,7 @@ a:hover {
 .input:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+  box-shadow: 0 0 0 2px var(--ring-color);
 }
 
 .input::placeholder {
@@ -226,7 +233,7 @@ a:hover {
 }
 
 .badge-info {
-  background-color: rgba(99, 102, 241, 0.12);
+  background-color: var(--color-primary-light);
   color: var(--color-primary);
 }
 

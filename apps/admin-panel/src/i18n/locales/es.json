@@ -11,6 +11,13 @@
     "mappingMemory": "Mapping Memory",
     "settings": "Configuración"
   },
+  "navSections": {
+    "overview": "Overview",
+    "operate": "Operación",
+    "observe": "Observabilidad",
+    "data": "Datos",
+    "settings": "Configuración"
+  },
   "common": {
     "loading": "Cargando...",
     "noData": "Sin datos",
@@ -34,6 +41,7 @@
     "id": "ID",
     "name": "Nombre",
     "now": "ahora",
+    "admin": "Admin",
     "logout": "Salir",
     "live": "en vivo",
     "disconnected": "Desconectado",

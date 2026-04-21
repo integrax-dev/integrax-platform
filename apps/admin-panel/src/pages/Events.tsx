@@ -128,7 +128,7 @@ export function Events() {
             <LiveDot active={connected} liveLabel={t('common.live')} disconnectedLabel={t('common.disconnected')} />
             {newCount > 0 && (
               <span
-                style={{ fontSize: 11, fontWeight: 700, background: '#6366f1', color: '#fff', padding: '1px 7px', borderRadius: 10, cursor: 'pointer' }}
+                style={{ fontSize: 11, fontWeight: 700, background: 'var(--color-primary)', color: '#fff', padding: '1px 7px', borderRadius: 10, cursor: 'pointer' }}
                 onClick={() => setNewCount(0)}
               >
                 +{newCount} {t('common.newItems', { count: '' }).replace('+', '').trim()}

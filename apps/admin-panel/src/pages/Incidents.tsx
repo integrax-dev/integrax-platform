@@ -96,16 +96,16 @@ interface DriftIncident {
 // ─── Style constants ──────────────────────────────────────────────────────────
 
 const SEVERITY_COLOR: Record<DriftSeverity, string> = {
-  critical: '#ef4444',
-  major:    '#f59e0b',
-  minor:    '#6366f1',
+  critical: 'var(--color-error)',
+  major:    'var(--color-warning)',
+  minor:    'var(--color-primary)',
 };
 
 const STATUS_COLOR: Record<IncidentStatus, string> = {
-  open:          '#ef4444',
-  investigating: '#f59e0b',
-  resolved:      '#10b981',
-  dismissed:     '#94a3b8',
+  open:          'var(--color-error)',
+  investigating: 'var(--color-warning)',
+  resolved:      'var(--color-success)',
+  dismissed:     'var(--text-muted)',
 };
 
 const PROTOCOL_COLOR: Record<DriftProtocol, string> = {
@@ -192,7 +192,7 @@ function ResolutionSummary({ report }: { report: RequirementsReport | undefined 
         </span>
       )}
       {s.llmEscalationCount > 0 && (
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#8b5cf6', background: 'rgba(139,92,246,0.1)', padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(139,92,246,0.25)' }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-primary-dark)', background: 'var(--color-primary-light)', padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(20,184,166,0.25)' }}>
           {t('incidents.pendingLlmCount', { count: s.llmEscalationCount })}
         </span>
       )}
@@ -324,7 +324,7 @@ const ACTION_COLOR: Record<AIAnalysis['action'], { color: string; bg: string }> 
   renamed_to:          { color: '#7c3aed', bg: '#faf5ff' },
   truly_removed:       { color: '#ef4444', bg: 'rgba(239,68,68,0.06)' },
   type_changed:        { color: '#f59e0b', bg: 'rgba(245,158,11,0.06)' },
-  moved_to_nested:     { color: '#6366f1', bg: 'rgba(99,102,241,0.06)' },
+  moved_to_nested:     { color: 'var(--color-primary)', bg: 'var(--color-primary-light)' },
   needs_investigation: { color: '#6b7280', bg: '#f8fafc' },
 };
 
@@ -639,7 +639,7 @@ export function Incidents() {
         {([
           { id: 'critical-active', labelKey: 'incidents.criticalActive', value: summary.critical, color: '#ef4444' },
           { id: 'major-active',    labelKey: 'incidents.majorActive',    value: summary.major,    color: '#f59e0b' },
-          { id: 'total-active',    labelKey: 'incidents.totalActive',    value: summary.total,    color: '#6366f1' },
+          { id: 'total-active',    labelKey: 'incidents.totalActive',    value: summary.total,    color: 'var(--color-primary)' },
           { id: 'resolved',        labelKey: 'incidents.status.resolved', value: summary.resolved, color: '#10b981' },
         ] as const).map(({ id, labelKey, value, color }) => (
           <div key={id} data-testid={`incidents-summary-${id}`} style={{
@@ -806,7 +806,7 @@ export function Incidents() {
                     </span>
                   )}
                   {llmCount > 0 && (
-                    <span style={{ fontSize: 11, color: '#8b5cf6', fontWeight: 600 }}>
+                    <span style={{ fontSize: 11, color: 'var(--color-primary-dark)', fontWeight: 600 }}>
                       {incident.llmAnalysis.length >= llmCount
                         ? t('incidents.aiAnalyzed', { count: llmCount })
                         : t('incidents.pendingLlmStat', { count: llmCount })}

@@ -24,6 +24,7 @@
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
@@ -40,9 +41,9 @@
   font-size: 1.5rem;
 }
 
-.stat-icon.blue { background-color: rgba(99, 102, 241, 0.12); }
+.stat-icon.blue { background-color: var(--color-primary-light); }
 .stat-icon.green { background-color: rgba(16, 185, 129, 0.12); }
-.stat-icon.purple { background-color: rgba(139, 92, 246, 0.12); }
+.stat-icon.purple { background-color: var(--color-primary-light); }
 .stat-icon.orange { background-color: rgba(245, 158, 11, 0.12); }
 
 .stat-content {
@@ -86,6 +87,7 @@
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 .chart-card h3 {
@@ -110,7 +112,7 @@
 
 /* Event Type */
 .event-type {
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   background-color: var(--bg-tertiary);
   padding: 0.125rem 0.5rem;
