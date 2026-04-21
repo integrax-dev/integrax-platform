@@ -27,7 +27,7 @@ const {
   saveBaselineMock: vi.fn(),
   getBaselineMock: vi.fn(),
   saveDriftIncidentMock: vi.fn(),
-  findOpenIncidentMock: vi.fn<[], Promise<import('./drift-service.js').DriftIncident | null>>().mockResolvedValue(null),
+  findOpenIncidentMock: vi.fn<[], Promise<import('../store/drift-store.js').DriftIncident | null>>().mockResolvedValue(null),
   updateDriftIncidentReportMock: vi.fn(),
   updateDriftIncidentStatusMock: vi.fn(),
   resolveOpenIncidentsBySourceMock: vi.fn<[], Promise<string[]>>().mockResolvedValue([]),

@@ -11,11 +11,13 @@ import type { ModuleHandlerFn } from './_types.js';
 export type { ModuleHandlerFn, ModuleHandlerDef } from './_types.js';
 
 import * as billing   from './billing.js';
-import * as inventory from './inventory.js';
-import * as payments  from './payments.js';
+import * as catalog   from './catalog.js';
 import * as ecommerce from './ecommerce.js';
+import * as inventory from './inventory.js';
+import * as orders    from './orders.js';
+import * as payments  from './payments.js';
 
-const handlers = [billing, inventory, payments, ecommerce];
+const handlers = [billing, catalog, ecommerce, inventory, orders, payments];
 
 export const moduleHandlers: Record<string, ModuleHandlerFn> = Object.fromEntries(
   handlers.map(h => [h.moduleId, h.handle]),
