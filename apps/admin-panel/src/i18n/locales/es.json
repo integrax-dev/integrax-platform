@@ -35,7 +35,7 @@
     "status": "Estado",
     "actions": "Acciones",
     "type": "Tipo",
-    "tenant": "Tenant",
+    "tenant": "Cliente",
     "connector": "Conector",
     "time": "Tiempo",
     "id": "ID",
@@ -49,19 +49,19 @@
     "newItems": "+{{count}} nuevos"
   },
   "dashboard": {
-    "title": "Dashboard",
+    "title": "Panel principal",
     "subtitle": "Resumen de la plataforma IntegraX — actualizaciones en tiempo real",
-    "activeTenants": "Tenants Activos",
-    "eventsToday": "Eventos Hoy",
-    "configuredConnectors": "Conectores Configurados",
-    "uptime": "Uptime",
+    "activeTenants": "Clientes activos",
+    "eventsToday": "Eventos hoy",
+    "configuredConnectors": "Conectores configurados",
+    "uptime": "Disponibilidad",
     "last30days": "Últimos 30 días",
-    "eventsPerHour": "Eventos por Hora",
-    "connectorUsage": "Uso por Conector",
-    "recentEvents": "Eventos Recientes",
+    "eventsPerHour": "Eventos por hora",
+    "connectorUsage": "Uso por conector",
+    "recentEvents": "Eventos recientes",
     "success": "✓ Éxito",
-    "failed": "✗ Error",
-    "loadError": "No se pudo cargar el dashboard"
+    "failed": "✕ Error",
+    "loadError": "No se pudo cargar el panel principal"
   },
   "events": {
     "title": "Eventos",
@@ -69,20 +69,20 @@
     "allStatuses": "Todos los estados",
     "allConnectors": "Todos los conectores",
     "noEvents": "No hay eventos",
-    "loadError": "No se pudo cargar eventos",
+    "loadError": "No se pudieron cargar los eventos",
     "status": {
       "processed": "✓ Procesado",
       "pending": "○ Pendiente",
-      "failed": "✗ Fallido",
+      "failed": "✕ Fallido",
       "dlq": "⚠ DLQ"
     }
   },
   "incidents": {
-    "title": "API Drift Incidents",
+    "title": "Incidentes de deriva de API",
     "subtitle": "Deriva de esquemas detectada por schema-bridge",
-    "criticalActive": "Crítico Activo",
-    "majorActive": "Mayor Activo",
-    "totalActive": "Total Activo",
+    "criticalActive": "Crítico activo",
+    "majorActive": "Mayor activo",
+    "totalActive": "Total activo",
     "allStatuses": "Todos los estados",
     "allSeverities": "Todas las severidades",
     "noIncidents": "No se encontraron incidentes",
@@ -91,7 +91,7 @@
     "analyzeWithLLM": "Analizar con LLM",
     "analyzing": "Analizando...",
     "versionDelta": "Delta de versión",
-    "affectedTenants": "Tenants afectados",
+    "affectedTenants": "Clientes afectados",
     "impactScore": "Puntuación de impacto",
     "remediationHints": "Sugerencias de remediación",
     "detectedAt": "Detectado",
@@ -102,7 +102,7 @@
     "markInvestigating": "Investigar",
     "resolve": "Resolver",
     "dismiss": "Descartar",
-    "startRemediation": "Iniciar Remediación",
+    "startRemediation": "Iniciar remediación",
     "starting": "Iniciando…",
     "saving": "Guardando…",
     "refresh": "↺ Actualizar",
@@ -151,7 +151,7 @@
     "aiAnalyzed": "⚡ {{count}} revisado(s) por IA",
     "pendingLlmStat": "{{count}} esperando IA",
     "impactLabel": "impacto",
-    "routingIncidentAlert": "🚨 Alerta de Incidente",
+    "routingIncidentAlert": "🚨 Alerta de incidente",
     "routingOperatorReview": "👤 En revisión",
     "routingTimelineTrace": "📋 En seguimiento",
     "routingAutoResolved": "✅ Resuelto automáticamente",
@@ -192,13 +192,13 @@
     }
   },
   "tenants": {
-    "title": "Tenants",
-    "subtitle": "Gestión de tenants de la plataforma",
-    "newTenant": "Nuevo Tenant",
+    "title": "Clientes",
+    "subtitle": "Gestión de clientes de la plataforma",
+    "newTenant": "Nuevo cliente",
     "allPlans": "Todos los planes",
     "allStatuses": "Todos los estados",
-    "noTenants": "No hay tenants",
-    "loadError": "No se pudieron cargar los tenants",
+    "noTenants": "No hay clientes",
+    "loadError": "No se pudieron cargar los clientes",
     "plan": "Plan",
     "createdAt": "Creado",
     "status": {
@@ -211,7 +211,7 @@
   "connectors": {
     "title": "Conectores",
     "subtitle": "Conectores configurados",
-    "newConnector": "Nuevo Conector",
+    "newConnector": "Nuevo conector",
     "noConnectors": "No hay conectores",
     "loadError": "No se pudieron cargar los conectores",
     "test": "Probar",
@@ -219,22 +219,22 @@
     "version": "Versión",
     "connectedLabel": "Conectado",
     "configure": "Configurar",
-    "learnApi": "Aprender Nueva API",
+    "learnApi": "Aprender nueva API",
     "learnApiDesc": "El LLM analizará la documentación y generará un conector completo automáticamente.",
-    "startLearning": "Iniciar Aprendizaje"
+    "startLearning": "Iniciar aprendizaje"
   },
   "workflows": {
-    "title": "Workflows",
+    "title": "Flujos de trabajo",
     "subtitle": "Flujos de integración",
-    "noWorkflows": "No hay workflows",
-    "loadError": "No se pudieron cargar los workflows",
-    "newWorkflow": "Nuevo Workflow",
+    "noWorkflows": "No hay flujos de trabajo",
+    "loadError": "No se pudieron cargar los flujos de trabajo",
+    "newWorkflow": "Nuevo flujo",
     "active": "Activo",
     "paused": "Pausado",
     "manual": "Manual",
     "successes": "éxitos",
     "failures": "fallos",
-    "viewRuns": "Ver Ejecuciones",
+    "viewRuns": "Ver ejecuciones",
     "pause": "Pausar",
     "activate": "Activar"
   },
@@ -249,11 +249,11 @@
     "ip": "IP"
   },
   "schemaDiffs": {
-    "title": "Schema Diffs",
+    "title": "Diferencias de esquema",
     "subtitle": "Diferencias de esquemas detectadas"
   },
   "mappingMemory": {
-    "title": "Mapping Memory",
+    "title": "Memoria de mapeo",
     "subtitle": "Memoria de mapeos aprendidos"
   },
   "settings": {
