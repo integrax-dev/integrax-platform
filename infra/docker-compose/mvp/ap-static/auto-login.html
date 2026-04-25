@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>IntegraX</title>
+<style>body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#f8fafc;color:#64748b;font-size:14px}</style>
+</head>
+<body><div id="msg">Conectando...</div>
+<script>
+(async function() {
+  const p = new URLSearchParams(location.search);
+  const email = p.get('email');
+  const password = p.get('password');
+  const redirect = p.get('redirect') || '/flows';
+  const forcedProjectId = p.get('projectId');
+
+  async function tryAuth(method, body) {
+    try {
+      const r = await fetch('/api/v1/authentication/' + method, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+      });
+      if (!r.ok) return null;
+      return r.json();
+    } catch { return null; }
+  }
+
+  let data = await tryAuth('sign-in', {email, password});
+  if (!data || !data.token) {
+    data = await tryAuth('sign-up', {
+      firstName: 'Tenant', lastName: 'User',
+      email, password, trackEvents: false, newsLetter: false
+    });
+  }
+
+  if (!data || !data.token) {
+    document.getElementById('msg').textContent = 'Auth failed.';
+    return;
+  }
+
+  // AP uses localStorage keys 'token' and 'projectId' (verified from bundle analysis)
+  localStorage.setItem('token', data.token);
+  const projectId = forcedProjectId || data.projectId;
+  if (projectId) localStorage.setItem('projectId', projectId);
+
+  // Store tenant projectId in Cache API so the service worker can intercept
+  // GET /api/v1/projects and return the right project for this tenant.
+  // (AP CE's list endpoint always returns only the admin's first project;
+  //  without this patch the frontend access guard would reject the tenant project.)
+  if (forcedProjectId && 'caches' in window) {
+    try {
+      const cache = await caches.open('integrax-config');
+      await cache.put('/__integrax_project', new Response(forcedProjectId));
+    } catch {}
+  }
+
+  // Register and activate the service worker before navigating so that
+  // the AP SPA's first fetch of /api/v1/projects is already intercepted.
+  if ('serviceWorker' in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.register('/sw-integrax.js', { scope: '/' });
+      await navigator.serviceWorker.ready;
+      // If the SW just installed (waiting state), skip waiting so it controls this page now.
+      if (reg.waiting) {
+        reg.waiting.postMessage('SKIP_WAITING');
+        await new Promise(r => setTimeout(r, 150));
+      }
+    } catch {}
+  }
+
+  // Use AP's built-in /authenticate route which calls saveResponse() and navigates to /flows
+  if (redirect === '/flows') {
+    const payload = forcedProjectId ? { ...data, projectId: forcedProjectId } : data;
+    window.location.replace('/authenticate?response=' + encodeURIComponent(JSON.stringify(payload)));
+  } else {
+    window.location.replace(redirect);
+  }
+})();
+</script>
+</body>
+</html>

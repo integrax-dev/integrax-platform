@@ -150,7 +150,7 @@ app.use('/api', platformRouter);
 app.use('/api/tenants', timelineRouter);
 app.use('/api/tenants/:tenantId/operations', operationsRouter);
 app.use('/api/tenants', modulesRouter);
-app.use('/api/tenants/:tenantId/flow-mappings', flowsRouter);
+app.use('/api/tenants/:tenantId', flowsRouter);
 app.use(nodesRouter);
 app.use('/api/drift', requireAuth, driftRouter);
 app.use('/api/stream', streamRouter);

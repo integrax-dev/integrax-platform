@@ -346,7 +346,7 @@ describe('DriftService.listBaselines', () => {
 describe('DriftService — multiple protocols', () => {
   let svc: DriftService;
 
-  afterEach(() => vi.clearAllMocks());
+  afterEach(() => { vi.clearAllMocks(); });
 
   beforeEach(() => {
     svc = new DriftService();

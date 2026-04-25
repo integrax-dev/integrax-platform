@@ -15,6 +15,7 @@
 
 import { Router } from 'express';
 import { ulid } from 'ulid';
+
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { ALL_NODES, getNodeById, getNodesByCategory } from '@integrax/activepieces-piece';
 import {
@@ -22,6 +23,7 @@ import {
   deleteWebhookSubscription,
   listSubscriptionsForTenant,
 } from '../store/webhook-trigger-subscriptions.js';
+import { ensureApProject } from '../lib/ap-provisioning.js';
 
 export const nodesRouter = Router();
 
@@ -55,11 +57,6 @@ function apBase(): string | null {
   return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
 }
 
-function apHeaders(): Record<string, string> {
-  const key = process.env.ACTIVEPIECES_API_KEY;
-  // Activepieces expects API key via x-api-key header.
-  return key ? { 'x-api-key': key } : {};
-}
 
 nodesRouter.get('/api/ap/pieces', requireAuth, async (req, res, next) => {
   try {
@@ -72,7 +69,8 @@ nodesRouter.get('/api/ap/pieces', requireAuth, async (req, res, next) => {
 
     let upstream: Response;
     try {
-      upstream = await fetch(`${base}/v1/pieces?${qs}`, { headers: apHeaders(), signal: AbortSignal.timeout(8000) });
+      // Pieces catalog is public in AP community edition — no API key needed.
+      upstream = await fetch(`${base}/v1/pieces?${qs}`, { signal: AbortSignal.timeout(8000) });
     } catch {
       return res.status(503).json({ success: false, error: 'AP_UNREACHABLE', message: `Activepieces at ${base} is not responding` });
     }
@@ -91,7 +89,7 @@ nodesRouter.get('/api/ap/pieces/:name', requireAuth, async (req, res, next) => {
     try {
       upstream = await fetch(
         `${base}/v1/pieces/${encodeURIComponent(req.params['name'])}`,
-        { headers: apHeaders(), signal: AbortSignal.timeout(8000) },
+        { signal: AbortSignal.timeout(8000) },
       );
     } catch {
       return res.status(503).json({ success: false, error: 'AP_UNREACHABLE', message: `Activepieces at ${base} is not responding` });
@@ -99,6 +97,62 @@ nodesRouter.get('/api/ap/pieces/:name', requireAuth, async (req, res, next) => {
     const data = await upstream.json();
     if (!upstream.ok) return res.status(upstream.status).json({ success: false, error: data });
     res.json({ success: true, data });
+  } catch (err) { next(err); }
+});
+
+// ─── AP embed config + managed-auth token ────────────────────────────────────
+// Returns the AP base URL and a short-lived embed token for the requesting user.
+// Token is obtained via AP's managed-authn API (requires ACTIVEPIECES_PLATFORM_KEY).
+// Falls back to { token: null } when the platform key is not set (e.g. community
+// edition without managed-auth) — the frontend gracefully opens AP in a new tab.
+
+nodesRouter.get('/api/ap/embed-config', requireAuth, async (req, res, next) => {
+  try {
+    const rawUrl = process.env.ACTIVEPIECES_BASE_URL;
+    if (!rawUrl) return res.status(503).json({ success: false, error: 'AP_NOT_CONFIGURED' });
+
+    const baseUrl = rawUrl.replace(/\/$/, '').replace(/\/api$/, '');
+    const platformKey = process.env.ACTIVEPIECES_PLATFORM_KEY;
+
+    // Enterprise managed-auth: return a short-lived token per user
+    if (platformKey) {
+      const user = req.user!;
+      let upstream: Response;
+      try {
+        upstream = await fetch(`${baseUrl}/api/v1/managed-authn/external-token`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${platformKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            externalUserId: user.id,
+            externalEmail: user.email,
+            firstName: user.email?.split('@')[0] ?? 'Admin',
+            lastName: '',
+            pieces: [],
+            piecesFilterType: 'NONE',
+          }),
+          signal: AbortSignal.timeout(8000),
+        });
+      } catch {
+        return res.json({ success: true, data: { baseUrl, token: null } });
+      }
+      if (!upstream.ok) return res.json({ success: true, data: { baseUrl, token: null } });
+      const { token } = await upstream.json() as { token: string };
+      return res.json({ success: true, data: { baseUrl, token } });
+    }
+
+    // CE: admin credentials shared, but each tenant gets their own AP project.
+    // The browser logs in as admin then AP's localStorage.projectId is overridden
+    // to the tenant's isolated project — complete flow isolation at no extra cost.
+    const tenantId = (req.query['tenantId'] as string) || req.user?.tenantId;
+    const email = process.env.AP_ADMIN_EMAIL ?? process.env.ADMIN_EMAIL ?? 'admin@integrax.io';
+    const password = process.env.AP_ADMIN_PASSWORD ?? process.env.ADMIN_PASSWORD ?? 'integrax-dev';
+
+    if (!tenantId) {
+      return res.json({ success: true, data: { baseUrl, token: null, email, password } });
+    }
+
+    const projectId = await ensureApProject(tenantId);
+    res.json({ success: true, data: { baseUrl, token: null, email, password, projectId: projectId ?? undefined } });
   } catch (err) { next(err); }
 });
 

@@ -104,6 +104,9 @@ services:
       - AP_TELEMETRY_ENABLED=false
       - AP_SIGN_UP_ENABLED=true
       - AP_SANDBOX_MEMORY_LIMIT=131072
+    volumes:
+      - ./ap-static/auto-login.html:/usr/src/app/dist/packages/web/auto-login.html:ro
+      - ./ap-static/sw-integrax.js:/usr/src/app/dist/packages/web/sw-integrax.js:ro
     depends_on:
       postgres:
         condition: service_healthy

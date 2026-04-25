@@ -63,7 +63,7 @@ function makeApp() {
 // ── IntegraX node catalog ─────────────────────────────────────────────────────
 
 describe('GET /api/nodes', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); });
 
   it('returns all nodes', async () => {
     const res = await request(makeApp()).get('/api/nodes');
@@ -74,7 +74,7 @@ describe('GET /api/nodes', () => {
 });
 
 describe('GET /api/nodes/category/:category', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); });
 
   it('returns nodes filtered by category', async () => {
     getNodesByCategoryMock.mockReturnValue([{ id: 'send_email', name: 'Send Email', category: 'action' }]);
@@ -93,7 +93,7 @@ describe('GET /api/nodes/category/:category', () => {
 });
 
 describe('GET /api/nodes/:id', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); });
 
   it('returns node by id', async () => {
     getNodeByIdMock.mockReturnValue({ id: 'send_email', name: 'Send Email', category: 'action' });
@@ -207,7 +207,7 @@ describe('GET /api/ap/pieces — configured', () => {
 // ── Webhook trigger subscriptions ────────────────────────────────────────────
 
 describe('POST /api/tenants/:tenantId/trigger-subscriptions', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); });
 
   it('creates subscription and returns 201', async () => {
     saveWebhookSubscriptionMock.mockResolvedValue(undefined);
@@ -246,7 +246,7 @@ describe('POST /api/tenants/:tenantId/trigger-subscriptions', () => {
 });
 
 describe('GET /api/tenants/:tenantId/trigger-subscriptions', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); });
 
   it('returns list of subscriptions', async () => {
     listSubscriptionsForTenantMock.mockResolvedValue([
@@ -260,7 +260,7 @@ describe('GET /api/tenants/:tenantId/trigger-subscriptions', () => {
 });
 
 describe('DELETE /api/tenants/:tenantId/trigger-subscriptions/:id', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); });
 
   it('deletes subscription', async () => {
     deleteWebhookSubscriptionMock.mockResolvedValue(undefined);
