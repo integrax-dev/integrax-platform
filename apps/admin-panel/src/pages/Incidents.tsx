@@ -13,6 +13,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { fetchAdminJson } from '../lib/adminApi';
 import { useAuthStore } from '../stores/auth';
 import { usePlatformStream, type PlatformEvent } from '../lib/usePlatformStream';
@@ -879,6 +880,17 @@ export function Incidents() {
 
                   {/* Actions */}
                   <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <Link
+                      to={`/incidents/${incident.id}`}
+                      onClick={e => e.stopPropagation()}
+                      style={{
+                        padding: '6px 12px', borderRadius: 6, border: '1px solid #0f172a',
+                        background: '#0f172a', color: '#fff', fontSize: 12, fontWeight: 700,
+                      }}
+                    >
+                      Open detail
+                    </Link>
+
                     {/* Start Remediation — only if incident_alert + blast radius */}
                     {canRemediate && incident.status !== 'resolved' && incident.status !== 'dismissed' && (
                       <button

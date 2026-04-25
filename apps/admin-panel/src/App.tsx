@@ -9,11 +9,11 @@ import { Events } from './pages/Events';
 import { Audit } from './pages/Audit';
 import { Settings } from './pages/Settings';
 import { Incidents } from './pages/Incidents';
+import { IncidentDetail } from './pages/IncidentDetail';
 import { SchemaDiffs } from './pages/SchemaDiffs';
 import { MappingMemory } from './pages/MappingMemory';
 import { Login } from './pages/Login';
 import { useAuthStore } from './stores/auth';
-import './index.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -51,6 +51,7 @@ export default function App() {
                     <Route path="/events" element={<Events />} />
                     <Route path="/audit" element={<Audit />} />
                     <Route path="/incidents" element={<Incidents />} />
+                    <Route path="/incidents/:incidentId" element={<IncidentDetail />} />
                     <Route path="/schema-diffs" element={<SchemaDiffs />} />
                     <Route path="/mapping-memory" element={<MappingMemory />} />
                     <Route path="/settings" element={<Settings />} />

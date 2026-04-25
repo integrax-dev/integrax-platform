@@ -1,18 +1,18 @@
 {
   "nav": {
-    "dashboard": "Dashboard",
-    "tenants": "Tenants",
+    "dashboard": "Panel principal",
+    "tenants": "Clientes",
     "connectors": "Conectores",
-    "workflows": "Workflows",
+    "workflows": "Flujos de trabajo",
     "events": "Eventos",
     "audit": "Auditoría",
     "incidents": "Incidentes",
-    "schemaDiffs": "Schema Diffs",
-    "mappingMemory": "Mapping Memory",
+    "schemaDiffs": "Diferencias de esquema",
+    "mappingMemory": "Memoria de mapeo",
     "settings": "Configuración"
   },
   "navSections": {
-    "overview": "Overview",
+    "overview": "Resumen",
     "operate": "Operación",
     "observe": "Observabilidad",
     "data": "Datos",
@@ -41,7 +41,7 @@
     "id": "ID",
     "name": "Nombre",
     "now": "ahora",
-    "admin": "Admin",
+    "admin": "Administrador",
     "logout": "Salir",
     "live": "en vivo",
     "disconnected": "Desconectado",

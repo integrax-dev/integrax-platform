@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import './Pages.css';
 import { fetchAdminJson } from '../lib/adminApi';
 import { allowDemoFallbacks } from '../lib/runtime';
+import './Pages.css';
 
 type AuditLog = {
   id: string;
