@@ -1,5 +1,5 @@
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { useMemo, useState } from 'react';
+import { NavLink, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuthStore } from '../stores/auth';
 import { useTranslation } from 'react-i18next';
 import './Layout.css';
@@ -177,9 +177,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
+  const navigationType = useNavigationType();
   const { t, i18n } = useTranslation();
   const [langOpen, setLangOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [historyIndex, setHistoryIndex] = useState<number>(() => window.history.state?.idx ?? 0);
+  const [historyMaxIndex, setHistoryMaxIndex] = useState<number>(() => window.history.state?.idx ?? 0);
 
   const navItems = useMemo(
     () => [
@@ -211,6 +214,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
       item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path),
     ) ?? navItems[0];
   const roleLabel = user?.role ? ROLE_LABELS[user.role] : 'Administrador';
+  const canGoBack = historyIndex > 0 || window.history.length > 1;
+  const canGoForward = historyIndex < historyMaxIndex;
+
+  useEffect(() => {
+    const nextIndex = window.history.state?.idx ?? 0;
+    setHistoryIndex(nextIndex);
+    setHistoryMaxIndex((currentMax) => (navigationType === 'POP' ? currentMax : Math.max(currentMax, nextIndex)));
+  }, [location.key, navigationType]);
+
+  const handleGoBack = () => {
+    if (!canGoBack) return;
+    navigate(-1);
+  };
+
+  const handleGoForward = () => {
+    if (!canGoForward) return;
+    navigate(1);
+  };
 
   return (
     <div className={`layout ${collapsed ? 'is-collapsed' : ''}`}>
@@ -314,10 +335,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="topbar">
           <div className="topbar-left">
             <div className="history-actions">
-              <button type="button" className="history-btn" aria-label="Back">
+              <button
+                type="button"
+                className={`history-btn ${canGoBack ? '' : 'is-disabled'}`}
+                aria-label="Back"
+                onClick={handleGoBack}
+                disabled={!canGoBack}
+              >
                 <Icon name="arrow-left" />
               </button>
-              <button type="button" className="history-btn is-disabled" aria-label="Forward">
+              <button
+                type="button"
+                className={`history-btn ${canGoForward ? '' : 'is-disabled'}`}
+                aria-label="Forward"
+                onClick={handleGoForward}
+                disabled={!canGoForward}
+              >
                 <Icon name="arrow-right" />
               </button>
             </div>

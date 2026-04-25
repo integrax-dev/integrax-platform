@@ -323,6 +323,8 @@
 
 .history-btn.is-disabled {
   color: #c9d3e4;
+  cursor: default;
+  pointer-events: none;
 }
 
 .history-btn.is-disabled:hover {
