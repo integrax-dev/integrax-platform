@@ -363,7 +363,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className="topbar-right">
             <label className="role-select-wrap">
               <span className="role-select-label">Rol</span>
-              <select className="role-select" value={user?.role ?? 'platform_admin'} readOnly>
+              <select className="role-select" value={user?.role ?? 'platform_admin'} disabled>
                 {Object.entries(ROLE_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}

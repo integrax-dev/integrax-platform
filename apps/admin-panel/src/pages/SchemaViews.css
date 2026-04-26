@@ -1,0 +1,163 @@
+﻿/* Schema-specific page styles */
+
+/* â”€â”€â”€ 20. SchemaDiffs: JSON tree â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+.json-tree-container {
+  gap: 0;
+  background: white;
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.tree-node { border-top: 1px solid var(--slate-200); }
+.tree-node:first-child { border-top: 0; }
+
+.tree-node-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+}
+
+.tree-node-header.clickable { cursor: pointer; }
+.tree-node-header.clickable:hover { background: var(--slate-50); }
+
+.tree-node-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.tree-caret { color: var(--dark-400); font-size: var(--font-2); flex-shrink: 0; }
+.invisible  { visibility: hidden; }
+
+.tree-node-name { font-family: var(--font-mono); font-size: var(--font-3); }
+
+.is-object    { color: var(--primary-700); }
+.is-primitive { color: var(--primary-600); }
+
+.tree-children-wrapper          { display: none; }
+.tree-children-wrapper.is-expanded { display: block; }
+.tree-children-inner            { background: rgba(241, 245, 249, 0.5); }
+
+/* â”€â”€â”€ 21. SchemaDiffs: Report list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+.report-list {
+  max-height: 24rem;
+  overflow-y: auto;
+}
+
+.report-item {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: var(--font-4);
+  background: white;
+}
+
+.report-item:hover { border-color: var(--primary-400); background: rgba(14, 165, 233, 0.03); }
+.report-item.active { border-color: var(--primary-500); background: rgba(14, 165, 233, 0.06); }
+
+.report-item-id   { font-family: var(--font-mono); font-size: var(--font-2); font-weight: 600; color: var(--slate-700); }
+.report-item-meta { margin-top: 0.25rem; font-size: var(--font-2); color: var(--dark-400); }
+.report-item-date { font-size: var(--font-2); color: var(--dark-400); }
+
+.summary-badges { display: flex; gap: 0.375rem; flex-wrap: wrap; margin-top: 0.5rem; }
+
+/* â”€â”€â”€ 22. SchemaDiffs: Inline mapping / feedback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+.mapping-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--font-3);
+  flex-wrap: wrap;
+}
+
+.mapping-target { font-family: var(--font-mono); font-size: var(--font-2); color: var(--slate-700); }
+
+.target-code {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-md);
+  background: var(--slate-50);
+  font-family: var(--font-mono);
+  font-size: var(--font-2);
+}
+
+.status-accepted { color: var(--success); font-size: var(--font-2); }
+.status-rejected  { color: var(--danger);  font-size: var(--font-2); }
+
+/* Confidence SVG ring */
+.confidence-mini-ring,
+.confidence-ring { display: grid; place-items: center; }
+
+.confidence-ring      { width: 3.5rem; height: 3.5rem; }
+.confidence-mini-ring { width: 2rem;   height: 2rem; }
+
+.confidence-text,
+.confidence-text-mini { position: absolute; font-size: var(--font-2); font-weight: 700; }
+
+.circular-chart-mini { display: block; }
+.circle-bg { fill: none; stroke: var(--slate-200); stroke-width: 3.8; }
+.circle    { fill: none; stroke-width: 3.8; stroke-linecap: round; }
+
+.ring-high   .circle { stroke: var(--success); }
+.ring-medium .circle { stroke: var(--warning); }
+.ring-low    .circle { stroke: var(--danger);  }
+
+.inline-feedback-actions,
+.feedback-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.feedback-result.success { color: var(--success); font-size: var(--font-2); }
+.feedback-result.error   { color: var(--danger);  font-size: var(--font-2); }
+
+.btn-premium {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--slate-200);
+  background: white;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--font-3);
+}
+
+.btn-accept:hover { border-color: rgba(5, 150, 105, 0.2); color: var(--success); }
+.btn-reject:hover { border-color: rgba(220, 38, 38, 0.2); color: var(--danger); }
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.875rem;
+  height: 1.875rem;
+  border-radius: 999px;
+  border: 1px solid var(--slate-200);
+  background: white;
+  cursor: pointer;
+  font: inherit;
+}
+
+.btn-success {
+  background: #e9fbef;
+  color: #0b9152;
+  border-color: #bbebcb;
+}
+
+.btn-success:hover {
+  background: #dff6e8;
+}
+

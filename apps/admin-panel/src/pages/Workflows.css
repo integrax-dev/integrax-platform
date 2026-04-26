@@ -1,3 +1,7 @@
+﻿/* Workflow-specific page styles */
+
+/* 26b. Workflows */
+
 .workflows-page {
   gap: 1.25rem;
 }
@@ -8,8 +12,8 @@
 
 .workflow-subtitle {
   margin-top: 0.35rem;
-  color: #516b98;
-  font-size: 0.82rem;
+  color: var(--slate-600);
+  font-size: var(--font-3);
 }
 
 .workflow-toolbar {
@@ -21,30 +25,18 @@
 
 .workflow-toolbar .btn svg,
 .workflow-activate svg,
-.workflow-linkout svg {
+.workflow-linkout svg,
+.workflow-group-icon svg {
   width: 0.95rem;
   height: 0.95rem;
 }
 
-.btn-success {
-  background: #e9fbef;
-  color: #0b9152;
-  border-color: #bbebcb;
-}
-
-.btn-success:hover {
-  background: #dff6e8;
-}
-
 .workflow-group {
   background: white;
-  border: 1px solid #dce6f2;
-  border-radius: 0.95rem;
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-lg);
   overflow: hidden;
-}
-
-.workflow-group + .workflow-group {
-  margin-top: 0.25rem;
+  box-shadow: var(--shadow-sm);
 }
 
 .workflow-group-header {
@@ -52,15 +44,15 @@
   padding: 0 1.25rem;
   display: flex;
   align-items: center;
-  border-bottom: 1px solid #e8eff7;
+  border-bottom: 1px solid var(--slate-200);
 }
 
 .workflow-group-title {
   display: flex;
   align-items: center;
   gap: 0.55rem;
-  color: #17335e;
-  font-size: 0.82rem;
+  color: var(--slate-800);
+  font-size: var(--font-3);
   font-weight: 700;
 }
 
@@ -70,11 +62,6 @@
   display: grid;
   place-items: center;
   border-radius: 0.35rem;
-}
-
-.workflow-group-icon svg {
-  width: 0.85rem;
-  height: 0.85rem;
 }
 
 .workflow-group-icon-purple {
@@ -99,7 +86,7 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 1.1rem 1.25rem;
-  border-top: 1px solid #eef3f8;
+  border-top: 1px solid var(--slate-200);
 }
 
 .workflow-group-body > :first-child {
@@ -124,18 +111,19 @@
 
 .ap-flow-heading strong,
 .native-flow-heading strong {
-  color: #112b55;
-  font-size: 0.92rem;
+  color: var(--slate-900);
+  font-size: var(--font-5);
 }
 
 .workflow-badge {
-  background: #eef3f9;
-  color: #6782a8;
+  background: var(--slate-100);
+  color: var(--slate-600);
 }
 
-.ap-flow-trigger {
-  color: #9aaac3;
-  font-size: 0.78rem;
+.ap-flow-trigger,
+.native-flow-meta {
+  color: var(--slate-500);
+  font-size: var(--font-2);
 }
 
 .ap-flow-actions,
@@ -151,16 +139,16 @@
   height: 1.9rem;
   display: grid;
   place-items: center;
-  color: #8ca0bf;
+  color: var(--slate-500);
 }
 
 .workflow-linkout:hover {
-  color: #35558c;
+  color: var(--slate-800);
 }
 
 .native-flow-copy p {
-  color: #516b98;
-  font-size: 0.82rem;
+  color: var(--slate-600);
+  font-size: var(--font-3);
 }
 
 .native-flow-meta {
@@ -168,12 +156,10 @@
   align-items: center;
   gap: 0.95rem;
   flex-wrap: wrap;
-  color: #9aaac3;
-  font-size: 0.78rem;
 }
 
 .workflow-fallback-copy {
-  font-size: 0.75rem;
+  font-size: var(--font-2);
 }
 
 .ap-drawer-overlay {
@@ -207,7 +193,7 @@
 
 .ap-drawer-title {
   color: var(--slate-800);
-  font-size: 0.9375rem;
+  font-size: var(--font-5);
   font-weight: 600;
 }
 
@@ -234,15 +220,12 @@
   padding: 2rem;
   text-align: center;
 }
-
-@media (max-width: 840px) {
+@media (max-width: 720px) {
   .workflows-header,
   .ap-flow-row,
   .native-flow-row {
     flex-direction: column;
-    align-items: flex-start;
   }
-
   .workflow-toolbar,
   .ap-flow-actions,
   .native-flow-actions {

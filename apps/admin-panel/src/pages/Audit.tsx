@@ -94,9 +94,9 @@ export function Audit() {
           <h1>{t('audit.title')}</h1>
           <p className="text-secondary">{t('audit.subtitle')}</p>
         </div>
-        <div className="flex gap-md">
-          <input className="input" type="date" style={{ width: 'auto' }} />
-          <select className="input" style={{ width: 'auto' }}>
+        <div className="page-toolbar">
+          <input className="input input-auto-width" type="date" />
+          <select className="input input-auto-width">
             <option>{t('common.all')}</option>
             <option>Tenants</option>
             <option>{t('nav.connectors')}</option>
@@ -123,7 +123,7 @@ export function Audit() {
             {loading ? (
               <tr><td colSpan={5}>{t('common.loading')}</td></tr>
             ) : error ? (
-              <tr><td colSpan={5} style={{ color: 'red' }}>{error}</td></tr>
+              <tr><td colSpan={5} className="table-error">{error}</td></tr>
             ) : logs.length === 0 ? (
               <tr><td colSpan={5}>{t('audit.noEvents')}</td></tr>
             ) : logs.map((log) => {

@@ -156,7 +156,7 @@ export function Tenants() {
             {loading ? (
               <tr><td colSpan={6}>{t('common.loading')}</td></tr>
             ) : error ? (
-              <tr><td colSpan={6} style={{color:'red'}}>{error}</td></tr>
+              <tr><td colSpan={6} className="table-error">{error}</td></tr>
             ) : tenants.length === 0 ? (
               <tr><td colSpan={6}>{t('tenants.noTenants')}</td></tr>
             ) : tenants.map((tenant) => (

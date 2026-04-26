@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 import { fetchAdminJson } from '../lib/adminApi';
-import './Dashboard.css';
+import './Pages.css';
 
 type DriftSeverity = 'critical' | 'major' | 'minor';
 type IncidentStatus = 'open' | 'investigating' | 'resolved' | 'dismissed';
@@ -92,16 +92,16 @@ function titleCase(value: string): string {
 }
 
 function severityClass(severity: string) {
-  if (severity === 'critical' || severity === 'Critical') return 'admin-pill admin-pill-error';
-  if (severity === 'major' || severity === 'High') return 'admin-pill admin-pill-warning';
-  return 'admin-pill admin-pill-neutral';
+  if (severity === 'critical' || severity === 'Critical') return 'badge badge-error';
+  if (severity === 'major' || severity === 'High') return 'badge badge-warning';
+  return 'badge badge-neutral';
 }
 
 function statusClass(status: string) {
-  if (status === 'resolved') return 'admin-pill admin-pill-success';
-  if (status === 'investigating') return 'admin-pill admin-pill-warning';
-  if (status === 'open') return 'admin-pill admin-pill-error';
-  return 'admin-pill admin-pill-neutral';
+  if (status === 'resolved') return 'badge badge-success';
+  if (status === 'investigating') return 'badge badge-warning';
+  if (status === 'open') return 'badge badge-error';
+  return 'badge badge-neutral';
 }
 
 function formatTime(value?: string | null): string {
@@ -224,13 +224,13 @@ export function IncidentDetail() {
   const timeline = incident ? makeTimeline(incident) : [];
 
   if (loading) {
-    return <div className="incident-detail"><section className="overview-card">Cargando incidente real…</section></div>;
+    return <div className="page"><section className="card">Cargando incidente real…</section></div>;
   }
 
   if (error || !incident) {
     return (
-      <div className="incident-detail">
-        <section className="overview-card empty-detail">
+      <div className="page">
+        <section className="card empty-detail">
           <h2>No pude cargar este incidente</h2>
           <p>{error ?? 'Incident not found'}</p>
           <div className="side-actions">
@@ -243,14 +243,14 @@ export function IncidentDetail() {
   }
 
   return (
-    <div className="incident-detail">
+    <div className="page">
       <section className="admin-hero detail-hero">
         <div>
           <div className="chip-row hero-badges">
             <span className={severityClass(incident.severity)}>{incident.severity.toUpperCase()}</span>
             <span className={statusClass(incident.status)}>{incident.status.toUpperCase()}</span>
-            <span className="admin-pill admin-pill-neutral">{incident.protocol.toUpperCase()}</span>
-            <span className="admin-pill admin-pill-neutral">{incident.id}</span>
+            <span className="badge badge-neutral">{incident.protocol.toUpperCase()}</span>
+            <span className="badge badge-neutral">{incident.id}</span>
           </div>
           <h1>{titleCase(incident.sourceId)} schema drift incident</h1>
           <p>
@@ -283,7 +283,7 @@ export function IncidentDetail() {
 
       <div className="detail-layout">
         <main className="detail-main">
-          <section className="overview-card">
+          <section className="card">
             <h2>Impact summary</h2>
             <div className="mini-grid four">
               <div className="inset-card"><span>Affected tenants</span><strong>{incident.affectedTenants.length}</strong></div>
@@ -293,12 +293,12 @@ export function IncidentDetail() {
             </div>
           </section>
 
-          <section className="overview-card">
+          <section className="card">
             <div className="section-heading">
               <h2>Schema diff</h2>
               <div className="chip-row">
-                <span className="admin-pill admin-pill-error">{breakingCount} breaking</span>
-                <span className="admin-pill admin-pill-success">{Math.max(0, diffs.length - breakingCount)} safe</span>
+                <span className="badge badge-error">{breakingCount} breaking</span>
+                <span className="badge badge-success">{Math.max(0, diffs.length - breakingCount)} safe</span>
               </div>
             </div>
             {diffs.length === 0 ? (
@@ -317,7 +317,7 @@ export function IncidentDetail() {
                         <td>{nodeType(diff.nodeB)}</td>
                         <td>{titleCase(diff.kind)}</td>
                         <td>
-                          <span className={`admin-pill ${diffImpact(diff) === 'breaking' ? 'admin-pill-error' : 'admin-pill-success'}`}>
+                          <span className={`badge ${diffImpact(diff) === 'breaking' ? 'badge-error' : 'badge-success'}`}>
                             {diffImpact(diff)}
                           </span>
                         </td>
@@ -329,7 +329,7 @@ export function IncidentDetail() {
             )}
           </section>
 
-          <section className="overview-card">
+          <section className="card">
             <h2>Suggested mapping adjustments</h2>
             {mappings.length === 0 ? (
               <div className="empty-dashed">No hay mappings sugeridos para este incidente.</div>
@@ -342,7 +342,7 @@ export function IncidentDetail() {
                       <p>{mapping.transform?.description ?? mapping.decisionReason ?? mapping.transform?.kind ?? 'Mapping candidate'}</p>
                     </div>
                     <div className="mapping-actions">
-                      <span className="admin-pill admin-pill-neutral">confidence {mapping.confidence.toFixed(2)}</span>
+                      <span className="badge badge-neutral">confidence {mapping.confidence.toFixed(2)}</span>
                     </div>
                   </div>
                 ))}
@@ -350,7 +350,7 @@ export function IncidentDetail() {
             )}
           </section>
 
-          <section className="overview-card">
+          <section className="card">
             <h2>Affected tenants</h2>
             {incident.affectedTenants.length === 0 ? (
               <div className="empty-dashed">No hay tenants afectados registrados.</div>
@@ -378,7 +378,7 @@ export function IncidentDetail() {
         </main>
 
         <aside className="detail-side">
-          <section className="overview-card">
+          <section className="card">
             <h2>Incident status</h2>
             <div className="kv-list">
               <div><span>Source</span><strong>{incident.sourceId}</strong></div>
@@ -390,7 +390,7 @@ export function IncidentDetail() {
             </div>
           </section>
 
-          <section className="overview-card">
+          <section className="card">
             <h2>LLM analysis</h2>
             {incident.llmAnalysis.length === 0 ? (
               <div className="analysis-box">
@@ -410,7 +410,7 @@ export function IncidentDetail() {
             )}
           </section>
 
-          <section className="overview-card">
+          <section className="card">
             <h2>Remediation hints</h2>
             {incident.remediationHints.length === 0 ? (
               <div className="empty-dashed">No hay hints de remediación registrados.</div>
@@ -423,7 +423,7 @@ export function IncidentDetail() {
             )}
           </section>
 
-          <section className="overview-card">
+          <section className="card">
             <h2>Incident timeline</h2>
             <div className="timeline-list">
               {timeline.map(item => (

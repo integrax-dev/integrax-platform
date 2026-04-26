@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { fetchAdminJson } from '../lib/adminApi';
 import { allowDemoFallbacks } from '../lib/runtime';
 import './Pages.css';
+import './SchemaViews.css';
 
 const MOCK_REPORTS: DiffReport[] = import.meta.env.PROD && !import.meta.env.VITE_ENABLE_DEMO_FALLBACKS 
   ? []
@@ -211,8 +212,10 @@ export function SchemaDiffs() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1 className="page-title">{t('schemaDiffs.title')}</h1>
-        <p className="page-subtitle">{t('schemaDiffs.subtitle')}</p>
+        <div>
+          <h1 className="page-title">{t('schemaDiffs.title')}</h1>
+          <p className="page-subtitle">{t('schemaDiffs.subtitle')}</p>
+        </div>
       </div>
 
       {error && (

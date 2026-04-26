@@ -36,12 +36,8 @@ const STATUS_BADGE: Record<EventStatus, string> = {
 
 function LiveDot({ active, liveLabel, disconnectedLabel }: { active: boolean; liveLabel: string; disconnectedLabel: string }) {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: active ? '#10b981' : '#94a3b8' }}>
-      <span style={{
-        display: 'inline-block', width: 7, height: 7, borderRadius: '50%',
-        background: active ? '#10b981' : '#94a3b8',
-        boxShadow: active ? '0 0 0 2px rgba(16,185,129,0.3)' : 'none',
-      }} />
+    <span className={`live-indicator ${active ? 'is-active' : ''}`}>
+      <span className="live-indicator-dot" />
       {active ? liveLabel : disconnectedLabel}
     </span>
   );
@@ -123,23 +119,19 @@ export function Events() {
       <div className="page-header">
         <div>
           <h1>{t('events.title')}</h1>
-          <p className="text-secondary" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <p className="page-subtitle-row">
             {t('events.subtitle')}
             <LiveDot active={connected} liveLabel={t('common.live')} disconnectedLabel={t('common.disconnected')} />
             {newCount > 0 && (
-              <span
-                style={{ fontSize: 11, fontWeight: 700, background: 'var(--color-primary)', color: '#fff', padding: '1px 7px', borderRadius: 10, cursor: 'pointer' }}
-                onClick={() => setNewCount(0)}
-              >
+              <span className="live-counter" onClick={() => setNewCount(0)}>
                 +{newCount} {t('common.newItems', { count: '' }).replace('+', '').trim()}
               </span>
             )}
           </p>
         </div>
-        <div className="flex gap-md">
+        <div className="page-filters">
           <select
-            className="input"
-            style={{ width: 'auto' }}
+            className="input input-auto-width"
             value={filterStatus}
             onChange={e => setFilterStatus(e.target.value as EventStatus | 'all')}
           >
@@ -150,8 +142,7 @@ export function Events() {
             <option value="dlq">{t('events.status.dlq')}</option>
           </select>
           <select
-            className="input"
-            style={{ width: 'auto' }}
+            className="input input-auto-width"
             value={filterConnector}
             onChange={e => setFilterConnector(e.target.value)}
           >
@@ -178,7 +169,7 @@ export function Events() {
             {loading ? (
               <tr><td colSpan={7}>{t('common.loading')}</td></tr>
             ) : error ? (
-              <tr><td colSpan={7} style={{ color: 'red' }}>{error}</td></tr>
+              <tr><td colSpan={7} className="table-error">{error}</td></tr>
             ) : filtered.length === 0 ? (
               <tr><td colSpan={7}>{t('events.noEvents')}</td></tr>
             ) : filtered.map(event => (

@@ -19,6 +19,7 @@ import { useAuthStore } from '../stores/auth';
 import { usePlatformStream, type PlatformEvent } from '../lib/usePlatformStream';
 import { ToastContainer, type ToastItem } from '../components/Toast';
 import './Pages.css';
+import './Incidents.css';
 
 // ─── Types (mirrors BridgeReport + DriftIncident from the store) ──────────────
 
@@ -172,7 +173,7 @@ function Badge({
 }: { label: string; color: string; bg?: string }) {
   return (
     <span style={{
-      padding: '2px 7px', borderRadius: 4, fontSize: 11, fontWeight: 700,
+      padding: '2px 7px', borderRadius: 4, fontSize: 'var(--font-1)', fontWeight: 700,
       background: bg ?? (color + '18'), color, textTransform: 'uppercase' as const,
       letterSpacing: '0.04em', flexShrink: 0, whiteSpace: 'nowrap' as const,
     }}>
@@ -188,17 +189,17 @@ function ResolutionSummary({ report }: { report: RequirementsReport | undefined 
   return (
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
       {s.resolvedDeterministically > 0 && (
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#059669', background: 'rgba(16,185,129,0.1)', padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(16,185,129,0.25)' }}>
+        <span style={{ fontSize: 'var(--font-1)', fontWeight: 600, color: '#059669', background: 'rgba(16,185,129,0.1)', padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(16,185,129,0.25)' }}>
           {t('incidents.autoResolvedCount', { count: s.resolvedDeterministically })}
         </span>
       )}
       {s.llmEscalationCount > 0 && (
-        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-primary-dark)', background: 'var(--color-primary-light)', padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(20,184,166,0.25)' }}>
+        <span style={{ fontSize: 'var(--font-1)', fontWeight: 600, color: 'var(--color-primary-dark)', background: 'var(--color-primary-light)', padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(20,184,166,0.25)' }}>
           {t('incidents.pendingLlmCount', { count: s.llmEscalationCount })}
         </span>
       )}
       {s.breakingCount > 0 && (
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#dc2626', background: 'rgba(239,68,68,0.08)', padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(239,68,68,0.2)' }}>
+        <span style={{ fontSize: 'var(--font-1)', fontWeight: 600, color: '#dc2626', background: 'rgba(239,68,68,0.08)', padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(239,68,68,0.2)' }}>
           {t('incidents.breakingCount', { count: s.breakingCount })}
         </span>
       )}
@@ -233,7 +234,7 @@ function DiffTable({ conflicts }: { conflicts: ResolvedConflict[] }) {
 
   return (
     <div style={{ marginTop: 14 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+      <div style={{ fontSize: 'var(--font-1)', fontWeight: 700, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
         {t('incidents.schemaDiffsHeader', { count: conflicts.length })}
       </div>
       <div style={{
@@ -241,7 +242,7 @@ function DiffTable({ conflicts }: { conflicts: ResolvedConflict[] }) {
         fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
       }}>
         {/* Section header */}
-        <div style={{ background: '#f6f8fa', borderBottom: '1px solid #e2e8f0', padding: '5px 14px', fontSize: 12, color: '#57606a', display: 'flex', justifyContent: 'space-between' }}>
+        <div style={{ background: '#f6f8fa', borderBottom: '1px solid #e2e8f0', padding: '5px 14px', fontSize: 'var(--font-2)', color: '#57606a', display: 'flex', justifyContent: 'space-between' }}>
           <span style={{ fontWeight: 600 }}>{t('incidents.schemaDiffsTitle')}</span>
           <span>{t('incidents.schemaDiffsChanges', { count: conflicts.length })}</span>
         </div>
@@ -448,23 +449,23 @@ function LLMEscalationsSection({
                 <div style={{ padding: '10px 14px', borderTop: '1px solid #ede9fe' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+                      <div style={{ fontSize: 'var(--font-3)', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
                         {analysis.suggestion}
                       </div>
-                      <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.5 }}>
+                      <div style={{ fontSize: 'var(--font-2)', color: '#64748b', lineHeight: 1.5 }}>
                         {analysis.reasoning}
                       </div>
                     </div>
                     <div style={{ flexShrink: 0, textAlign: 'center' }}>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: analysis.confidence >= 0.75 ? '#10b981' : analysis.confidence >= 0.5 ? '#f59e0b' : '#ef4444' }}>
+                      <div style={{ fontSize: 'var(--font-7)', fontWeight: 700, color: analysis.confidence >= 0.75 ? '#10b981' : analysis.confidence >= 0.5 ? '#f59e0b' : '#ef4444' }}>
                         {Math.round(analysis.confidence * 100)}%
                       </div>
-                      <div style={{ fontSize: 10, color: '#94a3b8' }}>{t('incidents.confidence')}</div>
+                      <div style={{ fontSize: 'var(--font-1)', color: '#94a3b8' }}>{t('incidents.confidence')}</div>
                     </div>
                   </div>
                   <button
                     onClick={() => void analyze(i)}
-                    style={{ marginTop: 8, padding: '3px 10px', borderRadius: 4, border: '1px solid #ddd6fe', background: '#f5f3ff', color: '#7c3aed', fontSize: 11, cursor: 'pointer' }}
+                    style={{ marginTop: 8, padding: '3px 10px', borderRadius: 4, border: '1px solid #ddd6fe', background: '#f5f3ff', color: '#7c3aed', fontSize: 'var(--font-1)', cursor: 'pointer' }}
                   >
                     {t('incidents.reAnalyze')}
                   </button>
@@ -475,10 +476,10 @@ function LLMEscalationsSection({
               {err && (
                 <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(239,68,68,0.15)', background: 'rgba(239,68,68,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 14 }}>⚠</span>
-                    <span style={{ fontSize: 12, color: '#dc2626' }}>{err}</span>
+                    <span style={{ fontSize: 'var(--font-4)' }}>⚠</span>
+                    <span style={{ fontSize: 'var(--font-2)', color: '#dc2626' }}>{err}</span>
                   </div>
-                  <button onClick={() => void analyze(i)} style={{ fontSize: 11, fontWeight: 600, color: '#7c3aed', background: 'none', border: '1px solid #ddd6fe', borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}>
+                  <button onClick={() => void analyze(i)} style={{ fontSize: 'var(--font-1)', fontWeight: 600, color: '#7c3aed', background: 'none', border: '1px solid #ddd6fe', borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}>
                     {t('incidents.retryBtn')}
                   </button>
                 </div>
@@ -649,10 +650,10 @@ export function Incidents() {
             borderLeft: `4px solid ${color}`,
             display: 'flex', flexDirection: 'column' as const, gap: 2,
           }}>
-            <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1, color }}>
+            <div style={{ fontSize: 'var(--font-8)', fontWeight: 700, lineHeight: 1, color }}>
               {value}
             </div>
-            <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
+            <div style={{ fontSize: 'var(--font-3)', color: 'var(--text-secondary)', marginTop: 2 }}>
               {t(labelKey)}
             </div>
           </div>
@@ -672,7 +673,7 @@ export function Incidents() {
           const selectId = `incidents-filter-${id}`;
           return (
           <div key={labelKey} style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
-            <label htmlFor={selectId} style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.02em' }}>
+            <label htmlFor={selectId} style={{ fontSize: 'var(--font-1)', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.02em' }}>
               {t(labelKey)}
             </label>
             <select
@@ -682,7 +683,7 @@ export function Incidents() {
               onChange={e => (setter as (v: string) => void)(e.target.value)}
               style={{
                 padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border-color)',
-                fontSize: 13, background: '#fff', color: 'var(--text-primary)',
+                fontSize: 'var(--font-3)', background: '#fff', color: 'var(--text-primary)',
                 cursor: 'pointer', outline: 'none', minWidth: 110,
               }}
             >
@@ -695,7 +696,7 @@ export function Incidents() {
 
       {/* Error */}
       {error && (
-        <div style={{ padding: 14, background: 'rgba(239,68,68,0.06)', borderRadius: 8, border: '1px solid rgba(239,68,68,0.2)', color: '#dc2626', marginBottom: 16, fontSize: 13 }}>
+        <div style={{ padding: 14, background: 'rgba(239,68,68,0.06)', borderRadius: 8, border: '1px solid rgba(239,68,68,0.2)', color: '#dc2626', marginBottom: 16, fontSize: 'var(--font-3)' }}>
           {error} —{' '}
           <button onClick={() => void load()} style={{ color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
             {t('common.retry').toLowerCase()}
@@ -706,9 +707,9 @@ export function Incidents() {
       {/* Empty state */}
       {!loading && !error && filtered.length === 0 && (
         <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text-muted)', background: '#fff', borderRadius: 10, border: '1px solid var(--border-color)' }}>
-          <div style={{ fontSize: 28, marginBottom: 10, opacity: 0.6 }}>✓</div>
-          <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--text-secondary)', marginBottom: 6 }}>{t('incidents.noIncidents')}</div>
-          <div style={{ fontSize: 13 }}>
+          <div style={{ fontSize: 'var(--font-8)', marginBottom: 10, opacity: 0.6 }}>✓</div>
+          <div style={{ fontWeight: 600, fontSize: 'var(--font-5)', color: 'var(--text-secondary)', marginBottom: 6 }}>{t('incidents.noIncidents')}</div>
+          <div style={{ fontSize: 'var(--font-3)' }}>
             {t('incidents.noIncidentsDesc')}
           </div>
         </div>
@@ -760,11 +761,11 @@ export function Incidents() {
                   <Badge label={t(`incidents.severity.${incident.severity}`)} color={sc} />
 
                   <span style={{
-                    fontWeight: 500, fontSize: 13,
+                    fontWeight: 500, fontSize: 'var(--font-3)',
                     color: 'var(--text-primary)',
                     flexShrink: 0, whiteSpace: 'nowrap' as const,
                   }}>
-                    <span style={{ fontSize: 11, color: 'var(--text-muted)', marginRight: 3 }}>
+                    <span style={{ fontSize: 'var(--font-1)', color: 'var(--text-muted)', marginRight: 3 }}>
                       {t('incidents.sourceLabel')}:
                     </span>
                     {formatSourceId(incident.sourceId)}
@@ -775,7 +776,7 @@ export function Incidents() {
 
                   {incident.affectedTenants.length > 0 && (
                     <span style={{
-                      fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 4, flexShrink: 0,
+                      fontSize: 'var(--font-1)', fontWeight: 600, padding: '2px 7px', borderRadius: 4, flexShrink: 0,
                       background: 'rgba(245,158,11,0.1)', color: '#d97706', border: '1px solid rgba(245,158,11,0.22)',
                       whiteSpace: 'nowrap' as const,
                     }}>
@@ -784,16 +785,16 @@ export function Incidents() {
                   )}
 
                   <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                    <span style={{ fontSize: 12, color: '#94a3b8' }}>
+                    <span style={{ fontSize: 'var(--font-2)', color: '#94a3b8' }}>
                       {timeAgo(incident.detectedAt)}
                     </span>
-                    <span style={{ fontSize: 11, color: '#cbd5e1' }}>{isOpen ? '▲' : '▼'}</span>
+                    <span style={{ fontSize: 'var(--font-1)', color: '#cbd5e1' }}>{isOpen ? '▲' : '▼'}</span>
                   </div>
                 </div>
 
                 {/* Line 2: change summary */}
                 <div style={{
-                  marginTop: 6, fontSize: 13, color: 'var(--text-secondary)',
+                  marginTop: 6, fontSize: 'var(--font-3)', color: 'var(--text-secondary)',
                   lineHeight: 1.4, paddingRight: 8,
                 }}>
                   {changeSummary(conflicts, t)}
@@ -802,19 +803,19 @@ export function Incidents() {
                 {/* Line 3: resolution stats */}
                 <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   {autoCount > 0 && (
-                    <span style={{ fontSize: 11, color: '#10b981', fontWeight: 600 }}>
+                    <span style={{ fontSize: 'var(--font-1)', color: '#10b981', fontWeight: 600 }}>
                       {t('incidents.autoStat', { count: autoCount })}
                     </span>
                   )}
                   {llmCount > 0 && (
-                    <span style={{ fontSize: 11, color: 'var(--color-primary-dark)', fontWeight: 600 }}>
+                    <span style={{ fontSize: 'var(--font-1)', color: 'var(--color-primary-dark)', fontWeight: 600 }}>
                       {incident.llmAnalysis.length >= llmCount
                         ? t('incidents.aiAnalyzed', { count: llmCount })
                         : t('incidents.pendingLlmStat', { count: llmCount })}
                     </span>
                   )}
                   {incident.impactScore !== null && (
-                    <span style={{ fontSize: 11, color: '#94a3b8' }}>
+                    <span style={{ fontSize: 'var(--font-1)', color: '#94a3b8' }}>
                       {t('incidents.impactLabel')} <strong style={{ color: 'var(--text-primary)' }}>{Math.round(incident.impactScore * 100)}%</strong>
                     </span>
                   )}
@@ -828,7 +829,7 @@ export function Incidents() {
                   {/* Fingerprint delta + routing */}
                   <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
                     {fpA && fpB && (
-                      <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#64748b', background: '#f8fafc', padding: '4px 10px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                      <div style={{ fontSize: 'var(--font-1)', fontFamily: 'monospace', color: '#64748b', background: '#f8fafc', padding: '4px 10px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
                         <span style={{ color: '#ef4444' }}>{shortFingerprint(fpA)}</span>
                         {' → '}
                         <span style={{ color: '#10b981' }}>{shortFingerprint(fpB)}</span>
@@ -837,7 +838,7 @@ export function Incidents() {
                     {incident.routingTarget && (
                       <div style={{
                         padding: '4px 10px', borderRadius: 6, background: '#f8fafc',
-                        border: '1px solid #e2e8f0', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)',
+                        border: '1px solid #e2e8f0', fontSize: 'var(--font-2)', fontWeight: 600, color: 'var(--text-secondary)',
                       }}>
                         {incident.routingTarget === 'incident_alert'  && t('incidents.routingIncidentAlert')}
                         {incident.routingTarget === 'operator_review' && t('incidents.routingOperatorReview')}
@@ -846,9 +847,9 @@ export function Incidents() {
                       </div>
                     )}
                     {incident.affectedTenants.length > 0 && (
-                      <div style={{ fontSize: 12, color: '#d97706', padding: '4px 10px', background: 'rgba(245,158,11,0.08)', borderRadius: 6, border: '1px solid rgba(245,158,11,0.2)' }}>
+                      <div style={{ fontSize: 'var(--font-2)', color: '#d97706', padding: '4px 10px', background: 'rgba(245,158,11,0.08)', borderRadius: 6, border: '1px solid rgba(245,158,11,0.2)' }}>
                         {t('incidents.tenantBlastRadius', { count: incident.affectedTenants.length })}{' '}
-                        <span style={{ fontFamily: 'monospace', fontSize: 11 }}>{incident.affectedTenants.join(', ')}</span>
+                        <span style={{ fontFamily: 'monospace', fontSize: 'var(--font-1)' }}>{incident.affectedTenants.join(', ')}</span>
                       </div>
                     )}
                   </div>
@@ -859,12 +860,12 @@ export function Incidents() {
                   {/* Remediation hints */}
                   {incident.remediationHints.length > 0 && (
                     <div style={{ marginTop: 12, padding: 10, background: 'rgba(245,158,11,0.06)', borderRadius: 6, border: '1px solid rgba(245,158,11,0.2)' }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: '#d97706', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      <div style={{ fontSize: 'var(--font-1)', fontWeight: 700, color: '#d97706', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         {t('incidents.remediationHints')}
                       </div>
                       <ul style={{ margin: 0, paddingLeft: 16 }}>
                         {incident.remediationHints.map((h, i) => (
-                          <li key={i} style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 2 }}>
+                          <li key={i} style={{ fontSize: 'var(--font-2)', color: 'var(--text-secondary)', marginBottom: 2 }}>
                             {t(h.key, h.params as Record<string, unknown>)}
                           </li>
                         ))}
@@ -885,7 +886,7 @@ export function Incidents() {
                       onClick={e => e.stopPropagation()}
                       style={{
                         padding: '6px 12px', borderRadius: 6, border: '1px solid #0f172a',
-                        background: '#0f172a', color: '#fff', fontSize: 12, fontWeight: 700,
+                        background: '#0f172a', color: '#fff', fontSize: 'var(--font-2)', fontWeight: 700,
                       }}
                     >
                       Open detail

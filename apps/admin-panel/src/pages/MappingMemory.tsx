@@ -87,10 +87,10 @@ export function MappingMemory() {
     }
   }, [connectorAId, connectorBId]);
 
-  const confidenceColor = (c: number) => {
-    if (c >= 0.90) return '#22c55e';
-    if (c >= 0.75) return '#f59e0b';
-    return '#ef4444';
+  const confidenceClass = (c: number) => {
+    if (c >= 0.9) return 'badge-success';
+    if (c >= 0.75) return 'badge-warning';
+    return 'badge-error';
   };
 
   const totalFeedback = (e: MappingMemoryEntry) => e.acceptedCount + e.rejectedCount;
@@ -183,10 +183,7 @@ export function MappingMemory() {
                         <td className="mono">{e.sourcePath}</td>
                         <td className="mono">{e.targetPath}</td>
                         <td>
-                          <span
-                            className="confidence-badge"
-                            style={{ color: confidenceColor(e.averageConfidence) }}
-                          >
+                          <span className={`confidence-badge ${confidenceClass(e.averageConfidence)}`}>
                             {Math.round(e.averageConfidence * 100)}%
                           </span>
                         </td>

@@ -4,7 +4,7 @@ import { fetchAdminJson } from '../lib/adminApi';
 import { useAuthStore } from '../stores/auth';
 import { usePlatformStream, type PlatformEvent } from '../lib/usePlatformStream';
 import { allowDemoFallbacks } from '../lib/runtime';
-import './Dashboard.css';
+import './Pages.css';
 
 type DashboardData = {
   eventsData: Array<{ name: string; events: number; success: number; failed: number }>;
@@ -113,15 +113,15 @@ const operations = [
 ];
 
 function severityClass(severity: string) {
-  if (severity === 'Critical') return 'admin-pill admin-pill-error';
-  if (severity === 'High') return 'admin-pill admin-pill-warning';
-  return 'admin-pill admin-pill-neutral';
+  if (severity === 'Critical') return 'badge badge-error';
+  if (severity === 'High') return 'badge badge-warning';
+  return 'badge badge-neutral';
 }
 
 function coverageClass(status: string) {
-  if (status === 'Strong') return 'admin-pill admin-pill-success';
-  if (status === 'Partial') return 'admin-pill admin-pill-warning';
-  return 'admin-pill admin-pill-neutral';
+  if (status === 'Strong') return 'badge badge-success';
+  if (status === 'Partial') return 'badge badge-warning';
+  return 'badge badge-neutral';
 }
 
 function LiveBadge({ count }: { count: number }) {
@@ -225,7 +225,7 @@ export function Dashboard() {
   ];
 
   return (
-    <div className="admin-overview">
+    <div className="page">
       <section className="admin-hero">
         <h1>IntegraX Control Plane</h1>
         <p>
@@ -236,7 +236,7 @@ export function Dashboard() {
 
       <section className="overview-grid overview-kpis">
         {kpis.map((kpi, index) => (
-          <article key={kpi.label} className="overview-card kpi-card">
+          <article key={kpi.label} className="card kpi-card">
             <LiveBadge count={kpi.live} />
             <div className="kpi-topline">
               <div>
@@ -252,7 +252,7 @@ export function Dashboard() {
       </section>
 
       <div className="overview-grid overview-main">
-        <section className="overview-card span-7">
+        <section className="card span-7">
           <div className="section-heading">
             <div>
               <h2>Active incidents</h2>
@@ -277,7 +277,7 @@ export function Dashboard() {
           </div>
         </section>
 
-        <section className="overview-card span-5">
+        <section className="card span-5">
           <div className="section-heading">
             <div>
               <h2>Connector estate</h2>
@@ -319,7 +319,7 @@ export function Dashboard() {
           </div>
         </section>
 
-        <section className="overview-card span-7">
+        <section className="card span-7">
           <div className="section-heading">
             <div>
               <h2>Event pipeline health</h2>
@@ -343,7 +343,7 @@ export function Dashboard() {
           </div>
         </section>
 
-        <section className="overview-card span-5">
+        <section className="card span-5">
           <div className="section-heading">
             <div>
               <h2>Connector contract health trend</h2>
@@ -362,7 +362,7 @@ export function Dashboard() {
           <p className="panel-note">Current score <strong>94/100</strong> · 1 degraded connector with contract drift · 1 lagging polling connector</p>
         </section>
 
-        <section className="overview-card span-4">
+        <section className="card span-4">
           <h2>Current drift backlog</h2>
           <p className="section-copy">Entities currently affected by unresolved snapshot drift</p>
           <div className="simple-list">
@@ -370,7 +370,7 @@ export function Dashboard() {
           </div>
         </section>
 
-        <section className="overview-card span-4">
+        <section className="card span-4">
           <h2>Mapping memory watchlist</h2>
           <p className="section-copy">Mappings requiring attention due to low confidence or instability</p>
           <div className="simple-list">
@@ -378,7 +378,7 @@ export function Dashboard() {
           </div>
         </section>
 
-        <section className="overview-card span-4">
+        <section className="card span-4">
           <h2>Activepieces footprint</h2>
           <p className="section-copy">Runtime automation surface available across tenants</p>
           <div className="stack-list">
@@ -391,7 +391,7 @@ export function Dashboard() {
           </div>
         </section>
 
-        <section className="overview-card span-7">
+        <section className="card span-7">
           <div className="section-heading">
             <div>
               <h2>Connector capability coverage</h2>
@@ -421,7 +421,7 @@ export function Dashboard() {
           </div>
         </section>
 
-        <section className="overview-card span-5">
+        <section className="card span-5">
           <div className="section-heading">
             <div>
               <h2>Execution layer distribution</h2>
@@ -439,7 +439,7 @@ export function Dashboard() {
           </div>
         </section>
 
-        <section className="overview-card span-12">
+        <section className="card span-12">
           <div className="section-heading">
             <div>
               <h2>Operation command queue</h2>
@@ -457,13 +457,13 @@ export function Dashboard() {
           </div>
         </section>
 
-        <section className="overview-card span-12">
+        <section className="card span-12">
           <div className="section-heading">
             <div>
               <h2>{t('dashboard.recentEvents')}</h2>
               <p>Live platform stream merged with latest dashboard events</p>
             </div>
-            {liveRecent.length > 0 && <span className="admin-pill admin-pill-success">● {t('common.live')}</span>}
+            {liveRecent.length > 0 && <span className="badge badge-success">● {t('common.live')}</span>}
           </div>
           <div className="table-shell">
             <table className="table">
@@ -476,7 +476,7 @@ export function Dashboard() {
                     <td><code className="event-type">{event.type}</code></td>
                     <td>{event.tenant}</td>
                     <td>
-                      <span className={`admin-pill ${event.status === 'success' ? 'admin-pill-success' : 'admin-pill-error'}`}>
+                      <span className={`badge ${event.status === 'success' ? 'badge-success' : 'badge-error'}`}>
                         {event.status === 'success' ? t('dashboard.success') : t('dashboard.failed')}
                       </span>
                     </td>
