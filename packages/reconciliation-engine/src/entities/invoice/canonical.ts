@@ -1,25 +1,19 @@
 /**
  * Canonical Invoice — the shared representation used by the reconciliation engine.
  *
- * An invoice is immutable once authorized (CAE issued). Conflicts here are
- * mostly discovered when comparing a Contabilium comprobante with its AFIP
- * counterpart, or cross-tenant between ERP and payment systems.
+ * An invoice is immutable once authorized. Conflicts here are mostly discovered
+ * when comparing an ERP comprobante with its fiscal-authority counterpart,
+ * or cross-tenant between ERP and payment systems.
  */
 
 export interface CanonicalInvoice {
-  /** All external IDs across systems — including CAE, internal ERP id, etc. */
+  /** All external IDs across systems */
   externalIds: Array<{ system: string; id: string }>;
-  /**
-   * Human-readable invoice number, e.g. "0001-00000042".
-   * Composed from PuntoVenta + CbteDesde in Argentina.
-   */
+  /** Human-readable invoice number, e.g. "0001-00000042" */
   invoiceNumber: string;
-  /**
-   * Comprobante type code (AFIP).
-   * 1=FacturaA, 6=FacturaB, 11=FacturaC, 3=NotaCreditoA, etc.
-   */
+  /** Document type code (connector-specific, e.g. AFIP comprobante type, UBL invoice type) */
   invoiceType: number | string;
-  /** Customer taxId (CUIT) */
+  /** Customer fiscal identifier (CUIT, CNPJ, EIN, etc.) */
   customerTaxId: string;
   /** Customer name on the invoice */
   customerName: string;
@@ -30,13 +24,13 @@ export interface CanonicalInvoice {
   /** Total including taxes */
   amountTotal: number;
   currency: string;               // ISO 4217
-  /** AFIP Código de Autorización Electrónico */
-  cae?: string;
-  caeExpiryDate?: Date;
   /**
-   * Invoice status.
-   * 'authorized' = CAE issued. 'draft' = not yet sent to AFIP. 'voided' = anulado.
+   * Fiscal authorization code issued by a government authority.
+   * AR: CAE (AFIP). BR: chaveAcesso (SEFAZ). Optional — not all invoice types require it.
    */
+  authorizationCode?: string;
+  authorizationExpiry?: Date;
+  /** Invoice lifecycle status */
   status: 'draft' | 'authorized' | 'voided';
   issuedAt: Date;
   updatedAt: Date;

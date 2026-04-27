@@ -1,6 +1,6 @@
 /**
  * Normalization utilities for identity matching.
- * Pure functions — no I/O.
+ * Pure functions — no I/O, no country-specific logic.
  */
 
 /** Lowercase, remove hyphens/underscores/spaces, strip leading zeros */
@@ -23,7 +23,11 @@ export function normalizeTitle(title: string): string {
     .trim();
 }
 
-/** Normalize a CUIT/CUIL: strip hyphens and spaces, keep digits only */
-export function normalizeCuit(cuit: string): string {
-  return cuit.replace(/[-\s]/g, '').replace(/\D/g, '');
+/**
+ * Normalize any tax / fiscal identifier: strip formatting characters
+ * (hyphens, dots, spaces) and keep only digits.
+ * Works for CUIT (AR), CNPJ/CPF (BR), RFC (MX), EIN (US), etc.
+ */
+export function normalizeTaxId(id: string): string {
+  return id.replace(/[-.\s]/g, '').replace(/\D/g, '');
 }

@@ -1,0 +1,27 @@
+[
+  {
+    "conflictType": "TAX_ID_MISMATCH",
+    "action": "BLOCK",
+    "reason": "Different fiscal IDs indicate separate legal entities — cannot merge"
+  },
+  {
+    "conflictType": "VAT_STATUS_MISMATCH",
+    "action": "BLOCK",
+    "reason": "VAT category drives invoice type (A vs B vs C) — must match"
+  },
+  {
+    "conflictType": "NAME_MISMATCH",
+    "action": "ALERT",
+    "reason": "Legal name divergence requires operator review"
+  },
+  {
+    "conflictType": "EMAIL_MISMATCH",
+    "action": "IGNORE",
+    "reason": "Contact info drift is expected and does not affect fiscal operations"
+  },
+  {
+    "conflictType": "STATUS_MISMATCH",
+    "action": "ALERT",
+    "reason": "Active/inactive status divergence may affect sync eligibility"
+  }
+]

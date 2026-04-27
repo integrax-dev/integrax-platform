@@ -22,7 +22,7 @@ export interface DiffTolerances {
   stockAbs?: number;
 }
 
-const DEFAULT_TOLERANCES: Required<DiffTolerances> = {
+const FALLBACK_TOLERANCES: Required<DiffTolerances> = {
   pricePct: 0.01,
   stockAbs: 0,
 };
@@ -32,7 +32,7 @@ export function diffProducts(
   b: CanonicalProduct,
   tolerances?: DiffTolerances,
 ): EntityConflict<ProductConflictType>[] {
-  const t = { ...DEFAULT_TOLERANCES, ...tolerances };
+  const t = { ...FALLBACK_TOLERANCES, ...tolerances };
   const conflicts: EntityConflict<ProductConflictType>[] = [];
   const now = new Date();
 

@@ -1,0 +1,53 @@
+{
+  "CURRENCY_MISMATCH": {
+    "suggestedAction": "Verify the canonical currency for this entity across both systems. Update the authoritative source first, then re-sync.",
+    "routeTo": "operator_review"
+  },
+  "STOCK_MISMATCH": {
+    "suggestedAction": "Trigger a stock reconciliation operation (sync_record) to align inventory. If delta > threshold, investigate the root cause before syncing.",
+    "routeTo": "operation_engine",
+    "operationCommand": "sync_record"
+  },
+  "PRICE_MISMATCH": {
+    "suggestedAction": "Confirm the correct price with the catalog owner. Dispatch update_record once confirmed.",
+    "routeTo": "operation_engine",
+    "operationCommand": "update_record"
+  },
+  "STATUS_MISMATCH": {
+    "suggestedAction": "Status divergence is usually harmless. Logged to timeline for visibility.",
+    "routeTo": "timeline_only"
+  },
+  "TAX_ID_MISMATCH": {
+    "suggestedAction": "Different fiscal IDs indicate these may be separate legal entities. Do NOT merge. Open a manual review ticket.",
+    "routeTo": "operator_review"
+  },
+  "VAT_STATUS_MISMATCH": {
+    "suggestedAction": "Correct the VAT category in the authoritative system before issuing any new invoice. Mismatch causes wrong document types.",
+    "routeTo": "alert_channel"
+  },
+  "NAME_MISMATCH": {
+    "suggestedAction": "Compare full legal name in both systems. Correct the one that differs from the official fiscal registry record.",
+    "routeTo": "operator_review"
+  },
+  "EMAIL_MISMATCH": {
+    "suggestedAction": "Contact info is expected to drift. No action needed unless the customer reports communication issues.",
+    "routeTo": "timeline_only"
+  },
+  "AMOUNT_MISMATCH": {
+    "suggestedAction": "CRITICAL: Amount divergence on a fiscal document. Do not process any further payments or credits until resolved. Investigate double-entry or rounding errors.",
+    "routeTo": "alert_channel"
+  },
+  "AUTHORIZATION_CODE_MISSING": {
+    "suggestedAction": "Invoice may not be authorized yet. Trigger the authorization flow (approve_document) if outstanding.",
+    "routeTo": "operation_engine",
+    "operationCommand": "approve_document"
+  },
+  "AUTHORIZATION_CODE_MISMATCH": {
+    "suggestedAction": "Different authorization codes on matched invoices is a critical fiscal anomaly. Freeze sync and escalate to the fiscal team immediately.",
+    "routeTo": "alert_channel"
+  },
+  "CUSTOMER_TAX_ID_MISMATCH": {
+    "suggestedAction": "Invoice is attributed to different taxpayers — cannot reconcile automatically. Manual correction required in the authoritative system.",
+    "routeTo": "operator_review"
+  }
+}

@@ -6,21 +6,18 @@
 export interface CanonicalCustomer {
   /** All external IDs this customer has across systems */
   externalIds: Array<{ system: string; id: string }>;
-  /**
-   * Primary fiscal identifier — CUIT/CUIL (AR), CPF/CNPJ (BR), EIN (US), etc.
-   * The strongest identity signal across Argentine systems.
-   */
+  /** Primary fiscal identifier (CUIT/AR, CPF/CNPJ/BR, EIN/US, RFC/MX, etc.) */
   taxId: string;
-  /** RazonSocial / full legal name */
+  /** Legal / registered name */
   name: string;
-  /** NombreFantasia / trade name */
+  /** Trade name / DBA */
   fantasyName?: string;
   email?: string;
   phone?: string;
   address?: string;
   /**
-   * Fiscal / VAT category — CondicionIVA in Argentina.
-   * Mismatch here is BLOCK-level: wrong category produces wrong invoice types.
+   * Fiscal / VAT category (CondicionIVA in AR, Regime in BR, etc.).
+   * Mismatch is BLOCK-level: wrong category produces wrong invoice types.
    */
   vatStatus?: string;
   status: 'active' | 'inactive';

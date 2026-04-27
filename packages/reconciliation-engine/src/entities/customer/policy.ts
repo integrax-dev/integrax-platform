@@ -10,31 +10,23 @@
 import type { PolicyAction, PolicyEvaluationResult, EntityConflict } from '../../shared/types.js';
 import { aggregateAction } from '../../shared/types.js';
 import type { CustomerConflictType } from './diff.js';
+import type { PolicyRule } from '../../config/types.js';
 
-export type CustomerPolicyRule = {
-  conflictType: CustomerConflictType;
-  action: PolicyAction;
-  reason: string;
-};
-
-export const DEFAULT_CUSTOMER_POLICY: CustomerPolicyRule[] = [
-  { conflictType: 'TAX_ID_MISMATCH',     action: 'BLOCK',  reason: 'Different fiscal IDs — these may not be the same legal entity' },
-  { conflictType: 'VAT_STATUS_MISMATCH', action: 'BLOCK',  reason: 'VAT category mismatch will generate wrong comprobante type in AFIP' },
-  { conflictType: 'NAME_MISMATCH',       action: 'ALERT',  reason: 'Name divergence may affect comprobantes and legal documents' },
-  { conflictType: 'STATUS_MISMATCH',     action: 'ALERT',  reason: 'Active/inactive status divergence may block invoice creation' },
-  { conflictType: 'EMAIL_MISMATCH',      action: 'IGNORE', reason: 'Contact info drift is expected across systems' },
-];
+export type CustomerPolicyRule = PolicyRule<CustomerConflictType>;
 
 export function evaluateCustomerConflicts(
   conflicts: EntityConflict<CustomerConflictType>[],
+  policy?: CustomerPolicyRule[],
   tenantOverrides?: Partial<Record<CustomerConflictType, PolicyAction>>,
 ): PolicyEvaluationResult<CustomerConflictType>[] {
   const merged: Record<CustomerConflictType, { action: PolicyAction; reason: string }> = {} as never;
 
-  for (const rule of DEFAULT_CUSTOMER_POLICY) {
+  // Build policy map from provided rules (or empty if none)
+  for (const rule of policy ?? []) {
     merged[rule.conflictType] = { action: rule.action, reason: rule.reason };
   }
 
+  // Apply tenant overrides
   for (const [type, action] of Object.entries(tenantOverrides ?? {})) {
     merged[type as CustomerConflictType] = {
       action: action as PolicyAction,

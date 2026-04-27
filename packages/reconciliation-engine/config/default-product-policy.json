@@ -1,0 +1,27 @@
+[
+  {
+    "conflictType": "SKU_MISMATCH",
+    "action": "BLOCK",
+    "reason": "Different SKUs after normalization indicate separate products"
+  },
+  {
+    "conflictType": "PRICE_MISMATCH",
+    "action": "ALERT",
+    "reason": "Price divergence requires catalog owner confirmation before sync"
+  },
+  {
+    "conflictType": "CURRENCY_MISMATCH",
+    "action": "BLOCK",
+    "reason": "Cross-currency price comparison is invalid"
+  },
+  {
+    "conflictType": "STOCK_MISMATCH",
+    "action": "AUTO_FIX",
+    "reason": "Stock drift is expected — engine will trigger reconciliation operation"
+  },
+  {
+    "conflictType": "STATUS_MISMATCH",
+    "action": "IGNORE",
+    "reason": "Status divergence (active/archived) is logged but does not block sync"
+  }
+]

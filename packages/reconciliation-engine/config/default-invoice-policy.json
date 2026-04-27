@@ -1,0 +1,32 @@
+[
+  {
+    "conflictType": "AMOUNT_MISMATCH",
+    "action": "BLOCK",
+    "reason": "Amount divergence in a fiscal document must halt sync immediately"
+  },
+  {
+    "conflictType": "CURRENCY_MISMATCH",
+    "action": "BLOCK",
+    "reason": "Cross-currency comparison is invalid for fiscal invoices"
+  },
+  {
+    "conflictType": "AUTHORIZATION_CODE_MISSING",
+    "action": "ALERT",
+    "reason": "Invoice may not be authorized yet — operator review needed"
+  },
+  {
+    "conflictType": "AUTHORIZATION_CODE_MISMATCH",
+    "action": "BLOCK",
+    "reason": "Different authorization codes on matched invoices is a critical fiscal anomaly"
+  },
+  {
+    "conflictType": "CUSTOMER_TAX_ID_MISMATCH",
+    "action": "BLOCK",
+    "reason": "Invoice attributed to different taxpayers — cannot reconcile"
+  },
+  {
+    "conflictType": "STATUS_MISMATCH",
+    "action": "ALERT",
+    "reason": "Status divergence may indicate a pending authorization step"
+  }
+]

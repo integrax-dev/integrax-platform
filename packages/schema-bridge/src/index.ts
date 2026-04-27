@@ -26,9 +26,11 @@ export type { ImpactAssessment, ImpactLabel, RemediationHint, RoutingTarget } fr
 export {
   defaultBusinessTypeProviders,
   defaultBusinessTypeWeights,
+  latamBusinessTypeProviders,
+  latamBusinessTypeWeights,
   detectBusinessFormat,
 } from './business-type-registry.js';
-export { defaultOntologyProviders } from './ontology-registry.js';
+export { defaultOntologyProviders, latamOntologyProviders } from './ontology-registry.js';
 export {
   createMappingMemoryOntologyProvider,
   updateMemoryEntry,
@@ -115,3 +117,15 @@ export type {
 } from './types.js';
 
 export { CompareSchemasRequestSchema, CompareOptionsSchema } from './types.js';
+
+export {
+  generateSeedsFromManifests,
+  mercadopagoPaywaySeeds,
+  mercadopagoMobbexSeeds,
+  mercadopagoDecidirSeeds,
+  paywayMobbexSeeds,
+  paywayDecidirSeeds,
+  mobbexDecidirSeeds,
+  allPaymentGatewaySeeds,
+  contabiliumAfipSeeds,
+} from './seeds/index.js';

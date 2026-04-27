@@ -14,7 +14,7 @@ import type { CanonicalCustomer } from './canonical.js';
 import type { MatchResult } from '../../shared/types.js';
 import type { ManualLink } from '../../shared/entity-helpers.js';
 import { hasManualLink, findExternalIdOverlap } from '../../shared/entity-helpers.js';
-import { normalizeCuit, normalizeTitle } from '../../shared/normalize.js';
+import { normalizeTaxId, normalizeTitle } from '../../shared/normalize.js';
 import { combinedSimilarity } from '../../shared/similarity.js';
 import { evaluateFuzzyIdentity } from '../../shared/fuzzy-identity.js';
 
@@ -38,13 +38,12 @@ export function matchCustomer(
   }
 
   // 3 & 4. TaxId — normalize both sides to handle format variations
-  // "20-12345678-9" and "20123456789" are the same CUIT
   if (a.taxId && b.taxId) {
     if (a.taxId === b.taxId) {
       return { decision: 'match', confidence: 0.98, reason: 'tax_id_exact' };
     }
-    const normA = normalizeCuit(a.taxId);
-    const normB = normalizeCuit(b.taxId);
+    const normA = normalizeTaxId(a.taxId);
+    const normB = normalizeTaxId(b.taxId);
     if (normA && normB && normA === normB) {
       return { decision: 'match', confidence: 0.95, reason: 'tax_id_normalized' };
     }

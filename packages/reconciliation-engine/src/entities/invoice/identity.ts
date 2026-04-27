@@ -4,7 +4,7 @@
  * Matching priority (first confident match wins):
  *   1. Manual link  (entity_links — passed as manualLinks)
  *   2. Exact external ID overlap
- *   3. CAE exact match (strongest fiscal signal in Argentina — globally unique per comprobante)
+ *   3. Authorization code exact match (globally unique per authorized invoice)
  *   4. invoiceNumber + invoiceType + customerTaxId (composite natural key)
  *   5. invoiceNumber + customerTaxId (no type check — → review)
  *   6. amountTotal + customerTaxId + same issuedAt day (weak fingerprint — → review)
@@ -14,7 +14,7 @@ import type { CanonicalInvoice } from './canonical.js';
 import type { MatchResult } from '../../shared/types.js';
 import type { ManualLink } from '../../shared/entity-helpers.js';
 import { hasManualLink, findExternalIdOverlap } from '../../shared/entity-helpers.js';
-import { normalizeCuit } from '../../shared/normalize.js';
+import { normalizeTaxId } from '../../shared/normalize.js';
 
 export type { ManualLink };
 
@@ -41,14 +41,14 @@ export function matchInvoice(
     return { decision: 'match', confidence: 0.99, reason: 'external_id_exact' };
   }
 
-  // 3. CAE — issued by AFIP, globally unique per comprobante
-  if (a.cae && b.cae && a.cae === b.cae) {
-    return { decision: 'match', confidence: 0.99, reason: 'cae_exact' };
+  // 3. Authorization code — globally unique per authorized invoice
+  if (a.authorizationCode && b.authorizationCode && a.authorizationCode === b.authorizationCode) {
+    return { decision: 'match', confidence: 0.99, reason: 'authorization_code_exact' };
   }
 
   // Normalize taxIds for composite key comparisons
-  const taxIdA = a.customerTaxId ? normalizeCuit(a.customerTaxId) : '';
-  const taxIdB = b.customerTaxId ? normalizeCuit(b.customerTaxId) : '';
+  const taxIdA = a.customerTaxId ? normalizeTaxId(a.customerTaxId) : '';
+  const taxIdB = b.customerTaxId ? normalizeTaxId(b.customerTaxId) : '';
   const taxIdsMatch = taxIdA && taxIdB && taxIdA === taxIdB;
 
   // 4. invoiceNumber + invoiceType + customerTaxId

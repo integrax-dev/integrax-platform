@@ -196,6 +196,6 @@ describe('evaluateCustomerConflicts + customerRecommendation', () => {
       customer({ name: 'Corp A' }),
       customer({ name: 'Corp B', sourceSystem: 'mp' }),
     );
-    expect(customerRecommendation(evaluateCustomerConflicts(conflicts, { NAME_MISMATCH: 'BLOCK' }))).toBe('BLOCK');
+    expect(customerRecommendation(evaluateCustomerConflicts(conflicts, undefined, { NAME_MISMATCH: 'BLOCK' }))).toBe('BLOCK');
   });
 });

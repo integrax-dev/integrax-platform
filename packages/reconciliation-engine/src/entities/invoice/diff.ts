@@ -5,29 +5,28 @@
  * Pure function — no I/O.
  *
  * Early returns on CURRENCY_MISMATCH and CUSTOMER_TAX_ID_MISMATCH — both make
- * subsequent comparisons meaningless (can't compare amounts cross-currency or
- * cross-taxpayer).
+ * subsequent comparisons meaningless.
  */
 
 import type { CanonicalInvoice } from './canonical.js';
 import type { EntityConflict } from '../../shared/types.js';
 import { makeFieldDiff } from '../../shared/entity-helpers.js';
-import { normalizeCuit } from '../../shared/normalize.js';
+import { normalizeTaxId } from '../../shared/normalize.js';
 
 export type InvoiceConflictType =
-  | 'AMOUNT_MISMATCH'          // Total differs — BLOCK: financial integrity
-  | 'CURRENCY_MISMATCH'        // Different currencies — BLOCK
-  | 'CAE_MISSING'              // One side lacks CAE — ALERT: may not be authorized yet
-  | 'CAE_MISMATCH'             // Both have CAE but different — BLOCK: fiscal anomaly
-  | 'STATUS_MISMATCH'          // draft vs authorized vs voided — ALERT
-  | 'CUSTOMER_TAX_ID_MISMATCH'; // Different taxpayers — BLOCK: wrong fiscal attribution
+  | 'AMOUNT_MISMATCH'                // Total differs — BLOCK: financial integrity
+  | 'CURRENCY_MISMATCH'              // Different currencies — BLOCK
+  | 'AUTHORIZATION_CODE_MISSING'     // One side lacks an authorization code — ALERT
+  | 'AUTHORIZATION_CODE_MISMATCH'    // Both have authorization codes but different — BLOCK: fiscal anomaly
+  | 'STATUS_MISMATCH'                // draft vs authorized vs voided — ALERT
+  | 'CUSTOMER_TAX_ID_MISMATCH';      // Different taxpayers — BLOCK: wrong fiscal attribution
 
 export interface InvoiceDiffTolerances {
   /** Maximum relative amount difference before flagging (default 0.001 = 0.1%) */
   amountPct?: number;
 }
 
-const DEFAULT_TOLERANCES: Required<InvoiceDiffTolerances> = {
+const FALLBACK_TOLERANCES: Required<InvoiceDiffTolerances> = {
   amountPct: 0.001,
 };
 
@@ -36,7 +35,7 @@ export function diffInvoices(
   b: CanonicalInvoice,
   tolerances?: InvoiceDiffTolerances,
 ): EntityConflict<InvoiceConflictType>[] {
-  const t = { ...DEFAULT_TOLERANCES, ...tolerances };
+  const t = { ...FALLBACK_TOLERANCES, ...tolerances };
   const conflicts: EntityConflict<InvoiceConflictType>[] = [];
   const now = new Date();
 
@@ -51,13 +50,13 @@ export function diffInvoices(
       summary: `Currency mismatch: ${a.sourceSystem}=${a.currency} vs ${b.sourceSystem}=${b.currency}`,
       detectedAt: now,
     });
-    return conflicts; // cross-currency comparison is invalid
+    return conflicts;
   }
 
   // 2. Customer taxId — normalize before comparing to avoid format-only false positives
   if (a.customerTaxId && b.customerTaxId) {
-    const normA = normalizeCuit(a.customerTaxId);
-    const normB = normalizeCuit(b.customerTaxId);
+    const normA = normalizeTaxId(a.customerTaxId);
+    const normB = normalizeTaxId(b.customerTaxId);
     if (normA && normB && normA !== normB) {
       conflicts.push({
         type: 'CUSTOMER_TAX_ID_MISMATCH',
@@ -68,33 +67,33 @@ export function diffInvoices(
         summary: `Customer taxId mismatch: ${a.sourceSystem}=${a.customerTaxId} vs ${b.sourceSystem}=${b.customerTaxId}`,
         detectedAt: now,
       });
-      return conflicts; // comparing amounts/CAE across different taxpayers is noise
+      return conflicts;
     }
   }
 
-  // 3. CAE mismatch — both present but different: critical fiscal anomaly
-  if (a.cae && b.cae && a.cae !== b.cae) {
+  // 3. Authorization code mismatch — both present but different: critical fiscal anomaly
+  if (a.authorizationCode && b.authorizationCode && a.authorizationCode !== b.authorizationCode) {
     conflicts.push({
-      type: 'CAE_MISMATCH',
+      type: 'AUTHORIZATION_CODE_MISMATCH',
       severity: 'CRITICAL',
       systems: [a.sourceSystem, b.sourceSystem],
       entityType: 'invoice',
-      diffs: [makeFieldDiff('cae', a.cae, b.cae, a.sourceSystem, b.sourceSystem)],
-      summary: `CAE mismatch: ${a.sourceSystem}=${a.cae} vs ${b.sourceSystem}=${b.cae}`,
+      diffs: [makeFieldDiff('authorizationCode', a.authorizationCode, b.authorizationCode, a.sourceSystem, b.sourceSystem)],
+      summary: `Authorization code mismatch: ${a.sourceSystem}=${a.authorizationCode} vs ${b.sourceSystem}=${b.authorizationCode}`,
       detectedAt: now,
     });
   }
 
-  // 4. CAE missing on one side
-  if (Boolean(a.cae) !== Boolean(b.cae)) {
-    const missing = !a.cae ? a.sourceSystem : b.sourceSystem;
+  // 4. Authorization code missing on one side
+  if (Boolean(a.authorizationCode) !== Boolean(b.authorizationCode)) {
+    const missing = !a.authorizationCode ? a.sourceSystem : b.sourceSystem;
     conflicts.push({
-      type: 'CAE_MISSING',
+      type: 'AUTHORIZATION_CODE_MISSING',
       severity: 'HIGH',
       systems: [a.sourceSystem, b.sourceSystem],
       entityType: 'invoice',
-      diffs: [makeFieldDiff('cae', a.cae ?? null, b.cae ?? null, a.sourceSystem, b.sourceSystem)],
-      summary: `CAE missing in ${missing} — invoice may not be authorized`,
+      diffs: [makeFieldDiff('authorizationCode', a.authorizationCode ?? null, b.authorizationCode ?? null, a.sourceSystem, b.sourceSystem)],
+      summary: `Authorization code missing in ${missing} — invoice may not be authorized`,
       detectedAt: now,
     });
   }

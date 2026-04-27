@@ -181,7 +181,7 @@ describe('evaluateProductConflicts + productRecommendation', () => {
       product({ stock: 5 }),
       product({ stock: 6, sourceSystem: 'cont' }),
     );
-    expect(productRecommendation(evaluateProductConflicts(conflicts, { STOCK_MISMATCH: 'BLOCK' }))).toBe('BLOCK');
+    expect(productRecommendation(evaluateProductConflicts(conflicts, undefined, { STOCK_MISMATCH: 'BLOCK' }))).toBe('BLOCK');
   });
 
   it('each evaluated result carries the correct action', () => {

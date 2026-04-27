@@ -24,81 +24,88 @@ function leafToken(path: string): string {
   return normalizeToken(segments[segments.length - 1].replace(/\[\*\]/g, ''));
 }
 
-const GENERIC_SYNONYM_PAIRS: Array<[string, string]> = [
-  // ── IDs / codes ────────────────────────────────────────────────────────────
-  ['id', 'codigo'], ['id', 'identificador'], ['id', 'numero'], ['id', 'nro'],
-  ['id', 'codigo'], ['id', 'identificador'],  // ES
-  ['id', 'codigo'], ['id', 'numero'],          // PT: código, número
-  ['codigo', 'code'], ['codigo', 'identificador'],
-  ['codigo', 'codigo'],   // ES/PT shared
+// ─── Generic English synonym pairs ───────────────────────────────────────────
+// Only English-language field name variants — no country-specific terms.
 
-  // ── Names ──────────────────────────────────────────────────────────────────
-  ['nombre', 'name'], ['nombre', 'first_name'], ['nombre', 'fname'],
-  ['nick_name', 'name'], ['apellido', 'last_name'], ['apellido', 'lname'],
-  ['given_name', 'first_name'], ['given_name', 'fname'],
+const GENERIC_SYNONYM_PAIRS: Array<[string, string]> = [
+  // Name variants
+  ['nick_name', 'name'], ['given_name', 'first_name'], ['given_name', 'fname'],
   ['family_name', 'last_name'], ['family_name', 'lname'],
   ['first_name', 'fname'], ['last_name', 'lname'],
-  // PT: nome, sobrenome
+
+  // Auth / account
+  ['user_handle', 'username'], ['handle', 'username'],
+  ['login_name', 'login'], ['login_name', 'username'],
+  ['account_ref', 'account_id'], ['account_ref', 'accountid'],
+
+  // Contact
+  ['email', 'mail'],
+
+  // Inventory
+  ['stock', 'quantity'], ['qty_value', 'quantity'], ['qty_value', 'qty'],
+];
+
+// ─── LatAm ES/PT synonym pairs ───────────────────────────────────────────────
+// Inject via latamOntologyProviders when targeting Spanish/Portuguese connectors.
+
+const LATAM_SYNONYM_PAIRS: Array<[string, string]> = [
+  // IDs / codes
+  ['id', 'codigo'], ['id', 'identificador'], ['id', 'numero'], ['id', 'nro'],
+  ['codigo', 'code'], ['codigo', 'identificador'],
+
+  // Names
+  ['nombre', 'name'], ['nombre', 'first_name'], ['nombre', 'fname'],
+  ['apellido', 'last_name'], ['apellido', 'lname'],
   ['nome', 'name'], ['nome', 'nombre'], ['nome', 'first_name'],
   ['sobrenome', 'last_name'], ['sobrenome', 'apellido'],
 
-  // ── Parties ────────────────────────────────────────────────────────────────
+  // Parties
   ['cliente', 'customer'], ['cliente', 'buyer'],
   ['proveedor', 'supplier'], ['proveedor', 'vendor'],
-  // PT: cliente (same), fornecedor
   ['fornecedor', 'supplier'], ['fornecedor', 'vendor'], ['fornecedor', 'proveedor'],
 
-  // ── Money ──────────────────────────────────────────────────────────────────
+  // Money
   ['monto', 'amount'], ['monto', 'importe'], ['monto', 'total'],
   ['precio', 'price'], ['precio', 'rate'],
-  // PT: valor, preço, montante
   ['valor', 'amount'], ['valor', 'monto'], ['valor', 'value'],
   ['preco', 'price'], ['preco', 'precio'],
   ['montante', 'amount'], ['montante', 'monto'],
   ['importe', 'amount'], ['importe', 'monto'],
 
-  // ── Dates ──────────────────────────────────────────────────────────────────
+  // Dates
   ['fecha', 'date'], ['fecha_creacion', 'created_at'], ['fecha_actualizacion', 'updated_at'],
-  // PT: data, criado_em, atualizado_em
   ['data', 'date'], ['data', 'fecha'],
   ['criado_em', 'created_at'], ['criado_em', 'fecha_creacion'],
   ['atualizado_em', 'updated_at'], ['atualizado_em', 'fecha_actualizacion'],
 
-  // ── Contact ────────────────────────────────────────────────────────────────
-  ['email', 'mail'], ['email', 'correo'],
+  // Contact
+  ['email', 'correo'],
   ['telefono', 'phone'], ['telefono', 'mobile'],
-  ['telefone', 'phone'], ['telefone', 'telefono'],   // PT
+  ['telefone', 'phone'], ['telefone', 'telefono'],
   ['direccion', 'address'], ['calle', 'street'],
-  ['endereco', 'address'], ['endereco', 'direccion'], // PT: endereço
+  ['endereco', 'address'], ['endereco', 'direccion'],
 
-  // ── Auth ───────────────────────────────────────────────────────────────────
-  ['user_handle', 'username'], ['handle', 'username'],
-  ['login_name', 'login'], ['login_name', 'username'],
-  ['account_ref', 'account_id'], ['account_ref', 'accountid'],
-
-  // ── Documents ─────────────────────────────────────────────────────────────
+  // Documents
   ['factura', 'invoice'], ['pedido', 'order'], ['orden', 'order'],
-  // PT: nota_fiscal, pedido (same), fatura
   ['nota_fiscal', 'invoice'], ['nota_fiscal', 'factura'],
   ['fatura', 'invoice'], ['fatura', 'factura'],
 
-  // ── Products / inventory ───────────────────────────────────────────────────
+  // Products / inventory
   ['producto', 'product'], ['articulo', 'item'],
-  ['produto', 'product'], ['produto', 'producto'],    // PT
+  ['produto', 'product'], ['produto', 'producto'],
   ['quantidade', 'quantity'], ['quantidade', 'qty'], ['quantidade', 'cantidad'],
   ['cantidad', 'quantity'], ['cantidad', 'qty'],
-  ['stock', 'quantity'], ['qty_value', 'quantity'], ['qty_value', 'qty'],
 
-  // ── Status / type ──────────────────────────────────────────────────────────
+  // Status / type
   ['estado', 'status'], ['estado', 'state'],
-  ['situacao', 'status'], ['situacao', 'estado'],     // PT: situação
+  ['situacao', 'status'], ['situacao', 'estado'],
   ['moneda', 'currency'], ['moneda', 'currency_code'],
-  ['moeda', 'currency'], ['moeda', 'moneda'],         // PT
+  ['moeda', 'currency'], ['moeda', 'moneda'],
   ['descripcion', 'description'], ['descripcion', 'detail'],
-  ['descricao', 'description'], ['descricao', 'descripcion'], // PT: descrição
+  ['descricao', 'description'], ['descricao', 'descripcion'],
   ['tipo', 'type'], ['tipo', 'kind'],
 
-  // ── Tax IDs (cross-language labels) ───────────────────────────────────────
+  // Tax identifiers (cross-language labels)
   ['cuit', 'tax_id'], ['cuit', 'fiscal_id'], ['cuit', 'rut'],
   ['cnpj', 'tax_id'], ['cnpj', 'fiscal_id'],
   ['cpf', 'tax_id'], ['cpf', 'fiscal_id'],
@@ -123,6 +130,7 @@ function buildSynonymIndex(pairs: Array<[string, string]>): Map<string, Set<stri
 }
 
 const genericSynonymIndex = buildSynonymIndex(GENERIC_SYNONYM_PAIRS);
+const latamSynonymIndex = buildSynonymIndex(LATAM_SYNONYM_PAIRS);
 
 function sharedTokenRatio(left: string, right: string): number {
   const leftTokens = left.split('_').filter(Boolean);
@@ -132,34 +140,46 @@ function sharedTokenRatio(left: string, right: string): number {
   return shared / Math.max(leftTokens.length, rightTokens.length);
 }
 
-function genericSynonymProvider(context: OntologyMatchContext): OntologyMatch | null {
-  const leafA = leafToken(context.pathA);
-  const leafB = leafToken(context.pathB);
+function makeSynonymProvider(
+  id: string,
+  index: Map<string, Set<string>>,
+): OntologyProvider {
+  return {
+    id,
+    match(context: OntologyMatchContext): OntologyMatch | null {
+      const leafA = leafToken(context.pathA);
+      const leafB = leafToken(context.pathB);
 
-  if (leafA === leafB) {
-    return { score: 1, label: 'exact_leaf', reason: `Leaf token "${leafA}" matches exactly.` };
-  }
+      if (leafA === leafB) {
+        return { score: 1, label: 'exact_leaf', reason: `Leaf token "${leafA}" matches exactly.` };
+      }
 
-  if (genericSynonymIndex.get(leafA)?.has(leafB) || genericSynonymIndex.get(leafB)?.has(leafA)) {
-    return { score: 0.92, label: 'generic_synonym', reason: `Generic ontology synonym "${leafA}" <-> "${leafB}".` };
-  }
+      if (index.get(leafA)?.has(leafB) || index.get(leafB)?.has(leafA)) {
+        return { score: 0.92, label: 'synonym', reason: `Synonym "${leafA}" <-> "${leafB}".` };
+      }
 
-  const sharedRatio = sharedTokenRatio(leafA, leafB);
-  if (sharedRatio >= 0.5) {
-    return {
-      score: Math.min(0.8, 0.55 + sharedRatio * 0.25),
-      label: 'token_overlap',
-      reason: `Generic ontology token overlap between "${leafA}" and "${leafB}".`,
-    };
-  }
+      const sharedRatio = sharedTokenRatio(leafA, leafB);
+      if (sharedRatio >= 0.5) {
+        return {
+          score: Math.min(0.8, 0.55 + sharedRatio * 0.25),
+          label: 'token_overlap',
+          reason: `Token overlap between "${leafA}" and "${leafB}".`,
+        };
+      }
 
-  return null;
+      return null;
+    },
+  };
 }
+
+// ─── Exports ──────────────────────────────────────────────────────────────────
 
 export const defaultOntologyProviders: OntologyProvider[] = [
   new DictionaryOntologyProvider(),
-  {
-    id: 'generic-synonyms',
-    match: genericSynonymProvider,
-  },
+  makeSynonymProvider('generic-synonyms', genericSynonymIndex),
+];
+
+/** Inject these when comparing connectors that use Spanish or Portuguese field names. */
+export const latamOntologyProviders: OntologyProvider[] = [
+  makeSynonymProvider('latam-synonyms', latamSynonymIndex),
 ];

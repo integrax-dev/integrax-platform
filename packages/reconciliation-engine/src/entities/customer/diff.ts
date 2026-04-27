@@ -4,14 +4,14 @@
  * Compares two CanonicalCustomer instances and returns detected conflicts.
  * Pure function — no I/O.
  *
- * taxId comparison normalizes both sides (strips dashes/spaces) before comparing
+ * taxId comparison normalizes both sides (strips formatting chars) before comparing
  * so "20-12345678-9" and "20123456789" don't trigger a false BLOCK.
  */
 
 import type { CanonicalCustomer } from './canonical.js';
 import type { EntityConflict } from '../../shared/types.js';
 import { makeFieldDiff } from '../../shared/entity-helpers.js';
-import { normalizeCuit } from '../../shared/normalize.js';
+import { normalizeTaxId } from '../../shared/normalize.js';
 
 export type CustomerConflictType =
   | 'TAX_ID_MISMATCH'      // Different CUIT/taxId after normalization — BLOCK
@@ -28,10 +28,9 @@ export function diffCustomers(
   const now = new Date();
 
   // TaxId — normalize both sides before comparing to avoid format-only false positives
-  // "20-12345678-9" vs "20123456789" must NOT trigger BLOCK — same CUIT, different format
   if (a.taxId && b.taxId) {
-    const normA = normalizeCuit(a.taxId);
-    const normB = normalizeCuit(b.taxId);
+    const normA = normalizeTaxId(a.taxId);
+    const normB = normalizeTaxId(b.taxId);
     if (normA && normB && normA !== normB) {
       conflicts.push({
         type: 'TAX_ID_MISMATCH',
@@ -47,7 +46,7 @@ export function diffCustomers(
     }
   }
 
-  // VAT status — drives which comprobante type AFIP accepts
+  // VAT status — drives which invoice type is issued
   if (a.vatStatus && b.vatStatus && a.vatStatus !== b.vatStatus) {
     conflicts.push({
       type: 'VAT_STATUS_MISMATCH',

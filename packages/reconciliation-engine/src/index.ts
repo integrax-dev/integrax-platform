@@ -23,7 +23,7 @@ export {
   classifyReconciliationSeverity,
 } from './shared/actionability.js';
 
-export { normalizeSku, normalizeTitle, normalizeCuit } from './shared/normalize.js';
+export { normalizeSku, normalizeTitle, normalizeTaxId } from './shared/normalize.js';
 export { levenshteinSimilarity, jaccardSimilarity, combinedSimilarity } from './shared/similarity.js';
 export type { ConnectorManifestShape, EntityManifestShape } from './shared/manifest.js';
 export type { ManualLink } from './shared/entity-helpers.js';
@@ -38,7 +38,6 @@ export type { ProductPolicyRule } from './entities/product/policy.js';
 export { matchProduct } from './entities/product/identity.js';
 export { diffProducts } from './entities/product/diff.js';
 export {
-  DEFAULT_PRODUCT_POLICY,
   evaluateProductConflicts,
   productRecommendation,
 } from './entities/product/policy.js';
@@ -51,7 +50,6 @@ export type { CustomerPolicyRule } from './entities/customer/policy.js';
 export { matchCustomer } from './entities/customer/identity.js';
 export { diffCustomers } from './entities/customer/diff.js';
 export {
-  DEFAULT_CUSTOMER_POLICY,
   evaluateCustomerConflicts,
   customerRecommendation,
 } from './entities/customer/policy.js';
@@ -64,10 +62,22 @@ export type { InvoicePolicyRule } from './entities/invoice/policy.js';
 export { matchInvoice } from './entities/invoice/identity.js';
 export { diffInvoices } from './entities/invoice/diff.js';
 export {
-  DEFAULT_INVOICE_POLICY,
   evaluateInvoiceConflicts,
   invoiceRecommendation,
 } from './entities/invoice/policy.js';
+
+// ─── Configuration ──────────────────────────────────────────────────────────
+export type {
+  PolicyRule,
+  ConflictActionConfig,
+  ReconciliationConfig,
+} from './config/types.js';
+
+export {
+  loadDefaultConfig,
+  mergeConfig,
+  clearConfigCache,
+} from './config/loader.js';
 
 // ─── Registry ───────────────────────────────────────────────────────────────
 export { ConnectorRegistry } from './registry/connector-registry.js';
