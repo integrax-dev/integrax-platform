@@ -7,7 +7,7 @@
  *
  * Protocol:
  *   - Each SSE message has `event: <type>` + `data: <JSON envelope>`
- *   - Envelope shape: { type, data, ts }  (PlatformEvent)
+ *   - Envelope shape: see SanitizedPlatformEvent in frontend
  *   - Heartbeat comment every 25 s to keep proxies alive
  *   - `event: connected` with { connected: true } is sent immediately on open
  *
@@ -17,13 +17,53 @@
 
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth.js';
-import {
-  platformEmitter,
-  ALL_PLATFORM_EVENT_TYPES,
-  type PlatformEventType,
-} from '../platform/platform-emitter.js';
+import { eventBus } from '../platform/container.js';
+import type { IntegraxEvent } from '@integrax/event-bus';
 
 export const streamRouter = Router();
+
+function sanitizeEventForAdmin(event: IntegraxEvent): unknown {
+  const metadata: Record<string, any> = {};
+
+  // Preserve non-sensitive, admin-relevant metadata so the frontend UI can function
+  if (event.type.startsWith('tenant.') && event.payload) {
+    const p = event.payload as any;
+    metadata.id = p.id;
+    metadata.name = p.name;
+    metadata.plan = p.plan;
+    metadata.status = p.status;
+    metadata.createdAt = p.createdAt;
+  } else if (event.type.startsWith('event.') && event.payload) {
+    const p = event.payload as any;
+    metadata.id = p.id;
+    metadata.type = p.type;
+    metadata.tenant = p.tenant;
+    metadata.connector = p.connector;
+    metadata.status = p.status;
+    metadata.time = p.time;
+    metadata.error = p.error;
+  }
+  
+  // NOTE: Operations, webhooks, and raw payloads are explicitly excluded.
+
+  return {
+    tenantId: event.tenantId,
+    eventType: event.type,
+    sourceSystem: event.sourceSystem,
+    entityType: event.entityType,
+    correlationId: event.correlationId,
+    createdAt: (event.occurredAt || new Date()).toISOString(),
+    severity: (event.payload as any)?.severity,
+    status: (event.payload as any)?.status,
+    latencyMs: (event.payload as any)?.latencyMs,
+    counts: (event.payload as any)?.counts,
+    confidence: (event.payload as any)?.confidence,
+    errorCode: (event.payload as any)?.errorCode,
+    fingerprint: (event.payload as any)?.fingerprint,
+    hash: (event.payload as any)?.hash,
+    metadata,
+  };
+}
 
 streamRouter.get(
   '/',
@@ -39,17 +79,13 @@ streamRouter.get(
     // Confirm connection to the client
     res.write('event: connected\ndata: {"connected":true}\n\n');
 
-    // Register one handler per event type
-    const handlers = new Map<PlatformEventType, (envelope: unknown) => void>();
+    const handler = (event: IntegraxEvent) => {
+      if (res.writableEnded) return;
+      const sanitized = sanitizeEventForAdmin(event);
+      res.write(`event: ${event.type}\ndata: ${JSON.stringify(sanitized)}\n\n`);
+    };
 
-    for (const type of ALL_PLATFORM_EVENT_TYPES) {
-      const handler = (envelope: unknown) => {
-        if (res.writableEnded) return;
-        res.write(`event: ${type}\ndata: ${JSON.stringify(envelope)}\n\n`);
-      };
-      handlers.set(type, handler);
-      platformEmitter.on(type, handler);
-    }
+    const unsubscribe = eventBus.subscribeAll(handler, { name: 'admin-stream' });
 
     // Heartbeat every 25 s — prevents load-balancers from closing idle connections
     const heartbeat = setInterval(() => {
@@ -59,9 +95,7 @@ streamRouter.get(
     // Clean up on disconnect
     req.on('close', () => {
       clearInterval(heartbeat);
-      for (const [type, handler] of handlers) {
-        platformEmitter.off(type, handler);
-      }
+      unsubscribe();
     });
   },
 );

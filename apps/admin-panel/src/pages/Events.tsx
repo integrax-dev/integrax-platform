@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fetchAdminJson } from '../lib/adminApi';
 import { useAuthStore } from '../stores/auth';
-import { usePlatformStream, type PlatformEvent } from '../lib/usePlatformStream';
+import { usePlatformStream, type SanitizedPlatformEvent } from '../lib/usePlatformStream';
 import { allowDemoFallbacks } from '../lib/runtime';
 import './Pages.css';
 
@@ -82,20 +82,23 @@ export function Events() {
   usePlatformStream({
     getToken,
     handlers: useMemo(() => ({
-      'event.processed': (env: PlatformEvent) => {
-        const evt = env.data as PlatformEvt;
+      'event.processed': (env: SanitizedPlatformEvent) => {
+        const evt = env.metadata as PlatformEvt;
+        if (!evt) return;
         setEvents(prev => [{ ...evt, status: 'processed' }, ...prev.slice(0, 199)]);
         setNewCount(n => n + 1);
         setConnected(true);
       },
-      'event.failed': (env: PlatformEvent) => {
-        const evt = env.data as PlatformEvt;
+      'event.failed': (env: SanitizedPlatformEvent) => {
+        const evt = env.metadata as PlatformEvt;
+        if (!evt) return;
         setEvents(prev => [{ ...evt, status: 'failed' }, ...prev.slice(0, 199)]);
         setNewCount(n => n + 1);
         setConnected(true);
       },
-      'event.dlq': (env: PlatformEvent) => {
-        const evt = env.data as PlatformEvt;
+      'event.dlq': (env: SanitizedPlatformEvent) => {
+        const evt = env.metadata as PlatformEvt;
+        if (!evt) return;
         setEvents(prev => [{ ...evt, status: 'dlq' }, ...prev.slice(0, 199)]);
         setNewCount(n => n + 1);
         setConnected(true);

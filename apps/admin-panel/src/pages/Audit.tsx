@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fetchAdminJson } from '../lib/adminApi';
-import { allowDemoFallbacks } from '../lib/runtime';
+
 import './Pages.css';
 
 type AuditLog = {
@@ -13,14 +13,7 @@ type AuditLog = {
   time: string;
 };
 
-const MOCK_AUDIT_LOGS: AuditLog[] = [
-  { id: 'aud_001', action: 'tenant.create',       user: 'admin@integrax.com', resource: 'Tienda ABC',    ip: '190.2.45.123',  time: '2024-02-15 14:30:00' },
-  { id: 'aud_002', action: 'connector.configure', user: 'user@tienda.com',    resource: 'mercadopago',   ip: '200.45.12.89',  time: '2024-02-15 14:25:00' },
-  { id: 'aud_003', action: 'workflow.publish',    user: 'user@tienda.com',    resource: 'Facturar Pago', ip: '200.45.12.89',  time: '2024-02-15 14:20:00' },
-  { id: 'aud_004', action: 'credential.rotate',   user: 'admin@empresa.com',  resource: 'afip-wsfe',     ip: '181.23.45.67',  time: '2024-02-15 14:15:00' },
-  { id: 'aud_005', action: 'tenant.suspend',      user: 'admin@integrax.com', resource: 'Shop Online',   ip: '190.2.45.123',  time: '2024-02-15 14:10:00' },
-  { id: 'aud_006', action: 'user.login',          user: 'user@tienda.com',    resource: '-',             ip: '200.45.12.89',  time: '2024-02-15 14:00:00' },
-];
+
 
 const ACTION_META: Record<string, { color: string }> = {
   'tenant.create':       { color: 'success' },
@@ -34,6 +27,14 @@ const ACTION_META: Record<string, { color: string }> = {
   'workflow.disable':    { color: 'warning' },
   'credential.rotate':   { color: 'warning' },
   'user.login':          { color: 'success' },
+  'support.retry_operation': { color: 'warning' },
+  'support.replay_webhook': { color: 'warning' },
+  'support.approve_reconciliation': { color: 'success' },
+  'support.reject_reconciliation': { color: 'error' },
+  'support.investigate_incident': { color: 'info' },
+  'support.resolve_incident': { color: 'success' },
+  'support.dismiss_incident': { color: 'neutral' },
+  'support.check_connector_health': { color: 'info' },
 };
 
 type BackendEntry = {
@@ -60,7 +61,7 @@ export function Audit() {
       setError(null);
 
       try {
-        const data = await fetchAdminJson<{ data: BackendEntry[]; success: boolean }>('/api/audit');
+        const data = await fetchAdminJson<{ data: BackendEntry[]; success: boolean }>('/api/admin/audit');
         if (!cancelled) {
           const mapped: AuditLog[] = (data.data ?? []).map((e) => ({
             id: e.id,
@@ -73,9 +74,7 @@ export function Audit() {
           setLogs(mapped);
         }
       } catch {
-        if (allowDemoFallbacks) {
-          if (!cancelled) setLogs(MOCK_AUDIT_LOGS);
-        } else if (!cancelled) {
+        if (!cancelled) {
           setError(t('audit.loadError'));
         }
       } finally {
@@ -87,6 +86,38 @@ export function Audit() {
     return () => { cancelled = true; };
   }, [t]);
 
+  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [dateFilter, setDateFilter] = useState('');
+
+  const filteredLogs = logs.filter((log) => {
+    let matchesCategory = true;
+    if (categoryFilter !== 'All') {
+      const isTenant = log.action.startsWith('tenant.');
+      const isConnector = log.action.startsWith('connector.') || log.action.includes('check_connector_health');
+      const isWorkflow = log.action.startsWith('workflow.') || log.action.includes('retry_operation') || log.action.includes('replay_webhook');
+      const isIncident = log.action.includes('incident');
+      const isCreds = log.action.startsWith('credential.');
+      const isControl = log.action.startsWith('support.');
+      
+      switch (categoryFilter) {
+        case 'Tenants': matchesCategory = isTenant; break;
+        case 'Connectors': matchesCategory = isConnector; break;
+        case 'Workflows': matchesCategory = isWorkflow; break;
+        case 'Incidents': matchesCategory = isIncident; break;
+        case 'Operations': matchesCategory = isControl || isWorkflow; break;
+        case 'Credentials': matchesCategory = isCreds; break;
+        case 'Login': matchesCategory = log.action === 'user.login'; break;
+        default: break;
+      }
+    }
+    
+    let matchesDate = true;
+    if (dateFilter) {
+      matchesDate = log.time.startsWith(dateFilter);
+    }
+    return matchesCategory && matchesDate;
+  });
+
   return (
     <div className="page">
       <div className="page-header">
@@ -95,14 +126,25 @@ export function Audit() {
           <p className="text-secondary">{t('audit.subtitle')}</p>
         </div>
         <div className="page-toolbar">
-          <input className="input input-auto-width" type="date" />
-          <select className="input input-auto-width">
-            <option>{t('common.all')}</option>
-            <option>Tenants</option>
-            <option>{t('nav.connectors')}</option>
-            <option>{t('nav.workflows')}</option>
-            <option>Credentials</option>
-            <option>Login</option>
+          <input 
+            className="input input-auto-width" 
+            type="date" 
+            value={dateFilter} 
+            onChange={(e) => setDateFilter(e.target.value)} 
+          />
+          <select 
+            className="input input-auto-width" 
+            value={categoryFilter} 
+            onChange={(e) => setCategoryFilter(e.target.value)}
+          >
+            <option value="All">{t('common.all')}</option>
+            <option value="Tenants">Tenants</option>
+            <option value="Connectors">Connectors</option>
+            <option value="Workflows">Workflows</option>
+            <option value="Incidents">Incidents</option>
+            <option value="Operations">Operations</option>
+            <option value="Credentials">Credentials</option>
+            <option value="Login">Login</option>
           </select>
           <button className="btn btn-secondary">Export</button>
         </div>
@@ -124,9 +166,9 @@ export function Audit() {
               <tr><td colSpan={5}>{t('common.loading')}</td></tr>
             ) : error ? (
               <tr><td colSpan={5} className="table-error">{error}</td></tr>
-            ) : logs.length === 0 ? (
+            ) : filteredLogs.length === 0 ? (
               <tr><td colSpan={5}>{t('audit.noEvents')}</td></tr>
-            ) : logs.map((log) => {
+            ) : filteredLogs.map((log) => {
               const meta = ACTION_META[log.action] ?? { color: 'info' };
               return (
                 <tr key={log.id}>

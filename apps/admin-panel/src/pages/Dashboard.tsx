@@ -2,8 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fetchAdminJson } from '../lib/adminApi';
 import { useAuthStore } from '../stores/auth';
-import { usePlatformStream, type PlatformEvent } from '../lib/usePlatformStream';
-import { allowDemoFallbacks } from '../lib/runtime';
+import { usePlatformStream, type SanitizedPlatformEvent } from '../lib/usePlatformStream';
 import './Pages.css';
 
 type DashboardData = {
@@ -19,98 +18,17 @@ type DashboardData = {
     eventsChange: string;
     connectorsChange: string;
   };
+  incidents?: Array<{ id: string; connector: string; severity: string; impact: string; tenants: number; workflows: number }>;
+  nativeConnectors?: Array<{ name: string; status: string; domain: string }>;
+  activepiecesFamilies?: Array<{ category: string; count: number; note: string }>;
+  capabilityCoverage?: Array<{ connector: string; capabilities: string[]; status: string }>;
+  executionLayers?: Array<{ layer: string; share: string; note: string }>;
+  snapshotDrift?: Array<{ entity: string; count: number }>;
+  mappingMemory?: Array<{ field: string; confidence: string; trend: string }>;
+  operations?: Array<{ job: string; queue: number }>;
 };
 
-const MOCK_DASHBOARD_DATA: DashboardData = {
-  eventsData: [
-    { name: 'W1', events: 3800, success: 3650, failed: 150 },
-    { name: 'W2', events: 4400, success: 4240, failed: 160 },
-    { name: 'W3', events: 4900, success: 4700, failed: 200 },
-    { name: 'W4', events: 5500, success: 5310, failed: 190 },
-  ],
-  connectorUsage: [
-    { name: 'MercadoPago', calls: 1820 },
-    { name: 'Contabilium', calls: 1240 },
-    { name: 'WhatsApp', calls: 980 },
-    { name: 'AFIP', calls: 760 },
-  ],
-  recentEvents: [
-    { id: 'evt-1001', type: 'order.created', tenant: 'Acme SA', status: 'success', time: 'hace 2 min' },
-    { id: 'evt-1002', type: 'invoice.synced', tenant: 'Globex', status: 'success', time: 'hace 5 min' },
-    { id: 'evt-1003', type: 'payment.failed', tenant: 'Umbrella', status: 'failed', time: 'hace 9 min' },
-  ],
-  stats: {
-    tenants: 128,
-    eventsToday: 18400000,
-    connectors: 9,
-    uptime: 99.94,
-    tenantsChange: 'Current snapshot',
-    eventsChange: 'Last 30d',
-    connectorsChange: 'Native implementations',
-  },
-};
-
-const kpiIcons = ['▦', '⚠', '∿', '⌁'];
-
-const incidents = [
-  { id: 'INC-DEMO-1042', connector: 'Shopify', severity: 'Critical', impact: 'Product price mapping contract drift', tenants: 3, workflows: 4 },
-  { id: 'INC-DEMO-1039', connector: 'Contabilium', severity: 'High', impact: 'Invoice total type changed', tenants: 2, workflows: 1 },
-  { id: 'INC-DEMO-1033', connector: 'MercadoPago', severity: 'Medium', impact: 'Webhook payload added safe fields', tenants: 1, workflows: 0 },
-];
-
-const nativeConnectors = [
-  { name: 'AFIP WSFE', status: 'Healthy', domain: 'Billing / Tax' },
-  { name: 'Contabilium', status: 'Lagging', domain: 'ERP / Accounting' },
-  { name: 'Decidir', status: 'Healthy', domain: 'Payments' },
-  { name: 'Email SMTP', status: 'Healthy', domain: 'Messaging' },
-  { name: 'Google Sheets', status: 'Healthy', domain: 'Sheets / Data Ops' },
-  { name: 'MercadoPago', status: 'Healthy', domain: 'Payments' },
-  { name: 'Mobbex', status: 'Healthy', domain: 'Payments' },
-  { name: 'Payway', status: 'Contract drift detected', domain: 'Payments' },
-  { name: 'WhatsApp Business', status: 'Healthy', domain: 'Messaging' },
-];
-
-const activepiecesFamilies = [
-  { category: 'Communication', count: 42, note: 'Workflow runtime pieces for messaging and notifications' },
-  { category: 'CRM / Sales', count: 36, note: 'Workflow runtime pieces for sales and CRM automation' },
-  { category: 'Data / DB', count: 28, note: 'Workflow runtime pieces for data sources and databases' },
-  { category: 'Commerce / Payments', count: 19, note: 'Workflow runtime pieces related to commerce and payments' },
-];
-
-const capabilityCoverage = [
-  { connector: 'MercadoPago', capabilities: ['read', 'write', 'webhook_inbound', 'polling', 'payments'], status: 'Strong' },
-  { connector: 'Payway', capabilities: ['read', 'write', 'webhook_inbound', 'payments'], status: 'Partial' },
-  { connector: 'Mobbex', capabilities: ['read', 'write', 'webhook_inbound', 'payments'], status: 'Partial' },
-  { connector: 'Decidir', capabilities: ['read', 'write', 'webhook_inbound', 'payments'], status: 'Partial' },
-  { connector: 'AFIP WSFE', capabilities: ['write', 'fiscal'], status: 'Specialized' },
-  { connector: 'Contabilium', capabilities: ['read', 'write', 'polling'], status: 'Strong' },
-  { connector: 'Email SMTP', capabilities: ['notification'], status: 'Specialized' },
-];
-
-const executionLayers = [
-  { layer: 'Native operation engine', share: 'Primary', note: 'Facades, manifests, operation commands, snapshots and timeline' },
-  { layer: 'Activepieces runtime', share: 'External', note: 'Workflow piece execution and automation breadth' },
-  { layer: 'Temporal workflows', share: 'Durable', note: 'Long-running orchestration, remediation and retries' },
-  { layer: 'Manual operator actions', share: 'Controlled', note: 'Approvals, remediations and guarded interventions' },
-];
-
-const snapshotDrift = [
-  { entity: 'Products', count: 91 },
-  { entity: 'Orders', count: 12 },
-  { entity: 'Invoices', count: 4 },
-];
-
-const mappingMemory = [
-  { field: 'price -> unit_price', confidence: '0.93', trend: 'up' },
-  { field: 'tax_id -> cuit', confidence: '0.98', trend: 'stable' },
-  { field: 'customer_name -> legal_name', confidence: '0.81', trend: 'down' },
-];
-
-const operations = [
-  { job: 'Replay failed webhooks', queue: 12 },
-  { job: 'Re-run reconciliation batch', queue: 4 },
-  { job: 'Schema diff re-evaluation', queue: 2 },
-];
+const kpiIcons = ['🏢', '🚨', '⚡', '⏳'];
 
 function severityClass(severity: string) {
   if (severity === 'Critical') return 'badge badge-error';
@@ -149,9 +67,7 @@ export function Dashboard() {
         const response = await fetchAdminJson<DashboardData>('/api/admin/dashboard');
         if (!cancelled) setData(response);
       } catch {
-        if (allowDemoFallbacks && !cancelled) {
-          setData(MOCK_DASHBOARD_DATA);
-        } else if (!cancelled) {
+        if (!cancelled) {
           setError(t('dashboard.loadError'));
         }
       } finally {
@@ -167,26 +83,26 @@ export function Dashboard() {
   usePlatformStream({
     getToken,
     handlers: useMemo(() => ({
-      'event.processed': (_env: PlatformEvent) => {
+      'event.processed': (_env: SanitizedPlatformEvent) => {
         setLiveEvents(n => n + 1);
         setData(prev => prev ? { ...prev, stats: { ...prev.stats, eventsToday: prev.stats.eventsToday + 1 } } : prev);
-        const evt = _env.data as { type?: string; tenant?: string };
+        const evt = _env.metadata as { type?: string; tenant?: string };
         setLiveRecent(prev => [{
           id: `live-${Date.now()}`,
           type: evt?.type ?? 'event',
-          tenant: evt?.tenant ?? '—',
+          tenant: evt?.tenant ?? _env.tenantId ?? '—',
           status: 'success',
           time: 'ahora',
         }, ...prev].slice(0, 5));
       },
-      'event.failed': (_env: PlatformEvent) => {
+      'event.failed': (_env: SanitizedPlatformEvent) => {
         setLiveFailed(n => n + 1);
         setData(prev => prev ? { ...prev, stats: { ...prev.stats, eventsToday: prev.stats.eventsToday + 1 } } : prev);
-        const evt = _env.data as { type?: string; tenant?: string };
+        const evt = _env.metadata as { type?: string; tenant?: string };
         setLiveRecent(prev => [{
           id: `live-${Date.now()}`,
           type: evt?.type ?? 'event',
-          tenant: evt?.tenant ?? '—',
+          tenant: evt?.tenant ?? _env.tenantId ?? '—',
           status: 'failed',
           time: 'ahora',
         }, ...prev].slice(0, 5));
@@ -261,7 +177,7 @@ export function Dashboard() {
             <span>Current queue sorted by blast radius</span>
           </div>
           <div className="stack-list">
-            {incidents.map(incident => (
+            {(data.incidents || []).map(incident => (
               <a key={incident.id} href={`/incidents/${incident.id}`} className="incident-row">
                 <div>
                   <div className="micro-label">{incident.id}</div>
@@ -274,6 +190,7 @@ export function Dashboard() {
                 </div>
               </a>
             ))}
+            {!(data.incidents?.length) && <div className="empty-dashed">No active incidents</div>}
           </div>
         </section>
 
@@ -293,7 +210,7 @@ export function Dashboard() {
             </div>
             <div className="inset-card">
               <div className="micro-label">Activepieces pieces available</div>
-              <strong>687</strong>
+              <strong>{data.activepiecesFamilies ? data.activepiecesFamilies.reduce((acc, curr) => acc + curr.count, 0) : 0}</strong>
               <p>Runtime automation surface available across tenants</p>
             </div>
           </div>
@@ -301,7 +218,7 @@ export function Dashboard() {
             <div>
               <div className="eyebrow compact">Native connectors only</div>
               <div className="compact-list">
-                {nativeConnectors.map(connector => (
+                {(data.nativeConnectors || []).map(connector => (
                   <div key={connector.name} className="connector-line">
                     <div>
                       <strong>{connector.name}</strong>
@@ -366,7 +283,8 @@ export function Dashboard() {
           <h2>Current drift backlog</h2>
           <p className="section-copy">Entities currently affected by unresolved snapshot drift</p>
           <div className="simple-list">
-            {snapshotDrift.map(item => <div key={item.entity}><span>{item.entity}</span><strong>{item.count} changed</strong></div>)}
+            {(data.snapshotDrift || []).map(item => <div key={item.entity}><span>{item.entity}</span><strong>{item.count} changed</strong></div>)}
+            {!(data.snapshotDrift?.length) && <div className="text-muted text-sm mt-3">No drift backlog</div>}
           </div>
         </section>
 
@@ -374,7 +292,8 @@ export function Dashboard() {
           <h2>Mapping memory watchlist</h2>
           <p className="section-copy">Mappings requiring attention due to low confidence or instability</p>
           <div className="simple-list">
-            {mappingMemory.map(item => <div key={item.field}><code>{item.field}</code><strong>confidence {item.confidence} · {item.trend}</strong></div>)}
+            {(data.mappingMemory || []).map(item => <div key={item.field}><code>{item.field}</code><strong>confidence {item.confidence} · {item.trend}</strong></div>)}
+            {!(data.mappingMemory?.length) && <div className="text-muted text-sm mt-3">Watchlist empty</div>}
           </div>
         </section>
 
@@ -382,12 +301,13 @@ export function Dashboard() {
           <h2>Activepieces footprint</h2>
           <p className="section-copy">Runtime automation surface available across tenants</p>
           <div className="stack-list">
-            {activepiecesFamilies.map(family => (
+            {(data.activepiecesFamilies || []).map(family => (
               <div key={family.category} className="family-card">
                 <div><strong>{family.category}</strong><span>{family.count}</span></div>
                 <p>{family.note}</p>
               </div>
             ))}
+            {!(data.activepiecesFamilies?.length) && <div className="text-muted text-sm mt-3">No active integrations</div>}
           </div>
         </section>
 
@@ -405,7 +325,7 @@ export function Dashboard() {
                 <tr><th>Connector</th><th>Capabilities</th><th>Coverage</th></tr>
               </thead>
               <tbody>
-                {capabilityCoverage.map(row => (
+                {(data.capabilityCoverage || []).map(row => (
                   <tr key={row.connector}>
                     <td><strong>{row.connector}</strong></td>
                     <td>
@@ -430,7 +350,7 @@ export function Dashboard() {
             <span>⌁</span>
           </div>
           <div className="stack-list">
-            {executionLayers.map(item => (
+            {(data.executionLayers || []).map(item => (
               <div key={item.layer} className="execution-row">
                 <div><strong>{item.layer}</strong><span>{item.share}</span></div>
                 <p>{item.note}</p>
@@ -448,12 +368,13 @@ export function Dashboard() {
             <span>⌁</span>
           </div>
           <div className="operation-grid">
-            {operations.map(operation => (
+            {(data.operations || []).map(operation => (
               <div key={operation.job} className="inset-card">
                 <strong>{operation.job}</strong>
                 <p>{operation.queue} pending operations</p>
               </div>
             ))}
+            {!(data.operations?.length) && <div className="text-muted text-sm mt-3 ml-2">No pending operations</div>}
           </div>
         </section>
 

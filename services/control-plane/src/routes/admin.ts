@@ -136,6 +136,32 @@ router.get(
 );
 
 /**
+ * GET /api/admin/audit
+ * Lista segura de logs de auditoría para el panel admin.
+ */
+router.get(
+  '/audit',
+  requireAuth,
+  requireRole('platform_admin', 'operator'),
+  async (req: Request, res: Response) => {
+    const limit = Math.min(parseInt(req.query.limit as string) || 200, 1000);
+    const result = await getAuditLogs({ limit });
+
+    const auditData = result.entries.map((e) => ({
+      id: e.id,
+      tenantId: e.tenantId,
+      userId: e.userId,
+      action: e.action,
+      resource: e.resource,
+      ipAddress: e.ipAddress,
+      createdAt: e.createdAt,
+    }));
+
+    return res.json({ success: true, data: auditData });
+  },
+);
+
+/**
  * GET /api/admin/dashboard
  * Estadísticas agregadas para el dashboard.
  */

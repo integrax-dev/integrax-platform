@@ -16,7 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { fetchAdminJson } from '../lib/adminApi';
 import { useAuthStore } from '../stores/auth';
-import { usePlatformStream, type PlatformEvent } from '../lib/usePlatformStream';
+import { usePlatformStream, type SanitizedPlatformEvent } from '../lib/usePlatformStream';
 import { ToastContainer, type ToastItem } from '../components/Toast';
 import './Pages.css';
 import './Incidents.css';
@@ -448,8 +448,8 @@ export function Incidents() {
   usePlatformStream({
     getToken,
     handlers: useMemo(() => ({
-      'incident.created': (env: PlatformEvent) => {
-        const incident = env.data as DriftIncident;
+      'incident.created': (env: SanitizedPlatformEvent) => {
+        const incident = env.metadata as unknown as DriftIncident;
         setIncidents(prev => {
           if (prev.find(i => i.id === incident.id)) return prev;
           return [incident, ...prev];
@@ -463,8 +463,8 @@ export function Incidents() {
           } satisfies ToastItem]);
         }
       },
-      'incident.updated': (env: PlatformEvent) => {
-        const incident = env.data as DriftIncident;
+      'incident.updated': (env: SanitizedPlatformEvent) => {
+        const incident = env.metadata as unknown as DriftIncident;
         setIncidents(prev => {
           const idx = prev.findIndex(i => i.id === incident.id);
           if (idx === -1) return prev;
@@ -505,13 +505,20 @@ export function Incidents() {
   const updateStatus = async (id: string, status: IncidentStatus) => {
     setUpdating(id);
     try {
-      await fetchAdminJson(`/api/drift/incidents/${id}/status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-      setIncidents(prev => prev.map(i => i.id === id ? { ...i, status } : i));
-      if (status === 'resolved' || status === 'dismissed') setSelected(null);
+      let actionEndpoint = '';
+      if (status === 'investigating') actionEndpoint = `/api/support/incidents/${id}/investigate`;
+      else if (status === 'resolved') actionEndpoint = `/api/support/incidents/${id}/resolve`;
+      else if (status === 'dismissed') actionEndpoint = `/api/support/incidents/${id}/dismiss`;
+      
+      if (actionEndpoint) {
+        await fetchAdminJson(actionEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tenantId: 'system' }),
+        });
+        setIncidents(prev => prev.map(i => i.id === id ? { ...i, status } : i));
+        if (status === 'resolved' || status === 'dismissed') setSelected(null);
+      }
     } catch {
       // leave current state on failure
     } finally {

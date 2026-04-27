@@ -1,9 +1,5 @@
 /**
- * Regression score tests — schema-bridge
- *
- * Golden file: verifies that the bridge resolves known field-rename pairs above
- * minimum confidence thresholds. A failing test means the scoring algorithm or
- * ontology regressed for a pair that previously worked.
+ * Regression score tests — schema-bridge + schema-bridge-data
  *
  * Two modes per connector pair:
  *   1. seeds_loaded  — ground-truth seeds force auto_accept via rule0_memory
@@ -11,13 +7,13 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { SchemaBridge } from '../bridge.js';
-import type { BridgeReport, FieldDiff } from '../types.js';
+import { SchemaBridge } from '@integrax/schema-bridge';
+import type { BridgeReport, FieldDiff } from '@integrax/schema-bridge';
 import {
-  mercadopagoPaywaySeeds,
-  mercadopagoMobbexSeeds,
-  contabiliumAfipSeeds,
-} from '../seeds/index.js';
+  MERCADOPAGO_PAYWAY_SEEDS as mercadopagoPaywaySeeds,
+  MERCADOPAGO_MOBBEX_SEEDS as mercadopagoMobbexSeeds,
+  CONTABILIUM_AFIP_SEEDS as contabiliumAfipSeeds,
+} from '@integrax/ontology';
 
 vi.mock('@anthropic-ai/sdk', () => ({
   default: class {
@@ -149,7 +145,6 @@ describe('regression: mercadopago ↔ payway — raw algorithm', () => {
     });
 
     const candidate = renameCandidate(report, 'transaction_amount', 'amount');
-    // May be auto-accepted rather than remaining as rename_candidate
     const m = mappingFor(report, 'transaction_amount', 'amount');
     const score = candidate?.similarity?.combined ?? m?.confidence ?? 0;
     expect(score).toBeGreaterThanOrEqual(0.65);

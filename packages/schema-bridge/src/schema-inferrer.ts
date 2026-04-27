@@ -7,10 +7,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import {
-  defaultBusinessTypeProviders,
-  detectBusinessFormat,
-} from './business-type-registry.js';
+import { detectBusinessFormat } from './business-type-registry.js';
 import type {
   FieldEvidence,
   InferredJsonSchema,
@@ -265,7 +262,7 @@ export class SchemaInferrer {
 
   constructor(config: SchemaInferrerConfig = {}) {
     this.config = {
-      businessTypeProviders: config.businessTypeProviders ?? defaultBusinessTypeProviders,
+      businessTypeProviders: config.businessTypeProviders ?? [],
       maxExamples: config.maxExamples ?? DEFAULT_MAX_EXAMPLES,
       maxDepth: config.maxDepth ?? DEFAULT_MAX_DEPTH,
     };

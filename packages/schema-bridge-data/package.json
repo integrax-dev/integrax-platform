@@ -1,0 +1,27 @@
+{
+  "name": "@integrax/schema-bridge-data",
+  "version": "0.1.0",
+  "description": "Synonym tables, dictionary sets, business-type providers and connector seeds for @integrax/schema-bridge",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./seeds": "./dist/seeds/index.js",
+    "./providers": "./dist/providers/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@integrax/schema-bridge": "workspace:*",
+    "@integrax/ontology": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  }
+}

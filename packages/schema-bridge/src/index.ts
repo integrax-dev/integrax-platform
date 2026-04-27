@@ -23,14 +23,14 @@
 export { SchemaBridge, createSchemaBridge } from './bridge.js';
 export { assessImpact } from './impact-scorer.js';
 export type { ImpactAssessment, ImpactLabel, RemediationHint, RoutingTarget } from './impact-scorer.js';
+export { detectBusinessFormat } from './business-type-registry.js';
+export { DictionaryOntologyProvider } from './dictionary-ontology.js';
 export {
-  defaultBusinessTypeProviders,
-  defaultBusinessTypeWeights,
-  latamBusinessTypeProviders,
-  latamBusinessTypeWeights,
-  detectBusinessFormat,
-} from './business-type-registry.js';
-export { defaultOntologyProviders, latamOntologyProviders } from './ontology-registry.js';
+  normalizeToken,
+  leafToken,
+  buildSynonymIndex,
+  makeSynonymProvider,
+} from './ontology-registry.js';
 export {
   createMappingMemoryOntologyProvider,
   updateMemoryEntry,
@@ -118,14 +118,3 @@ export type {
 
 export { CompareSchemasRequestSchema, CompareOptionsSchema } from './types.js';
 
-export {
-  generateSeedsFromManifests,
-  mercadopagoPaywaySeeds,
-  mercadopagoMobbexSeeds,
-  mercadopagoDecidirSeeds,
-  paywayMobbexSeeds,
-  paywayDecidirSeeds,
-  mobbexDecidirSeeds,
-  allPaymentGatewaySeeds,
-  contabiliumAfipSeeds,
-} from './seeds/index.js';

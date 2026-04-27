@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import './Pages.css';
 import { fetchAdminJson } from '../lib/adminApi';
 import { useAuthStore } from '../stores/auth';
-import { usePlatformStream, type PlatformEvent } from '../lib/usePlatformStream';
+import { usePlatformStream, type SanitizedPlatformEvent } from '../lib/usePlatformStream';
 import { allowDemoFallbacks } from '../lib/runtime';
 
 
@@ -40,13 +40,14 @@ export function Tenants() {
   usePlatformStream({
     getToken,
     handlers: useMemo(() => ({
-      'tenant.created': (env: PlatformEvent) => {
-        const tenant = env.data as Tenant & { createdAt?: string };
+      'tenant.created': (env: SanitizedPlatformEvent) => {
+        const tenant = env.metadata as Tenant & { createdAt?: string };
+        if (!tenant) return;
         setTenants(prev => {
-          if (prev.find(x => x.id === tenant.id)) return prev;
+          if (prev.find(x => x.id === (tenant.id || env.tenantId))) return prev;
           return [{
-            id: tenant.id,
-            name: tenant.name,
+            id: tenant.id || env.tenantId,
+            name: tenant.name || 'Unknown',
             plan: tenant.plan ?? 'starter',
             status: tenant.status ?? 'active',
             events: 0,
@@ -54,22 +55,23 @@ export function Tenants() {
           }, ...prev];
         });
       },
-      'tenant.updated': (env: PlatformEvent) => {
-        const tenant = env.data as Partial<Tenant> & { id: string };
+      'tenant.updated': (env: SanitizedPlatformEvent) => {
+        const tenant = env.metadata as Partial<Tenant> & { id: string };
+        if (!tenant) return;
         setTenants(prev => prev.map(x =>
-          x.id === tenant.id ? { ...x, ...tenant } : x,
+          x.id === (tenant.id || env.tenantId) ? { ...x, ...tenant } : x,
         ));
       },
-      'tenant.suspended': (env: PlatformEvent) => {
-        const tenant = env.data as { id: string };
+      'tenant.suspended': (env: SanitizedPlatformEvent) => {
+        const tenant = env.metadata as { id?: string };
         setTenants(prev => prev.map(x =>
-          x.id === tenant.id ? { ...x, status: 'suspended' } : x,
+          x.id === (tenant?.id || env.tenantId) ? { ...x, status: 'suspended' } : x,
         ));
       },
-      'tenant.activated': (env: PlatformEvent) => {
-        const tenant = env.data as { id: string };
+      'tenant.activated': (env: SanitizedPlatformEvent) => {
+        const tenant = env.metadata as { id?: string };
         setTenants(prev => prev.map(x =>
-          x.id === tenant.id ? { ...x, status: 'active' } : x,
+          x.id === (tenant?.id || env.tenantId) ? { ...x, status: 'active' } : x,
         ));
       },
     }), []),

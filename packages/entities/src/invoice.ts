@@ -10,9 +10,8 @@ export type InvoiceStatus =
 export interface Invoice {
   id?: string;
   externalIds: ExternalId[];
-  /** Por ejemplo '0001-00000042'. */
   invoiceNumber?: string;
-  /** Tipo numerico de comprobante, mantenido como valor crudo agnostico al pais. */
+  /** Raw numeric document type — kept connector-agnostic; country packs interpret the value. */
   invoiceType?: number;
   customerTaxId?: string;
   customerName?: string;
@@ -20,9 +19,9 @@ export interface Invoice {
   amountTax?: number;
   amountTotal: number;
   currency: string;
-  /** Especifico de AR: Codigo de Autorizacion Electronica, guardado como string generico. */
-  cae?: string;
-  caeExpiryDate?: Date;
+  /** Fiscal authorization code issued by the tax authority (e.g. CAE, CFDI UUID, NF-e chave). */
+  authorizationCode?: string;
+  authorizationExpiry?: Date;
   status: InvoiceStatus;
   issuedAt?: Date;
   dueAt?: Date;

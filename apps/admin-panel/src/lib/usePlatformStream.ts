@@ -28,19 +28,40 @@ import { buildAdminApiUrl } from './runtime';
 
 export type PlatformEventType =
   | 'tenant.created' | 'tenant.updated' | 'tenant.suspended' | 'tenant.activated'
-  | 'connector.created' | 'connector.updated' | 'connector.deleted'
+  | 'connector.created' | 'connector.updated' | 'connector.deleted' | 'connector.health.changed'
   | 'workflow.updated'
   | 'event.processed' | 'event.failed' | 'event.dlq'
-  | 'incident.created' | 'incident.updated';
+  | 'incident.created' | 'incident.updated'
+  | 'schema.drift.detected' | 'schema.drift.high_impact' | 'schema.drift.critical' | 'schema.compatibility.breaking' | 'schema.drift.resolved' | 'schema.diff.detected'
+  | 'schema.mapping.predicted' | 'schema.mapping.accepted' | 'schema.mapping.rejected'
+  | 'reconciliation.conflict.detected' | 'reconciliation.conflict.resolved' | 'reconciliation.conflict.escalated' | 'reconciliation.approval.required' | 'reconciliation.approved' | 'reconciliation.rejected' | 'reconciliation.clean'
+  | 'operation.submitted' | 'operation.succeeded' | 'operation.failed' | 'operation.approval_required' | 'operation.approved' | 'operation.rejected' | 'operation.retry.requested' | 'operation.replayed'
+  | 'activepieces.flow.started' | 'activepieces.flow.failed'
+  | 'audit.security.warning'
+  | 'dlq.entry.created';
 
-export interface PlatformEvent<T = unknown> {
-  type: PlatformEventType;
-  data: T;
-  ts: string; // ISO-8601 from server
+export interface SanitizedPlatformEvent {
+  tenantId: string;
+  eventType: PlatformEventType;
+  sourceSystem?: string;
+  runtime?: string;
+  connectorId?: string;
+  entityType?: string;
+  correlationId?: string;
+  severity?: string;
+  status?: string;
+  latencyMs?: number;
+  counts?: number;
+  confidence?: number;
+  errorCode?: string;
+  fingerprint?: string;
+  hash?: string;
+  createdAt: string;
+  metadata?: Record<string, any>;
 }
 
 export type PlatformEventHandlers = {
-  [K in PlatformEventType]?: (envelope: PlatformEvent) => void;
+  [K in PlatformEventType]?: (envelope: SanitizedPlatformEvent) => void;
 };
 
 export interface UsePlatformStreamOptions {
@@ -136,7 +157,7 @@ export function usePlatformStream({
             if (!eventType || !dataLine) continue;
 
             try {
-              const envelope = JSON.parse(dataLine) as PlatformEvent;
+              const envelope = JSON.parse(dataLine) as SanitizedPlatformEvent;
               const handler = handlersRef.current[eventType as PlatformEventType];
               handler?.(envelope);
             } catch {

@@ -1,5 +1,6 @@
 packages:
   - 'packages/*'
+  - 'ontology'
   - 'connectors/sdk/typescript'
   - 'connectors/implementations/*'
   - 'workers/ts'

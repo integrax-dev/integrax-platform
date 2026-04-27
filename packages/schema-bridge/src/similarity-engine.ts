@@ -12,10 +12,6 @@
  * corroboración entre canales más márgenes competitivos.
  */
 
-import {
-  defaultBusinessTypeWeights,
-} from './business-type-registry.js';
-import { defaultOntologyProviders } from './ontology-registry.js';
 import { SimilarityDecisionPolicy } from './similarity-decision-policy.js';
 import type {
   ChannelMultipliers,
@@ -607,7 +603,7 @@ function deriveConfidence(breakdown: SimilarityEvidenceBreakdown): number {
     return 0.81;
   }
 
-  return clamp01(Math.max(
+  const baseScore = clamp01(Math.max(
     corroboratedValue,
     Math.min(corroboratedName, Math.max(0.35, breakdown.structural)),
     Math.min(
@@ -616,6 +612,12 @@ function deriveConfidence(breakdown: SimilarityEvidenceBreakdown): number {
       Math.max(breakdown.lexical, breakdown.value, breakdown.ontology),
     ),
   ));
+
+  if (breakdown.businessType >= 0.94 && breakdown.sufficiency >= 0.40) {
+    return clamp01(baseScore * 1.15);
+  }
+
+  return baseScore;
 }
 
 function comparisonSort(left: CandidateScore, right: CandidateScore): number {
@@ -629,7 +631,7 @@ function bucketKey(type: string, path: string): string {
 }
 
 function arrayContextKey(path: string): string {
-  return pathContext(path).arrayAncestors.slice(-3).join('/');
+  return pathContext(path).arrayAncestors.join('/');
 }
 
 function topTwoScores(values: number[]): [number, number] {
@@ -714,14 +716,8 @@ export class SimilarityEngine {
   private readonly channelMultipliers: ChannelMultipliers | undefined;
 
   constructor(config: SimilarityEngineConfig = {}) {
-    this.weights = new Map(Object.entries({
-      ...defaultBusinessTypeWeights,
-      ...(config.businessTypeWeights ?? {}),
-    }));
-    this.ontologyProviders = [
-      ...defaultOntologyProviders,
-      ...(config.ontologyProviders ?? []),
-    ];
+    this.weights = new Map(Object.entries(config.businessTypeWeights ?? {}));
+    this.ontologyProviders = config.ontologyProviders ?? [];
     this.decisionPolicy = new SimilarityDecisionPolicy(config.decisionPolicy);
     this.channelMultipliers = config.channelMultipliers;
   }

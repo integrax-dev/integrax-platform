@@ -190,12 +190,19 @@ export function IncidentDetail() {
     if (!incident) return;
     setUpdating(true);
     try {
-      await fetchAdminJson(`/api/drift/incidents/${incident.id}/status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-      setIncident(prev => prev ? { ...prev, status, resolvedAt: status === 'resolved' ? new Date().toISOString() : prev.resolvedAt } : prev);
+      let actionEndpoint = '';
+      if (status === 'investigating') actionEndpoint = `/api/support/incidents/${incident.id}/investigate`;
+      else if (status === 'resolved') actionEndpoint = `/api/support/incidents/${incident.id}/resolve`;
+      else if (status === 'dismissed') actionEndpoint = `/api/support/incidents/${incident.id}/dismiss`;
+
+      if (actionEndpoint) {
+        await fetchAdminJson(actionEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tenantId: 'system' }),
+        });
+        setIncident(prev => prev ? { ...prev, status, resolvedAt: status === 'resolved' ? new Date().toISOString() : prev.resolvedAt } : prev);
+      }
     } finally {
       setUpdating(false);
     }
