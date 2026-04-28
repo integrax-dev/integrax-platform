@@ -24,6 +24,7 @@ import { driftRouter } from './routes/drift.js';
 import { streamRouter } from './routes/stream.js';
 // @ts-ignore - Note: TS server might lag noticing this newly created file
 import { supportRouter } from './routes/support.js';
+import { consistencyAdminRouter, consistencyTenantRouter } from './routes/consistency.js';
 import { authRouter } from './routes/auth.js';
 import { creditsRouter } from './routes/credits.js';
 import { storageRouter } from './routes/storage.js';
@@ -157,6 +158,10 @@ app.use(nodesRouter);
 app.use('/api/drift', requireAuth, driftRouter);
 app.use('/api/stream', streamRouter);
 app.use('/api/support', supportRouter);
+
+// ─── Consistency Control Plane ────────────────────────────────────────────────
+app.use('/api/admin/consistency', consistencyAdminRouter);
+app.use('/api/tenants/:tenantId/consistency', consistencyTenantRouter);
 
 // ─── Auth (public — no JWT required) ─────────────────────────────────────────
 app.use('/api/auth', authRouter);

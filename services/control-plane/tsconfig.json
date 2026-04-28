@@ -35,7 +35,12 @@
       "@integrax/schema-bridge": ["../../packages/schema-bridge/src/index.ts"],
       "@integrax/logger": ["../../packages/logger/src/index.ts"],
       "@integrax/health": ["../../packages/health/src/index.ts"],
-      "@integrax/metrics": ["../../packages/metrics/src/index.ts"]
+      "@integrax/metrics": ["../../packages/metrics/src/index.ts"],
+      "@integrax/tolerance-engine": ["../../packages/tolerance-engine/src/index.ts"],
+      "@integrax/authority-engine": ["../../packages/authority-engine/src/index.ts"],
+      "@integrax/behavior-engine": ["../../packages/behavior-engine/src/index.ts"],
+      "@integrax/consistency-signals": ["../../packages/consistency-signals/src/index.ts"],
+      "@integrax/mapping-governance": ["../../packages/mapping-governance/src/index.ts"]
     }
   },
   "include": ["src/**/*"],
