@@ -40,7 +40,10 @@
       "@integrax/authority-engine": ["../../packages/authority-engine/src/index.ts"],
       "@integrax/behavior-engine": ["../../packages/behavior-engine/src/index.ts"],
       "@integrax/consistency-signals": ["../../packages/consistency-signals/src/index.ts"],
-      "@integrax/mapping-governance": ["../../packages/mapping-governance/src/index.ts"]
+      "@integrax/mapping-governance": ["../../packages/mapping-governance/src/index.ts"],
+      "@integrax/sync-health": ["../../packages/sync-health/src/index.ts"],
+      "@integrax/connector-contract": ["../../packages/connector-contract/src/index.ts"],
+      "@integrax/consistency-timeline": ["../../packages/consistency-timeline/src/index.ts"]
     }
   },
   "include": ["src/**/*"],

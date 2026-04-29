@@ -1,8 +1,17 @@
-import type { TrustScore, TrustUpdateEvent } from './types.js';
+import type { TrustScore, TrustUpdateEvent, ConnectorReliabilityTier } from './types.js';
 
 const INITIAL_SCORE = 0.5;
 const LEARNING_RATE = 0.05;
 const CORRECTION_PENALTY = 0.10;
+
+function computeTier(score: number, rejectedCount: number, acceptedCount: number): ConnectorReliabilityTier {
+  const total = acceptedCount + rejectedCount;
+  const rejectionRatio = total > 0 ? rejectedCount / total : 0;
+  if (score >= 0.80 && rejectionRatio < 0.05) return 'HIGH';
+  if (score >= 0.60 && rejectionRatio < 0.15) return 'MEDIUM';
+  if (score >= 0.40) return 'VARIABLE';
+  return 'UNRELIABLE';
+}
 
 /**
  * Adaptive trust scoring.
@@ -27,6 +36,7 @@ export class ConnectorTrustEngine {
         acceptedCount: 0,
         rejectedCount: 0,
         correctionCount: 0,
+        reliabilityTier: 'MEDIUM',
         lastUpdated: new Date(),
       });
     }
@@ -46,6 +56,7 @@ export class ConnectorTrustEngine {
       s.score = Math.max(0, s.score - CORRECTION_PENALTY);
       s.correctionCount++;
     }
+    s.reliabilityTier = computeTier(s.score, s.rejectedCount, s.acceptedCount);
     s.lastUpdated = new Date();
     return { ...s };
   }
@@ -62,7 +73,8 @@ export class ConnectorTrustEngine {
 
   loadSnapshot(scores: TrustScore[]): void {
     for (const s of scores) {
-      this.scores.set(this.key(s.tenantId, s.connectorId, s.entityType), { ...s });
+      const recomputed = { ...s, reliabilityTier: computeTier(s.score, s.rejectedCount, s.acceptedCount) };
+      this.scores.set(this.key(s.tenantId, s.connectorId, s.entityType), recomputed);
     }
   }
 }

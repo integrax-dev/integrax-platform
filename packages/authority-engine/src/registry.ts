@@ -1,10 +1,25 @@
-import type { AuthorityRule, AuthorityResolution } from './types.js';
+import type { AuthorityRule, AuthorityResolution, AuthorityMode } from './types.js';
 
 const DEFAULT_RESOLUTION: AuthorityResolution = {
   mode: 'observe_only',
   rule: null,
   source: 'default',
 };
+
+/** Modes that mutate data and therefore require explicit human approval on the rule. */
+const EXECUTION_MODES = new Set<AuthorityMode>([
+  'auto_accept', 'prefer_a', 'prefer_b', 'latest_wins', 'highest_value',
+]);
+
+/**
+ * Gate execution modes behind approvedBy.
+ * A rule with mode='prefer_a' but no approvedBy resolves to 'recommend_only' instead.
+ * This makes it structurally impossible to auto-execute without explicit sign-off.
+ */
+function safeMode(rule: AuthorityRule): AuthorityMode {
+  if (EXECUTION_MODES.has(rule.mode) && !rule.approvedBy) return 'recommend_only';
+  return rule.mode;
+}
 
 /**
  * Resolves which authority mode applies to a given (tenant, entityType, field, connectorPair).
@@ -77,7 +92,7 @@ export class AuthorityRegistry {
     if (!best) return DEFAULT_RESOLUTION;
 
     return {
-      mode: best.mode,
+      mode: safeMode(best),
       authorityConnector: best.authorityConnector,
       rule: best,
       source: 'explicit_rule',

@@ -1,5 +1,5 @@
 import { NavLink, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useReducer, useState } from 'react';
 import { useAuthStore } from '../stores/auth';
 import { useTranslation } from 'react-i18next';
 import './Layout.css';
@@ -119,6 +119,22 @@ function Icon({ name }: { name: string }) {
     );
   }
 
+  if (name === 'observability') {
+    return (
+      <svg {...common}>
+        <circle cx="10" cy="10" r="3" />
+        <path d="M10 3v2" />
+        <path d="M10 15v2" />
+        <path d="M3 10h2" />
+        <path d="M15 10h2" />
+        <path d="M5.05 5.05l1.41 1.41" />
+        <path d="M13.54 13.54l1.41 1.41" />
+        <path d="M5.05 14.95l1.41-1.41" />
+        <path d="M13.54 6.46l1.41-1.41" />
+      </svg>
+    );
+  }
+
   if (name === 'settings') {
     return (
       <svg {...common}>
@@ -173,6 +189,15 @@ function Icon({ name }: { name: string }) {
   return null;
 }
 
+type HistNav = { index: number; maxIndex: number };
+
+function histNavReducer(state: HistNav, action: { next: number; isPop: boolean }): HistNav {
+  return {
+    index: action.next,
+    maxIndex: action.isPop ? state.maxIndex : Math.max(state.maxIndex, action.next),
+  };
+}
+
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
@@ -181,8 +206,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { t, i18n } = useTranslation();
   const [langOpen, setLangOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [historyIndex, setHistoryIndex] = useState<number>(() => window.history.state?.idx ?? 0);
-  const [historyMaxIndex, setHistoryMaxIndex] = useState<number>(() => window.history.state?.idx ?? 0);
+  const [histNav, dispatchHistNav] = useReducer(histNavReducer, undefined, () => {
+    const idx = window.history.state?.idx ?? 0;
+    return { index: idx, maxIndex: idx };
+  });
 
   const navItems = useMemo(
     () => [
@@ -193,6 +220,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       { path: '/events', label: t('nav.events'), icon: 'events', section: 'observe' },
       { path: '/audit', label: t('nav.audit'), icon: 'audit', section: 'observe' },
       { path: '/incidents', label: t('nav.incidents'), icon: 'incidents', section: 'observe' },
+      { path: '/observability', label: t('nav.observability', 'Observabilidad'), icon: 'observability', section: 'observe' },
       { path: '/schema-diffs', label: t('nav.schemaDiffs'), icon: 'schema', section: 'data' },
       { path: '/mapping-memory', label: t('nav.mappingMemory'), icon: 'mapping', section: 'data' },
       { path: '/settings', label: t('nav.settings'), icon: 'settings', section: 'settings' },
@@ -214,13 +242,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
       item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path),
     ) ?? navItems[0];
   const roleLabel = user?.role ? ROLE_LABELS[user.role] : 'Administrador';
-  const canGoBack = historyIndex > 0 || window.history.length > 1;
-  const canGoForward = historyIndex < historyMaxIndex;
+  const canGoBack = histNav.index > 0 || window.history.length > 1;
+  const canGoForward = histNav.index < histNav.maxIndex;
 
   useEffect(() => {
-    const nextIndex = window.history.state?.idx ?? 0;
-    setHistoryIndex(nextIndex);
-    setHistoryMaxIndex((currentMax) => (navigationType === 'POP' ? currentMax : Math.max(currentMax, nextIndex)));
+    const next = window.history.state?.idx ?? 0;
+    dispatchHistNav({ next, isPop: navigationType === 'POP' });
   }, [location.key, navigationType]);
 
   const handleGoBack = () => {

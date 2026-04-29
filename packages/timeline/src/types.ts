@@ -11,7 +11,7 @@
 
 // --- Comun ------------------------------------------------------------------
 
-export type TimelineKind = 'entity' | 'sync' | 'conflict' | 'workflow' | 'schema_drift';
+export type TimelineKind = 'entity' | 'sync' | 'conflict' | 'workflow' | 'schema_drift' | 'policy_decision';
 
 export interface TimelineEntry {
   /** ulid ordenable por tiempo de creacion */
@@ -150,6 +150,24 @@ export interface WorkflowTrace extends TimelineEntry {
   correlatedEntityId?: string;
 }
 
+// --- Trazas de decision de politica -----------------------------------------
+
+export type PolicyDecisionOutcome =
+  | 'propagated' | 'blocked' | 'escalated' | 'skipped' | 'pending_approval';
+
+export interface PolicyDecisionTrace extends TimelineEntry {
+  kind: 'policy_decision';
+  entityType: string;
+  field?: string;
+  connectors: readonly string[];
+  decisionMode: string;
+  propagationIntent: string;
+  outcome: PolicyDecisionOutcome;
+  intentId?: string;
+  ruleId?: string;
+  toleranceApplied: boolean;
+}
+
 // --- Filtros / query --------------------------------------------------------
 
 export interface TimelineFilter {
@@ -175,7 +193,8 @@ export type TimelineEntryInput =
   | Omit<SyncTrace, 'id' | 'recordedAt'>
   | Omit<ConflictTrace, 'id' | 'recordedAt'>
   | Omit<WorkflowTrace, 'id' | 'recordedAt'>
-  | Omit<SchemaDriftTrace, 'id' | 'recordedAt'>;
+  | Omit<SchemaDriftTrace, 'id' | 'recordedAt'>
+  | Omit<PolicyDecisionTrace, 'id' | 'recordedAt'>;
 
 export interface TimelineStore {
   append(tenantId: string, entry: TimelineEntryInput): Promise<TimelineEntry>;

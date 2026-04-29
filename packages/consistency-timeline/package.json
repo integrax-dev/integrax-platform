@@ -1,0 +1,20 @@
+{
+  "name": "@integrax/consistency-timeline",
+  "version": "0.1.0",
+  "description": "Admin-safe timeline aggregation for IntegraX consistency control plane",
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@integrax/timeline": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.6.1"
+  }
+}

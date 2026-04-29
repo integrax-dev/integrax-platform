@@ -6,3 +6,7 @@ export { DEMO_TENANT_SEEDS } from './demo-tenants.js';
 export type { DemoTenantSeed } from './demo-tenants.js';
 export { SIGNAL_SEEDS } from './signals.js';
 export type { SignalSeed } from './signals.js';
+export { TOLERANCE_SEEDS } from './tolerance-seeds.js';
+export type { ToleranceSeed } from './tolerance-seeds.js';
+export { LANGUAGE_SEEDS, ALL_SYNONYM_PAIRS, ES_EN_SYNONYMS, PT_EN_SYNONYMS, ES_PT_SYNONYMS, SAP_SYNONYMS } from './language-seeds.js';
+export type { LanguageSeed } from './language-seeds.js';

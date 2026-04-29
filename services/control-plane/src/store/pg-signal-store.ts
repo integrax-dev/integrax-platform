@@ -1,5 +1,5 @@
 import { pool } from './db.js';
-import type { ConsistencySignal, ConsistencyCase, TimelineEvent, CaseStatus } from '@integrax/consistency-signals';
+import type { ConsistencySignal, ConsistencyCase, TimelineEvent, CaseStatus, CaseType } from '@integrax/consistency-signals';
 
 // ─── Signals ──────────────────────────────────────────────────────────────────
 
@@ -86,6 +86,7 @@ interface CaseRow {
   entity_type: string;
   entity_id: string | null;
   title: string;
+  case_type: string;
   status: string;
   severity: string;
   assigned_to: string | null;
@@ -101,6 +102,7 @@ function rowToCase(r: CaseRow, signalIds: string[]): ConsistencyCase {
     entityType: r.entity_type,
     entityId: r.entity_id ?? undefined,
     title: r.title,
+    caseType: (r.case_type ?? 'STRICT_MISMATCH') as CaseType,
     status: r.status as CaseStatus,
     severity: r.severity as ConsistencyCase['severity'],
     signalIds,
@@ -114,12 +116,12 @@ function rowToCase(r: CaseRow, signalIds: string[]): ConsistencyCase {
 export async function saveCase(c: ConsistencyCase): Promise<void> {
   await pool.query(
     `INSERT INTO consistency_cases
-       (id,tenant_id,entity_type,entity_id,title,status,severity,assigned_to,created_at,updated_at,resolved_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       (id,tenant_id,entity_type,entity_id,title,case_type,status,severity,assigned_to,created_at,updated_at,resolved_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
      ON CONFLICT (id) DO UPDATE SET
-       title=$5, status=$6, severity=$7, assigned_to=$8, updated_at=$10, resolved_at=$11`,
+       title=$5, case_type=$6, status=$7, severity=$8, assigned_to=$9, updated_at=$11, resolved_at=$12`,
     [
-      c.id, c.tenantId, c.entityType, c.entityId ?? null, c.title, c.status, c.severity,
+      c.id, c.tenantId, c.entityType, c.entityId ?? null, c.title, c.caseType, c.status, c.severity,
       c.assignedTo ?? null, c.createdAt, c.updatedAt, c.resolvedAt ?? null,
     ],
   );

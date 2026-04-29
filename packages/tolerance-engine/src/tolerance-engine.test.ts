@@ -117,3 +117,46 @@ describe('ToleranceRegistry — hierarchical resolution', () => {
     expect(reg.resolve({ tenantId: 'ten1' })?.id).toBe('high');
   });
 });
+
+describe('ToleranceRegistry — country/currency scoping', () => {
+  it('country-specific policy wins over no-country policy', () => {
+    const reg = new ToleranceRegistry();
+    reg.register({ ...base, id: 'generic', tenantId: 'ten1' });
+    reg.register({ ...base, id: 'ar',      tenantId: 'ten1', country: 'AR' });
+    expect(reg.resolve({ tenantId: 'ten1', country: 'AR' })?.id).toBe('ar');
+  });
+
+  it('currency-specific policy wins over no-currency policy', () => {
+    const reg = new ToleranceRegistry();
+    reg.register({ ...base, id: 'generic', tenantId: 'ten1' });
+    reg.register({ ...base, id: 'ars',     tenantId: 'ten1', currency: 'ARS' });
+    expect(reg.resolve({ tenantId: 'ten1', currency: 'ARS' })?.id).toBe('ars');
+  });
+
+  it('country+currency policy wins over country-only policy', () => {
+    const reg = new ToleranceRegistry();
+    reg.register({ ...base, id: 'ar',     tenantId: 'ten1', country: 'AR' });
+    reg.register({ ...base, id: 'ar-ars', tenantId: 'ten1', country: 'AR', currency: 'ARS' });
+    expect(reg.resolve({ tenantId: 'ten1', country: 'AR', currency: 'ARS' })?.id).toBe('ar-ars');
+  });
+
+  it('country-scoped policy does not apply to different country', () => {
+    const reg = new ToleranceRegistry();
+    reg.register({ ...base, id: 'ar', tenantId: 'ten1', country: 'AR' });
+    expect(reg.resolve({ tenantId: 'ten1', country: 'BR' })).toBeNull();
+  });
+
+  it('currency-scoped policy does not apply when currency does not match', () => {
+    const reg = new ToleranceRegistry();
+    reg.register({ ...base, id: 'ars', tenantId: 'ten1', currency: 'ARS' });
+    expect(reg.resolve({ tenantId: 'ten1', currency: 'USD' })).toBeNull();
+  });
+
+  it('resolves generic policy when no country/currency provided and scoped policy exists', () => {
+    const reg = new ToleranceRegistry();
+    reg.register({ ...base, id: 'generic', tenantId: 'ten1' });
+    reg.register({ ...base, id: 'ar',      tenantId: 'ten1', country: 'AR' });
+    // no country in lookup key → AR-scoped policy skipped
+    expect(reg.resolve({ tenantId: 'ten1' })?.id).toBe('generic');
+  });
+});

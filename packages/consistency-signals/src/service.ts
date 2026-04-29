@@ -4,9 +4,35 @@ import type {
   TimelineEvent,
   TimelineEventKind,
   CaseStatus,
+  CaseType,
   SignalSeverity,
+  SignalKind,
 } from './types.js';
 import { computeDeduplicationKey, DEDUP_WINDOW_MS } from './dedup.js';
+
+function classifyCaseType(kind: SignalKind): CaseType {
+  switch (kind) {
+    case 'field_mismatch':
+    case 'type_mismatch':
+    case 'state_divergence':
+      return 'STRICT_MISMATCH';
+    case 'value_out_of_tolerance':
+      return 'POLICY_VIOLATION';
+    case 'authority_violation':
+      return 'APPROVAL_REQUIRED';
+    case 'propagation_lag':
+      return 'PROPAGATION_BLOCKED';
+    case 'field_missing':
+    case 'identity_conflict':
+      return 'MAPPING_UNCERTAINTY';
+    case 'duplicate_detected':
+      return 'CONNECTOR_FAILURE';
+    case 'schema_drift':
+      return 'SCHEMA_DRIFT';
+    default:
+      return 'STRICT_MISMATCH';
+  }
+}
 
 function severityRank(s: SignalSeverity): number {
   return { INFO: 0, LOW: 1, MEDIUM: 2, HIGH: 3, CRITICAL: 4 }[s] ?? 0;
@@ -160,6 +186,7 @@ export class ConsistencySignalService {
         entityType: signal.entityType,
         entityId: signal.entityId,
         title: `${signal.entityType} consistency issue${signal.entityId ? ` — ${signal.entityId}` : ''}`,
+        caseType: classifyCaseType(signal.kind),
         status: 'open',
         severity: signal.severity,
         signalIds: [],

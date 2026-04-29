@@ -50,12 +50,22 @@ export interface ConsistencySignal {
 
 export type CaseStatus = 'open' | 'investigating' | 'resolved' | 'wont_fix' | 'suppressed';
 
+export type CaseType =
+  | 'STRICT_MISMATCH'       // hard field value divergence across connectors
+  | 'POLICY_VIOLATION'      // behavior intent or tolerance rule broken
+  | 'APPROVAL_REQUIRED'     // change needs explicit human sign-off
+  | 'PROPAGATION_BLOCKED'   // propagation could not proceed (authority/lock)
+  | 'MAPPING_UNCERTAINTY'   // no trusted mapping for a field pair
+  | 'CONNECTOR_FAILURE'     // connector sync failed or timed out
+  | 'SCHEMA_DRIFT';         // unexpected schema change detected in connector
+
 export interface ConsistencyCase {
   id: string;
   tenantId: string;
   entityType: string;
   entityId?: string;
   title: string;
+  caseType: CaseType;
   status: CaseStatus;
   severity: SignalSeverity;
   /** IDs of all signals that belong to this case */

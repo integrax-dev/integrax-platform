@@ -12,6 +12,7 @@ import { Incidents } from './pages/Incidents';
 import { IncidentDetail } from './pages/IncidentDetail';
 import { SchemaDiffs } from './pages/SchemaDiffs';
 import { MappingMemory } from './pages/MappingMemory';
+import { Observability } from './pages/Observability';
 import { Login } from './pages/Login';
 import { useAuthStore } from './stores/auth';
 
@@ -54,6 +55,7 @@ export default function App() {
                     <Route path="/incidents/:incidentId" element={<IncidentDetail />} />
                     <Route path="/schema-diffs" element={<SchemaDiffs />} />
                     <Route path="/mapping-memory" element={<MappingMemory />} />
+                    <Route path="/observability" element={<Observability />} />
                     <Route path="/settings" element={<Settings />} />
                   </Routes>
                 </Layout>

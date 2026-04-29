@@ -6,7 +6,9 @@ import type {
   ExecutionPlan,
   ExecutionStep,
   BehaviorProfileId,
+  PropagationIntentTree,
 } from './types.js';
+import { ENTITY_LEVEL_KEY, sortedConnectorKey } from './types.js';
 import { BEHAVIOR_PROFILES } from './profiles.js';
 
 export class PolicyCompilationError extends Error {
@@ -78,8 +80,9 @@ export class ConsistencyPolicyCompiler {
     }
 
     const executionPlan = this.buildExecutionPlan(nodes);
+    const intentTree = this.buildIntentTree(nodes);
 
-    return { tenantId, nodes, edges, executionPlan, compiledAt: new Date(), profileId };
+    return { tenantId, nodes, edges, executionPlan, intentTree, compiledAt: new Date(), profileId };
   }
 
   private validate(intents: IntentStatement[]): void {
@@ -166,6 +169,17 @@ export class ConsistencyPolicyCompiler {
       steps.length <= 5 ? 'low' : steps.length <= 15 ? 'medium' : 'high';
 
     return { steps, estimatedComplexity: complexity };
+  }
+
+  private buildIntentTree(nodes: PolicyNode[]): PropagationIntentTree {
+    const tree: PropagationIntentTree = {};
+    for (const node of nodes) {
+      const entityBucket = (tree[node.entityType] ??= {});
+      const fieldKey = node.field ?? ENTITY_LEVEL_KEY;
+      const fieldBucket = (entityBucket[fieldKey] ??= {});
+      fieldBucket[sortedConnectorKey(node.connectors)] = node;
+    }
+    return tree;
   }
 
   private nodeToAction(node: PolicyNode): ExecutionStep['action'] {

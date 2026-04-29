@@ -25,6 +25,7 @@ import { streamRouter } from './routes/stream.js';
 // @ts-ignore - Note: TS server might lag noticing this newly created file
 import { supportRouter } from './routes/support.js';
 import { consistencyAdminRouter, consistencyTenantRouter } from './routes/consistency.js';
+import { observabilityAdminRouter } from './routes/observability.js';
 import { authRouter } from './routes/auth.js';
 import { creditsRouter } from './routes/credits.js';
 import { storageRouter } from './routes/storage.js';
@@ -65,6 +66,7 @@ if (process.env.REDIS_URL) {
 import { registerNotificationHandlers } from './platform/container/notification-handler.js';
 import { registerActivepiecesBridge } from './platform/activepieces-bridge.js';
 import { eventBusReady } from './platform/container/event-bus.js';
+import { bootstrapContractRegistry } from './platform/container/consistency.js';
 
 
 const app: express.Application = express();
@@ -162,6 +164,7 @@ app.use('/api/support', supportRouter);
 // ─── Consistency Control Plane ────────────────────────────────────────────────
 app.use('/api/admin/consistency', consistencyAdminRouter);
 app.use('/api/tenants/:tenantId/consistency', consistencyTenantRouter);
+app.use('/api/admin/observability', observabilityAdminRouter);
 
 // ─── Auth (public — no JWT required) ─────────────────────────────────────────
 app.use('/api/auth', authRouter);
@@ -282,6 +285,9 @@ async function startServer(): Promise<void> {
     const { runMigrations } = await import('./migrate-runner.js');
     await runMigrations(pool, logger);
   }
+
+  // 3. Bootstrap in-memory registries from Postgres.
+  await bootstrapContractRegistry();
 
   app.listen(PORT, () => {
     logger.info({

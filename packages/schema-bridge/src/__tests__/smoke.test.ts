@@ -1,10 +1,24 @@
 import { describe, it, expect } from 'vitest';
 import { createSimilarityEngine } from '../similarity-engine.js';
+import { buildSynonymIndex, makeSynonymProvider } from '../ontology-registry.js';
 import type { FieldDiff, SchemaNode } from '../types.js';
+
+const SAP_SYNONYMS: Array<[string, string]> = [
+  ['matnr', 'material_num'],
+  ['matnr', 'material_number'],
+  ['matnr', 'sku'],
+  ['bukrs', 'company_code'],
+  ['bukrs', 'company'],
+  // email field name variants used in this test
+  ['contact_email', 'electronic_mail'],
+];
 
 describe('SimilarityEngine - Level 2 ERP Smoke Test', () => {
   it('correctly maps deep nested arrays, SAP synonyms, and unambiguous formats', () => {
-    const engine = createSimilarityEngine();
+    const engine = createSimilarityEngine({
+      businessTypeWeights: { email: 0.92 },
+      ontologyProviders: [makeSynonymProvider('sap', buildSynonymIndex(SAP_SYNONYMS))],
+    });
 
     const oldNodes: FieldDiff[] = [
       {

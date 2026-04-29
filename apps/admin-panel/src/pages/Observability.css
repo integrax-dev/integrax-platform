@@ -1,0 +1,173 @@
+.obs-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem;
+}
+
+/* ── Banner ── */
+.obs-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  background: var(--surface-1, #1e1e2e);
+  border: 1px solid var(--border, #2a2a3e);
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+}
+
+.obs-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 80px;
+}
+
+.obs-stat-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-primary, #e0e0f0);
+}
+
+.obs-stat-label {
+  font-size: 0.72rem;
+  color: var(--text-muted, #888);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.obs-stat--alert .obs-stat-value { color: #f87171; }
+.obs-stat--warn  .obs-stat-value { color: #fbbf24; }
+
+.obs-refresh-btn {
+  margin-left: auto;
+  padding: 0.4rem 1rem;
+  border: 1px solid var(--border, #2a2a3e);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary, #e0e0f0);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.obs-refresh-btn:hover { background: var(--surface-2, #2a2a3e); }
+
+/* ── Body ── */
+.obs-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ── Section ── */
+.obs-section {
+  background: var(--surface-1, #1e1e2e);
+  border: 1px solid var(--border, #2a2a3e);
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+}
+
+.obs-section-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted, #888);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 1rem;
+}
+
+.obs-empty {
+  font-size: 0.85rem;
+  color: var(--text-muted, #888);
+  font-style: italic;
+}
+
+/* ── Table ── */
+.obs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.obs-table th {
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted, #888);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border, #2a2a3e);
+}
+
+.obs-table td {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--border-subtle, #1a1a2e);
+  vertical-align: middle;
+  color: var(--text-primary, #e0e0f0);
+}
+
+.obs-row--clickable { cursor: pointer; }
+.obs-row--clickable:hover td { background: var(--surface-hover, #252535); }
+
+.obs-row-detail td {
+  padding: 0;
+  background: var(--surface-0, #13131f);
+}
+
+.obs-sub-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.obs-sub-table th {
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted, #888);
+  text-transform: uppercase;
+  padding: 0.4rem 1.5rem;
+  border-bottom: 1px solid var(--border, #2a2a3e);
+}
+
+.obs-sub-table td {
+  padding: 0.4rem 1.5rem;
+  border-bottom: 1px solid var(--border-subtle, #1a1a2e);
+  color: var(--text-secondary, #bbb);
+}
+
+/* ── Badges ── */
+.obs-tier,
+.obs-status,
+.obs-impact {
+  display: inline-block;
+  padding: 0.2em 0.55em;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tier-critical { background: #7f1d1d33; color: #fca5a5; border: 1px solid #7f1d1d55; }
+.tier-high     { background: #78350f33; color: #fcd34d; border: 1px solid #78350f55; }
+.tier-medium   { background: #1e3a5f33; color: #93c5fd; border: 1px solid #1e3a5f55; }
+.tier-low      { background: #14532d33; color: #86efac; border: 1px solid #14532d55; }
+
+.status-ok      { background: #14532d33; color: #86efac; border: 1px solid #14532d55; }
+.status-warn    { background: #78350f33; color: #fcd34d; border: 1px solid #78350f55; }
+.status-err     { background: #7f1d1d33; color: #fca5a5; border: 1px solid #7f1d1d55; }
+.status-unknown { background: #27272a33; color: #a1a1aa; border: 1px solid #27272a55; }
+
+.impact-critical { background: #7f1d1d33; color: #fca5a5; border: 1px solid #7f1d1d55; }
+.impact-high     { background: #78350f33; color: #fcd34d; border: 1px solid #78350f55; }
+.impact-low      { background: #27272a33; color: #a1a1aa; border: 1px solid #27272a55; }
+
+.obs-flag { color: #fbbf24; font-size: 0.8rem; }
+
+.obs-monospace { font-family: monospace; font-size: 0.8rem; }
+.obs-small     { font-size: 0.75rem; }
+.obs-date      { color: var(--text-muted, #888); font-size: 0.78rem; white-space: nowrap; }

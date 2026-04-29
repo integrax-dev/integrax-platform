@@ -1,7 +1,8 @@
 // Inlined from @integrax/authority-engine to keep this package dependency-free
 export type AuthorityMode =
-  | 'observe_only' | 'suggest' | 'auto_accept' | 'prefer_a' | 'prefer_b'
-  | 'latest_wins' | 'highest_value' | 'manual_resolution';
+  | 'observe_only' | 'recommend_only' | 'suggest' | 'approval_required'
+  | 'manual_resolution' | 'auto_accept' | 'prefer_a' | 'prefer_b'
+  | 'latest_wins' | 'highest_value';
 
 // Inlined from @integrax/tolerance-engine to keep this package dependency-free
 export type ToleranceStrategy =
@@ -92,11 +93,35 @@ export interface ExecutionPlan {
   estimatedComplexity: 'low' | 'medium' | 'high';
 }
 
+/**
+ * Hierarchical index for O(1) runtime policy lookup.
+ *
+ * Structure: entityType → field (or ENTITY_LEVEL_KEY) → sorted connectorKey → PolicyNode
+ *
+ * Use tree[entityType]?.[field ?? ENTITY_LEVEL_KEY]?.[sortedConnectorKey(connectors)]
+ * to locate the governing node without scanning all graph nodes.
+ */
+export const ENTITY_LEVEL_KEY = '__entity__';
+
+export interface PropagationIntentTree {
+  [entityType: string]: {
+    [fieldOrEntity: string]: {
+      [connectorKey: string]: PolicyNode;
+    };
+  };
+}
+
+export function sortedConnectorKey(connectors: readonly string[]): string {
+  return [...connectors].sort().join(':');
+}
+
 export interface PolicyGraph {
   tenantId: string;
   nodes: PolicyNode[];
   edges: PolicyEdge[];
   executionPlan: ExecutionPlan;
+  /** Hierarchical index — use for O(1) runtime lookup instead of scanning nodes */
+  intentTree: PropagationIntentTree;
   compiledAt: Date;
   profileId?: BehaviorProfileId;
 }

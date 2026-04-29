@@ -15,6 +15,10 @@ export interface TolerancePolicy {
   field?: string;
   /** undefined = applies to all connector pairs */
   connectorPair?: readonly [string, string];
+  /** ISO 3166-1 alpha-2 country code — narrows scope to a specific country */
+  country?: string;
+  /** ISO 4217 currency code — narrows scope to a specific currency (e.g. 'ARS', 'USD') */
+  currency?: string;
   strategy: ToleranceStrategy;
   /** Threshold value — meaning depends on strategy */
   value: number;
@@ -37,4 +41,8 @@ export interface ToleranceLookupKey {
   field?: string;
   connectorA?: string;
   connectorB?: string;
+  /** ISO 3166-1 alpha-2 country code of the operation context */
+  country?: string;
+  /** ISO 4217 currency code of the field being evaluated */
+  currency?: string;
 }

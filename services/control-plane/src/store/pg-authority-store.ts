@@ -89,14 +89,22 @@ interface TrustRow {
 }
 
 function rowToTrust(r: TrustRow): TrustScore {
+  const score = r.score;
+  const total = r.accepted_count + r.rejected_count;
+  const rejectionRatio = total > 0 ? r.rejected_count / total : 0;
+  const reliabilityTier: TrustScore['reliabilityTier'] =
+    score >= 0.80 && rejectionRatio < 0.05 ? 'HIGH' :
+    score >= 0.60 && rejectionRatio < 0.15 ? 'MEDIUM' :
+    score >= 0.40 ? 'VARIABLE' : 'UNRELIABLE';
   return {
     connectorId: r.connector_id,
     tenantId: r.tenant_id,
     entityType: r.entity_type ?? undefined,
-    score: r.score,
+    score,
     acceptedCount: r.accepted_count,
     rejectedCount: r.rejected_count,
     correctionCount: r.correction_count,
+    reliabilityTier,
     lastUpdated: r.last_updated,
   };
 }

@@ -15,6 +15,8 @@ export type {
   WorkflowTrace,
   SchemaDriftTrace,
   SchemaDriftSeverity,
+  PolicyDecisionTrace,
+  PolicyDecisionOutcome,
 } from './types.js';
 
 export { InMemoryTimelineStore } from './in-memory-store.js';

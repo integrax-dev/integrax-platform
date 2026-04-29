@@ -16,8 +16,8 @@ import {
   billingService,
   catalogService,
   consistencyInspector,
-  ecommerceService,
 } from '../platform/container.js';
+import { getEcommerceService } from '../platform/container/ecommerce-registry.js';
 import type { OrderStatus, InvoiceStatus, ProductStatus } from '@integrax/entities';
 
 export const platformRouter = Router();
@@ -500,7 +500,7 @@ platformRouter.get(
   requireRole('platform_admin', 'tenant_admin', 'operator', 'viewer'),
   async (req, res, next) => {
     try {
-      const items = await ecommerceService.listCatalogItems(req.params['tenantId'], {
+      const items = await (await getEcommerceService(req.params['tenantId'])).listCatalogItems(req.params['tenantId'], {
         status: req.query['status'] as 'draft' | 'published' | 'archived' | undefined,
         limit: req.query['limit'] ? Number(req.query['limit']) : undefined,
         offset: req.query['offset'] ? Number(req.query['offset']) : undefined,
@@ -517,7 +517,7 @@ platformRouter.get(
   requireRole('platform_admin', 'tenant_admin', 'operator', 'viewer'),
   async (req, res, next) => {
     try {
-      const item = await ecommerceService.getCatalogItem(req.params['tenantId'], req.params['id']);
+      const item = await (await getEcommerceService(req.params['tenantId'])).getCatalogItem(req.params['tenantId'], req.params['id']);
       if (!item) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Catalog item not found' } });
       res.json({ success: true, data: item });
     } catch (err) { next(err); }
@@ -531,7 +531,7 @@ platformRouter.post(
   requireRole('platform_admin', 'tenant_admin', 'operator'),
   async (req, res, next) => {
     try {
-      const item = await ecommerceService.ingestCatalogItem(req.params['tenantId'], req.body);
+      const item = await (await getEcommerceService(req.params['tenantId'])).ingestCatalogItem(req.params['tenantId'], req.body);
       res.status(201).json({ success: true, data: item });
     } catch (err) { next(err); }
   },
@@ -544,7 +544,7 @@ platformRouter.get(
   requireRole('platform_admin', 'tenant_admin', 'operator', 'viewer'),
   async (req, res, next) => {
     try {
-      const cart = await ecommerceService.getCart(req.params['tenantId'], req.params['cartId']);
+      const cart = await (await getEcommerceService(req.params['tenantId'])).getCart(req.params['tenantId'], req.params['cartId']);
       if (!cart) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Cart not found' } });
       res.json({ success: true, data: cart });
     } catch (err) { next(err); }
@@ -558,7 +558,7 @@ platformRouter.post(
   requireRole('platform_admin', 'tenant_admin', 'operator'),
   async (req, res, next) => {
     try {
-      const session = await ecommerceService.startCheckout(req.params['tenantId'], req.params['cartId']);
+      const session = await (await getEcommerceService(req.params['tenantId'])).startCheckout(req.params['tenantId'], req.params['cartId']);
       res.status(201).json({ success: true, data: session });
     } catch (err) { next(err); }
   },
@@ -571,7 +571,7 @@ platformRouter.post(
   requireRole('platform_admin', 'tenant_admin', 'operator'),
   async (req, res, next) => {
     try {
-      await ecommerceService.requestFulfillment(req.params['tenantId'], req.body);
+      await (await getEcommerceService(req.params['tenantId'])).requestFulfillment(req.params['tenantId'], req.body);
       res.status(202).json({ success: true, data: { queued: true } });
     } catch (err) { next(err); }
   },
@@ -584,7 +584,7 @@ platformRouter.post(
   requireRole('platform_admin', 'tenant_admin', 'operator'),
   async (req, res, next) => {
     try {
-      const cart = await ecommerceService.createCart(req.params['tenantId'], req.body);
+      const cart = await (await getEcommerceService(req.params['tenantId'])).createCart(req.params['tenantId'], req.body);
       res.status(201).json({ success: true, data: cart });
     } catch (err) { next(err); }
   },
@@ -598,7 +598,7 @@ platformRouter.post(
   async (req, res, next) => {
     try {
       const { variantId, quantity } = req.body as { variantId: string; quantity: number };
-      const cart = await ecommerceService.addLineItem(req.params['tenantId'], req.params['cartId'], variantId, quantity ?? 1);
+      const cart = await (await getEcommerceService(req.params['tenantId'])).addLineItem(req.params['tenantId'], req.params['cartId'], variantId, quantity ?? 1);
       res.json({ success: true, data: cart });
     } catch (err) { next(err); }
   },
@@ -612,7 +612,7 @@ platformRouter.patch(
   async (req, res, next) => {
     try {
       const { quantity } = req.body as { quantity: number };
-      const cart = await ecommerceService.updateLineItemQuantity(req.params['tenantId'], req.params['cartId'], req.params['lineItemId'], quantity);
+      const cart = await (await getEcommerceService(req.params['tenantId'])).updateLineItemQuantity(req.params['tenantId'], req.params['cartId'], req.params['lineItemId'], quantity);
       res.json({ success: true, data: cart });
     } catch (err) { next(err); }
   },
@@ -625,7 +625,7 @@ platformRouter.delete(
   requireRole('platform_admin', 'tenant_admin', 'operator'),
   async (req, res, next) => {
     try {
-      const cart = await ecommerceService.removeLineItem(req.params['tenantId'], req.params['cartId'], req.params['lineItemId']);
+      const cart = await (await getEcommerceService(req.params['tenantId'])).removeLineItem(req.params['tenantId'], req.params['cartId'], req.params['lineItemId']);
       res.json({ success: true, data: cart });
     } catch (err) { next(err); }
   },
@@ -638,7 +638,7 @@ platformRouter.patch(
   requireRole('platform_admin', 'tenant_admin', 'operator'),
   async (req, res, next) => {
     try {
-      const cart = await ecommerceService.setShippingAddress(req.params['tenantId'], req.params['cartId'], req.body);
+      const cart = await (await getEcommerceService(req.params['tenantId'])).setShippingAddress(req.params['tenantId'], req.params['cartId'], req.body);
       res.json({ success: true, data: cart });
     } catch (err) { next(err); }
   },
@@ -651,7 +651,7 @@ platformRouter.patch(
   requireRole('platform_admin', 'tenant_admin', 'operator'),
   async (req, res, next) => {
     try {
-      const cart = await ecommerceService.setBillingAddress(req.params['tenantId'], req.params['cartId'], req.body);
+      const cart = await (await getEcommerceService(req.params['tenantId'])).setBillingAddress(req.params['tenantId'], req.params['cartId'], req.body);
       res.json({ success: true, data: cart });
     } catch (err) { next(err); }
   },
@@ -665,7 +665,7 @@ platformRouter.post(
   async (req, res, next) => {
     try {
       const { code } = req.body as { code: string };
-      const cart = await ecommerceService.applyPromotion(req.params['tenantId'], req.params['cartId'], code);
+      const cart = await (await getEcommerceService(req.params['tenantId'])).applyPromotion(req.params['tenantId'], req.params['cartId'], code);
       res.json({ success: true, data: cart });
     } catch (err) { next(err); }
   },
@@ -678,7 +678,7 @@ platformRouter.delete(
   requireRole('platform_admin', 'tenant_admin', 'operator'),
   async (req, res, next) => {
     try {
-      const cart = await ecommerceService.removePromotion(req.params['tenantId'], req.params['cartId'], req.params['code']);
+      const cart = await (await getEcommerceService(req.params['tenantId'])).removePromotion(req.params['tenantId'], req.params['cartId'], req.params['code']);
       res.json({ success: true, data: cart });
     } catch (err) { next(err); }
   },
@@ -693,7 +693,7 @@ platformRouter.get(
   requireRole('platform_admin', 'tenant_admin', 'operator', 'viewer'),
   async (req, res, next) => {
     try {
-      const discounts = await ecommerceService.listDiscounts(req.params['tenantId']);
+      const discounts = await (await getEcommerceService(req.params['tenantId'])).listDiscounts(req.params['tenantId']);
       res.json({ success: true, data: discounts });
     } catch (err) { next(err); }
   },
@@ -706,7 +706,7 @@ platformRouter.post(
   requireRole('platform_admin', 'tenant_admin'),
   async (req, res, next) => {
     try {
-      const discount = await ecommerceService.createDiscount(req.params['tenantId'], req.body);
+      const discount = await (await getEcommerceService(req.params['tenantId'])).createDiscount(req.params['tenantId'], req.body);
       res.status(201).json({ success: true, data: discount });
     } catch (err) { next(err); }
   },
@@ -721,7 +721,7 @@ platformRouter.post(
   requireRole('platform_admin', 'tenant_admin', 'operator'),
   async (req, res, next) => {
     try {
-      const account = await ecommerceService.createCustomerAccount(req.params['tenantId'], req.body);
+      const account = await (await getEcommerceService(req.params['tenantId'])).createCustomerAccount(req.params['tenantId'], req.body);
       res.status(201).json({ success: true, data: account });
     } catch (err) { next(err); }
   },
@@ -734,7 +734,7 @@ platformRouter.get(
   requireRole('platform_admin', 'tenant_admin', 'operator', 'viewer'),
   async (req, res, next) => {
     try {
-      const account = await ecommerceService.getCustomerAccount(req.params['tenantId'], req.params['id']);
+      const account = await (await getEcommerceService(req.params['tenantId'])).getCustomerAccount(req.params['tenantId'], req.params['id']);
       if (!account) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Customer not found' } });
       res.json({ success: true, data: account });
     } catch (err) { next(err); }
@@ -748,7 +748,7 @@ platformRouter.patch(
   requireRole('platform_admin', 'tenant_admin', 'operator'),
   async (req, res, next) => {
     try {
-      const account = await ecommerceService.updateCustomerAccount(req.params['tenantId'], req.params['id'], req.body);
+      const account = await (await getEcommerceService(req.params['tenantId'])).updateCustomerAccount(req.params['tenantId'], req.params['id'], req.body);
       res.json({ success: true, data: account });
     } catch (err) { next(err); }
   },
@@ -763,7 +763,7 @@ platformRouter.get(
   requireRole('platform_admin', 'tenant_admin', 'operator', 'viewer'),
   async (req, res, next) => {
     try {
-      const orders = await ecommerceService.listDraftOrders(req.params['tenantId'], {
+      const orders = await (await getEcommerceService(req.params['tenantId'])).listDraftOrders(req.params['tenantId'], {
         status: req.query['status'] as 'open' | 'completed' | 'canceled' | undefined,
         limit: req.query['limit'] ? Number(req.query['limit']) : undefined,
       });
@@ -779,7 +779,7 @@ platformRouter.get(
   requireRole('platform_admin', 'tenant_admin', 'operator', 'viewer'),
   async (req, res, next) => {
     try {
-      const order = await ecommerceService.getDraftOrder(req.params['tenantId'], req.params['id']);
+      const order = await (await getEcommerceService(req.params['tenantId'])).getDraftOrder(req.params['tenantId'], req.params['id']);
       if (!order) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Order not found' } });
       res.json({ success: true, data: order });
     } catch (err) { next(err); }
@@ -793,7 +793,7 @@ platformRouter.post(
   requireRole('platform_admin', 'tenant_admin', 'operator'),
   async (req, res, next) => {
     try {
-      const order = await ecommerceService.cancelDraftOrder(req.params['tenantId'], req.params['id']);
+      const order = await (await getEcommerceService(req.params['tenantId'])).cancelDraftOrder(req.params['tenantId'], req.params['id']);
       res.json({ success: true, data: order });
     } catch (err) { next(err); }
   },
@@ -806,7 +806,7 @@ platformRouter.post(
   requireRole('platform_admin', 'tenant_admin', 'operator'),
   async (req, res, next) => {
     try {
-      const result = await ecommerceService.requestReturn(req.params['tenantId'], req.body);
+      const result = await (await getEcommerceService(req.params['tenantId'])).requestReturn(req.params['tenantId'], req.body);
       res.status(202).json({ success: true, data: result });
     } catch (err) { next(err); }
   },

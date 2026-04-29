@@ -64,6 +64,53 @@ describe('ConsistencyPolicyCompiler — valid compilation', () => {
     const graph = compiler.compile('ten1', [makeIntent({ propagation: 'ignore' })]);
     expect(graph.executionPlan.steps[0].action).toBe('skip');
   });
+
+  it('graph includes intentTree', () => {
+    const graph = compiler.compile('ten1', [makeIntent()]);
+    expect(graph.intentTree).toBeDefined();
+  });
+});
+
+describe('ConsistencyPolicyCompiler — PropagationIntentTree', () => {
+  const compiler = new ConsistencyPolicyCompiler();
+
+  it('tree is indexed by entityType', () => {
+    const graph = compiler.compile('ten1', [makeIntent({ entityType: 'payment' })]);
+    expect(graph.intentTree['payment']).toBeDefined();
+  });
+
+  it('entity-level intent is stored under ENTITY_LEVEL_KEY', () => {
+    const graph = compiler.compile('ten1', [makeIntent({ field: undefined })]);
+    const bucket = graph.intentTree['payment']?.['__entity__'];
+    expect(bucket).toBeDefined();
+    const connKey = [...makeIntent().connectors].sort().join(':');
+    expect(bucket?.[connKey]).toBeDefined();
+  });
+
+  it('field-level intent is stored under its field name', () => {
+    const graph = compiler.compile('ten1', [
+      makeIntent({ id: 'entity', field: undefined }),
+      makeIntent({ id: 'field', field: 'amount' }),
+    ]);
+    expect(graph.intentTree['payment']?.['amount']).toBeDefined();
+    expect(graph.intentTree['payment']?.['__entity__']).toBeDefined();
+  });
+
+  it('connector key is order-independent', () => {
+    const intent = makeIntent({ connectors: ['payway', 'mercadopago'], authorityConnector: 'mercadopago' });
+    const graph = compiler.compile('ten1', [intent]);
+    const sorted = ['mercadopago', 'payway'].sort().join(':');
+    expect(graph.intentTree['payment']?.['__entity__']?.[sorted]).toBeDefined();
+  });
+
+  it('different entityTypes produce separate tree branches', () => {
+    const graph = compiler.compile('ten1', [
+      makeIntent({ id: 'a', entityType: 'payment' }),
+      makeIntent({ id: 'b', entityType: 'invoice', connectors: ['mercadopago', 'payway'], authorityConnector: 'mercadopago' }),
+    ]);
+    expect(graph.intentTree['payment']).toBeDefined();
+    expect(graph.intentTree['invoice']).toBeDefined();
+  });
 });
 
 describe('ConsistencyPolicyCompiler — validation errors', () => {

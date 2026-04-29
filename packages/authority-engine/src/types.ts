@@ -1,12 +1,16 @@
 export type AuthorityMode =
+  // ── Safe modes (no approval required) ──────────────────────────────────────
   | 'observe_only'       // never override; only record divergence
-  | 'suggest'            // surface suggestion to human; no auto-action
+  | 'recommend_only'     // surface recommendation to human; no auto-action
+  | 'suggest'            // alias for recommend_only (legacy name)
+  | 'approval_required'  // route to approval queue; nothing applied until approved
+  | 'manual_resolution'  // flag for human queue (legacy alias for approval_required)
+  // ── Execution modes (require approvedBy on the rule) ──────────────────────
   | 'auto_accept'        // accept connector A's value automatically
   | 'prefer_a'           // connector A wins; B is updated
   | 'prefer_b'           // connector B wins; A is updated
   | 'latest_wins'        // most recently updated source wins
-  | 'highest_value'      // higher numeric value wins (e.g. available stock)
-  | 'manual_resolution'; // flag for human queue
+  | 'highest_value';     // higher numeric value wins (e.g. available stock)
 
 export interface AuthorityRule {
   id: string;
@@ -38,6 +42,9 @@ export interface AuthorityResolution {
   source: 'explicit_rule' | 'default';
 }
 
+/** Reliability tier derived from trust score and failure history */
+export type ConnectorReliabilityTier = 'HIGH' | 'MEDIUM' | 'VARIABLE' | 'UNRELIABLE';
+
 export interface TrustScore {
   connectorId: string;
   tenantId: string;
@@ -47,6 +54,8 @@ export interface TrustScore {
   acceptedCount: number;
   rejectedCount: number;
   correctionCount: number;
+  /** Derived reliability tier based on score + rejection ratio */
+  reliabilityTier: ConnectorReliabilityTier;
   lastUpdated: Date;
 }
 

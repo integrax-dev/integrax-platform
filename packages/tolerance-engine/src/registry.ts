@@ -5,12 +5,14 @@ import { evaluateTolerance } from './evaluator.js';
  * Hierarchical in-memory registry.
  *
  * Resolution order (most-specific first):
- *   1. tenant + entityType + field + connectorPair
- *   2. tenant + entityType + field
- *   3. tenant + entityType
- *   4. tenant (all fields)
- *   5. platform default (tenantId undefined)
+ *   1. tenant + entityType + field + connectorPair + country + currency
+ *   2. tenant + entityType + field + connectorPair
+ *   3. tenant + entityType + field
+ *   4. tenant + entityType
+ *   5. tenant (all fields)
+ *   6. platform default (tenantId undefined)
  *
+ * country and currency add 1 point each when matched (narrowing within a level).
  * Within the same specificity level, highest priority wins.
  */
 export class ToleranceRegistry {
@@ -48,6 +50,11 @@ export class ToleranceRegistry {
         if (matches) s += 1;
         else return -1;
       }
+      // country/currency narrow within a specificity level (+1 each when matched)
+      if (p.country !== undefined && p.country === key.country) s += 1;
+      else if (p.country !== undefined && p.country !== key.country) return -1;
+      if (p.currency !== undefined && p.currency === key.currency) s += 1;
+      else if (p.currency !== undefined && p.currency !== key.currency) return -1;
       return s;
     };
 

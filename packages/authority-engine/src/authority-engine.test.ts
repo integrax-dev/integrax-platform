@@ -8,6 +8,7 @@ const base: AuthorityRule = {
   id: 'r1',
   mode: 'prefer_a',
   authorityConnector: 'mercadopago',
+  approvedBy: 'admin@company.com',   // execution modes require approvedBy
   priority: 0,
   enabled: true,
   createdAt: new Date(),
@@ -69,6 +70,51 @@ describe('AuthorityRegistry — resolution', () => {
   });
 });
 
+// ─── AuthorityRegistry — execution mode safety gate ──────────────────────────
+
+describe('AuthorityRegistry — execution mode safety gate', () => {
+  const executionModes = ['auto_accept', 'prefer_a', 'prefer_b', 'latest_wins', 'highest_value'] as const;
+
+  for (const mode of executionModes) {
+    it(`'${mode}' without approvedBy downgrades to recommend_only`, () => {
+      const reg = new AuthorityRegistry();
+      reg.register({ ...base, id: 'r', tenantId: 'ten1', mode, approvedBy: undefined });
+      expect(reg.resolve({ tenantId: 'ten1' }).mode).toBe('recommend_only');
+    });
+
+    it(`'${mode}' with approvedBy is returned as-is`, () => {
+      const reg = new AuthorityRegistry();
+      reg.register({ ...base, id: 'r', tenantId: 'ten1', mode, approvedBy: 'cto@company.com' });
+      expect(reg.resolve({ tenantId: 'ten1' }).mode).toBe(mode);
+    });
+  }
+
+  it('rule is still marked as explicit_rule even when downgraded', () => {
+    const reg = new AuthorityRegistry();
+    reg.register({ ...base, id: 'r', tenantId: 'ten1', mode: 'auto_accept', approvedBy: undefined });
+    const r = reg.resolve({ tenantId: 'ten1' });
+    expect(r.source).toBe('explicit_rule');
+    expect(r.mode).toBe('recommend_only');
+    expect(r.rule?.id).toBe('r');
+  });
+
+  it('safe modes observe_only and recommend_only never need approvedBy', () => {
+    const reg = new AuthorityRegistry();
+    reg.register({ ...base, id: 'obs', tenantId: 'ten1', mode: 'observe_only', approvedBy: undefined });
+    expect(reg.resolve({ tenantId: 'ten1' }).mode).toBe('observe_only');
+
+    const reg2 = new AuthorityRegistry();
+    reg2.register({ ...base, id: 'rec', tenantId: 'ten2', mode: 'recommend_only', approvedBy: undefined });
+    expect(reg2.resolve({ tenantId: 'ten2' }).mode).toBe('recommend_only');
+  });
+
+  it('approval_required passes through without approvedBy', () => {
+    const reg = new AuthorityRegistry();
+    reg.register({ ...base, id: 'r', tenantId: 'ten1', mode: 'approval_required', approvedBy: undefined });
+    expect(reg.resolve({ tenantId: 'ten1' }).mode).toBe('approval_required');
+  });
+});
+
 // ─── ConnectorTrustEngine ─────────────────────────────────────────────────────
 
 describe('ConnectorTrustEngine', () => {
@@ -123,12 +169,56 @@ describe('ConnectorTrustEngine', () => {
   });
 });
 
+describe('ConnectorTrustEngine — reliability tiers', () => {
+  it('starts at MEDIUM tier (score 0.5, no history)', () => {
+    const eng = new ConnectorTrustEngine();
+    expect(eng.get('ten1', 'mp').reliabilityTier).toBe('MEDIUM');
+  });
+
+  it('reaches HIGH after many accepted with very few rejections', () => {
+    const eng = new ConnectorTrustEngine();
+    for (let i = 0; i < 60; i++) eng.record({ tenantId: 'ten1', connectorId: 'mp', outcome: 'accepted' });
+    expect(eng.get('ten1', 'mp').reliabilityTier).toBe('HIGH');
+  });
+
+  it('becomes VARIABLE after score drops below 0.60', () => {
+    const eng = new ConnectorTrustEngine();
+    for (let i = 0; i < 20; i++) eng.record({ tenantId: 'ten1', connectorId: 'mp', outcome: 'rejected' });
+    const s = eng.get('ten1', 'mp');
+    expect(['VARIABLE', 'UNRELIABLE']).toContain(s.reliabilityTier);
+  });
+
+  it('becomes UNRELIABLE when score drops below 0.40', () => {
+    const eng = new ConnectorTrustEngine();
+    for (let i = 0; i < 30; i++) eng.record({ tenantId: 'ten1', connectorId: 'mp', outcome: 'corrected' });
+    expect(eng.get('ten1', 'mp').reliabilityTier).toBe('UNRELIABLE');
+  });
+
+  it('reliabilityTier is recomputed on loadSnapshot', () => {
+    const eng = new ConnectorTrustEngine();
+    eng.loadSnapshot([{
+      connectorId: 'mp', tenantId: 'ten1', score: 0.9,
+      acceptedCount: 100, rejectedCount: 0, correctionCount: 0,
+      reliabilityTier: 'MEDIUM', // stale value — should be recomputed
+      lastUpdated: new Date(),
+    }]);
+    expect(eng.get('ten1', 'mp').reliabilityTier).toBe('HIGH');
+  });
+});
+
 // ─── suggestAuthority ─────────────────────────────────────────────────────────
 
 function makeScore(connectorId: string, score: number, accepted = 20, rejected = 0): TrustScore {
+  const total = accepted + rejected;
+  const rejectionRatio = total > 0 ? rejected / total : 0;
+  const reliabilityTier: TrustScore['reliabilityTier'] =
+    score >= 0.80 && rejectionRatio < 0.05 ? 'HIGH' :
+    score >= 0.60 && rejectionRatio < 0.15 ? 'MEDIUM' :
+    score >= 0.40 ? 'VARIABLE' : 'UNRELIABLE';
   return {
     connectorId, tenantId: 'ten1', score,
     acceptedCount: accepted, rejectedCount: rejected, correctionCount: 0,
+    reliabilityTier,
     lastUpdated: new Date(),
   };
 }

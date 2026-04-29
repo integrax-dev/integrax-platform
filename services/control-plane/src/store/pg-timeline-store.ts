@@ -94,6 +94,47 @@ export class PgTimelineStore implements TimelineStore {
     return res.rows.length ? rowToEntry(res.rows[0]) : null;
   }
 
+  async countByKind(
+    tenantId: string,
+    from: Date,
+    to: Date,
+  ): Promise<Array<{ kind: string; count: number; latest: Date | null }>> {
+    const res = await pool.query(
+      `SELECT kind, COUNT(*)::int AS count, MAX(occurred_at) AS latest
+       FROM timeline_entries
+       WHERE tenant_id = $1 AND occurred_at >= $2 AND occurred_at <= $3
+       GROUP BY kind`,
+      [tenantId, from, to],
+    );
+    return res.rows.map((r: Record<string, unknown>) => ({
+      kind: r['kind'] as string,
+      count: r['count'] as number,
+      latest: r['latest'] ? new Date(r['latest'] as string) : null,
+    }));
+  }
+
+  async platformCountByKind(
+    tenantIds: string[],
+    from: Date,
+    to: Date,
+  ): Promise<{ total: number; byKind: Record<string, number> }> {
+    if (!tenantIds.length) return { total: 0, byKind: {} };
+    const res = await pool.query(
+      `SELECT kind, COUNT(*)::int AS count
+       FROM timeline_entries
+       WHERE tenant_id = ANY($1) AND occurred_at >= $2 AND occurred_at <= $3
+       GROUP BY kind`,
+      [tenantIds, from, to],
+    );
+    const byKind: Record<string, number> = {};
+    let total = 0;
+    for (const r of res.rows as Array<Record<string, unknown>>) {
+      byKind[r['kind'] as string] = r['count'] as number;
+      total += r['count'] as number;
+    }
+    return { total, byKind };
+  }
+
   async resolveConflict(
     tenantId: string,
     id: string,
