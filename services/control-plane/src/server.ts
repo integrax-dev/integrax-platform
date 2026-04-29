@@ -66,7 +66,7 @@ if (process.env.REDIS_URL) {
 import { registerNotificationHandlers } from './platform/container/notification-handler.js';
 import { registerActivepiecesBridge } from './platform/activepieces-bridge.js';
 import { eventBusReady } from './platform/container/event-bus.js';
-import { bootstrapContractRegistry } from './platform/container/consistency.js';
+import { bootstrapConsistencyEngines } from './platform/container/consistency.js';
 
 
 const app: express.Application = express();
@@ -287,7 +287,7 @@ async function startServer(): Promise<void> {
   }
 
   // 3. Bootstrap in-memory registries from Postgres.
-  await bootstrapContractRegistry();
+  await bootstrapConsistencyEngines();
 
   app.listen(PORT, () => {
     logger.info({

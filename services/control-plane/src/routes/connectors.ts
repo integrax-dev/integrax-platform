@@ -840,12 +840,14 @@ router.post(
 
     try {
       // Importación dinámica para evitar cargar el engine si no se usa
-      const { createSchemaBridge } = await import('@integrax/schema-bridge');
+      const { createSchemaBridge, buildSynonymIndex, makeSynonymProvider } = await import('@integrax/schema-bridge');
+      const { ALL_SYNONYM_PAIRS } = await import('@integrax/seed-factory');
       const { llm: schemaBridgeLlm } = await import('../platform/container/llm.js');
       const bridge = createSchemaBridge({
         redisUrl: process.env.REDIS_URL,
         // Pass the key only when the LLM port is configured — keeps schema-bridge vendor-agnostic
         anthropicApiKey: schemaBridgeLlm.isAvailable() ? process.env.ANTHROPIC_API_KEY : undefined,
+        ontologyProviders: [makeSynonymProvider('all', buildSynonymIndex(ALL_SYNONYM_PAIRS))],
       });
 
       const report = await bridge.compare({

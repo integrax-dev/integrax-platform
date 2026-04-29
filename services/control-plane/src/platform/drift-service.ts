@@ -26,9 +26,12 @@ import {
   OpenApiAdapter,
   createSchemaBridge,
   assessImpact,
+  buildSynonymIndex,
+  makeSynonymProvider,
   type InferredJsonSchema,
   type SchemaField,
 } from '@integrax/schema-bridge';
+import { ALL_SYNONYM_PAIRS } from '@integrax/seed-factory';
 import { createLogger } from '@integrax/logger';
 import { llm } from './container/llm.js';
 import {
@@ -205,6 +208,7 @@ export class DriftService {
     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
     autoAcceptThreshold: 0.95,
     humanReviewThreshold: 0.75,
+    ontologyProviders: [makeSynonymProvider('all', buildSynonymIndex(ALL_SYNONYM_PAIRS))],
   });
 
   /**

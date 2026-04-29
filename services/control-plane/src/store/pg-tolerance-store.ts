@@ -8,6 +8,8 @@ interface Row {
   field: string | null;
   connector_a: string | null;
   connector_b: string | null;
+  country: string | null;
+  currency: string | null;
   strategy: string;
   value: number;
   unit: string | null;
@@ -26,6 +28,8 @@ function rowToPolicy(r: Row): TolerancePolicy {
     connectorPair: r.connector_a && r.connector_b
       ? [r.connector_a, r.connector_b]
       : undefined,
+    country: r.country ?? undefined,
+    currency: r.currency ?? undefined,
     strategy: r.strategy as TolerancePolicy['strategy'],
     value: r.value,
     unit: r.unit ?? undefined,
@@ -52,17 +56,18 @@ export async function getTolerancePolicy(id: string): Promise<TolerancePolicy | 
 export async function saveTolerancePolicy(p: TolerancePolicy): Promise<string> {
   const result = await pool.query<{ id: string }>(
     `INSERT INTO tolerance_policies
-       (id,tenant_id,entity_type,field,connector_a,connector_b,strategy,value,unit,priority,enabled,created_at,updated_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+       (id,tenant_id,entity_type,field,connector_a,connector_b,country,currency,strategy,value,unit,priority,enabled,created_at,updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
      ON CONFLICT (id) DO UPDATE SET
        tenant_id=$2, entity_type=$3, field=$4, connector_a=$5, connector_b=$6,
-       strategy=$7, value=$8, unit=$9, priority=$10, enabled=$11, updated_at=$13
+       country=$7, currency=$8, strategy=$9, value=$10, unit=$11, priority=$12, enabled=$13, updated_at=$15
      RETURNING id`,
     [
       p.id, p.tenantId ?? null, p.entityType ?? null, p.field ?? null,
       p.connectorPair?.[0] ?? null, p.connectorPair?.[1] ?? null,
+      p.country ?? null, p.currency ?? null,
       p.strategy, p.value, p.unit ?? null, p.priority, p.enabled,
-      p.createdAt, p.updatedAt,
+      p.createdAt ?? new Date(), p.updatedAt ?? new Date(),
     ],
   );
   return result.rows[0].id;

@@ -432,6 +432,9 @@ consistencyTenantRouter.post(
         outcome: 'accepted' | 'rejected' | 'corrected';
       };
       const tenantId = req.params['tenantId'];
+      // Sync in-memory engine with pg state so the delta applies to the correct baseline.
+      const pgScores = await listTrustScores(tenantId);
+      trustEngine.loadSnapshot(pgScores);
       const updated = trustEngine.record({ connectorId, tenantId, entityType, outcome });
       await upsertTrustScore(ulid(), updated);
       res.json({ success: true, data: updated });

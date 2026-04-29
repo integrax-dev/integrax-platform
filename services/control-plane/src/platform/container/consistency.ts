@@ -15,6 +15,8 @@ import { ConnectorContractRegistry } from '@integrax/connector-contract';
 import { ConsistencyTimelineService } from '@integrax/consistency-timeline';
 import { PgTimelineStore } from '../../store/pg-timeline-store.js';
 import { listAllContractBaselines } from '../../store/pg-contract-store.js';
+import { listAuthorityRules } from '../../store/pg-authority-store.js';
+import { listTolerancePolicies } from '../../store/pg-tolerance-store.js';
 
 export const toleranceRegistry = new ToleranceRegistry();
 export const authorityRegistry = new AuthorityRegistry();
@@ -26,8 +28,19 @@ export const contractRegistry = new ConnectorContractRegistry();
 export const consistencyTimelineStore = new PgTimelineStore();
 export const consistencyTimeline = new ConsistencyTimelineService(consistencyTimelineStore);
 
-/** Load contract baselines from Postgres into the in-memory registry. Call once at startup. */
-export async function bootstrapContractRegistry(): Promise<void> {
-  const baselines = await listAllContractBaselines();
+/** Load all rules + trust scores + tolerance policies + contract baselines from pg. Call once at startup. */
+export async function bootstrapConsistencyEngines(): Promise<void> {
+  const [rules, policies, baselines] = await Promise.all([
+    listAuthorityRules(),
+    listTolerancePolicies(),
+    listAllContractBaselines(),
+  ]);
+  authorityRegistry.registerAll(rules);
+  toleranceRegistry.registerAll(policies);
   for (const b of baselines) contractRegistry.registerBaseline(b);
+}
+
+/** @deprecated Use bootstrapConsistencyEngines() instead */
+export async function bootstrapContractRegistry(): Promise<void> {
+  await bootstrapConsistencyEngines();
 }
