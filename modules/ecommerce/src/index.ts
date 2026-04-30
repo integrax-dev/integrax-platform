@@ -38,3 +38,7 @@ export type { ShopifyAdapterConfig } from './shopify-adapter/adapter.js';
 // VTEX adapter
 export { VTEXAdapter, createVTEXAdapter } from './vtex-adapter/adapter.js';
 export type { VTEXAdapterConfig } from './vtex-adapter/adapter.js';
+
+// WooCommerce adapter
+export { WooCommerceAdapter, createWooCommerceAdapter } from './woocommerce-adapter/adapter.js';
+export type { WooCommerceAdapterConfig } from './woocommerce-adapter/adapter.js';

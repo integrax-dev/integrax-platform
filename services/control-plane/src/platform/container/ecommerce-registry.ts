@@ -14,6 +14,7 @@ import {
   createTiendanubeAdapter,
   createShopifyAdapter,
   createVTEXAdapter,
+  createWooCommerceAdapter,
 } from '@integrax/module-ecommerce';
 import type { EcommerceAdapter } from '@integrax/module-ecommerce';
 import { findTenantModuleConfig } from '../../store/tenant-module-config.js';
@@ -49,6 +50,14 @@ function buildAdapter(
         appKey: config['appKey'] ?? '',
         appToken: config['appToken'] ?? '',
         environment: (config['environment'] as 'vtexcommercestable' | 'vtexcommercebeta') ?? undefined,
+        tenantId,
+      });
+    case 'woocommerce':
+      return createWooCommerceAdapter({
+        siteUrl: config['siteUrl'] ?? '',
+        consumerKey: config['consumerKey'] ?? '',
+        consumerSecret: config['consumerSecret'] ?? '',
+        currency: config['currency'],
         tenantId,
       });
     case 'medusa':
