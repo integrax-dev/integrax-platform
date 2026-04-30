@@ -20,6 +20,21 @@ export type {
   InventoryAllocation,
 } from './types.js';
 
-// Medusa adapter — only import when needed
+// Adapter interface
+export type { EcommerceAdapter } from './adapter.js';
+
+// Medusa adapter
 export { MedusaAdapter, createMedusaAdapter, MedusaAdapterNotConfiguredError } from './medusa-adapter/adapter.js';
 export type { MedusaAdapterConfig } from './medusa-adapter/adapter.js';
+
+// Tiendanube adapter
+export { TiendanubeAdapter, createTiendanubeAdapter } from './tiendanube-adapter/adapter.js';
+export type { TiendanubeAdapterConfig } from './tiendanube-adapter/adapter.js';
+
+// Shopify adapter
+export { ShopifyAdapter, createShopifyAdapter } from './shopify-adapter/adapter.js';
+export type { ShopifyAdapterConfig } from './shopify-adapter/adapter.js';
+
+// VTEX adapter
+export { VTEXAdapter, createVTEXAdapter } from './vtex-adapter/adapter.js';
+export type { VTEXAdapterConfig } from './vtex-adapter/adapter.js';

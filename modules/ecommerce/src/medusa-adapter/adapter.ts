@@ -16,6 +16,7 @@
  * EcommerceService which calls this adapter internally.
  */
 
+import type { EcommerceAdapter } from '../adapter.js';
 import type { CatalogItem, Cart } from '../types.js';
 import type { MedusaProduct, MedusaCart } from './types.js';
 import { medusaProductToCatalogItem, catalogItemToMedusaProduct } from './catalog.js';
@@ -40,7 +41,8 @@ export interface MedusaAdapterConfig {
   tenantId?: string;
 }
 
-export class MedusaAdapter {
+export class MedusaAdapter implements EcommerceAdapter {
+  readonly provider = 'medusa';
   private readonly config: MedusaAdapterConfig;
 
   constructor(config: MedusaAdapterConfig) {

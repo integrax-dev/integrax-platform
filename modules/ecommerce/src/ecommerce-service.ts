@@ -26,14 +26,14 @@ import type {
   CheckoutSession, Discount, DiscountRule,
   CustomerAccount, DraftOrder, FulfillmentRequest, ReturnRequest,
 } from './types.js';
-import type { MedusaAdapter } from './medusa-adapter/adapter.js';
+import type { EcommerceAdapter } from './adapter.js';
 
 export class EcommerceService {
   constructor(
     private readonly store: SnapshotStore,
     private readonly bus: EventBus,
     private readonly timeline?: TimelineStore,
-    private readonly medusa?: MedusaAdapter | null,
+    private readonly medusa?: EcommerceAdapter | null,
   ) {}
 
   // ─── Catalog ───────────────────────────────────────────────────────────────
@@ -94,7 +94,7 @@ export class EcommerceService {
     customerId?: string;
     email?: string;
   }): Promise<Cart> {
-    if (this.medusa) return this.medusa.createCart(params);
+    if (this.medusa?.createCart) return this.medusa.createCart(params);
     const now = new Date();
     const cart: Cart = {
       id: `cart_${ulid()}`,
@@ -113,13 +113,13 @@ export class EcommerceService {
   }
 
   async getCart(tenantId: string, cartId: string): Promise<Cart | null> {
-    if (this.medusa) return this.medusa.getCart(cartId);
+    if (this.medusa?.getCart) return this.medusa.getCart(cartId);
     const snap = await this.store.get(tenantId, 'cart', cartId);
     return snap ? (snap.payload as unknown as Cart) : null;
   }
 
   async addLineItem(tenantId: string, cartId: string, variantId: string, quantity: number): Promise<Cart> {
-    if (this.medusa) {
+    if (this.medusa?.addLineItem) {
       const cart = await this.medusa.addLineItem(cartId, variantId, quantity);
       await this._persistCart(tenantId, cart);
       return cart;
@@ -163,7 +163,7 @@ export class EcommerceService {
   }
 
   async removeLineItem(tenantId: string, cartId: string, lineItemId: string): Promise<Cart> {
-    if (this.medusa) {
+    if (this.medusa?.removeLineItem) {
       const cart = await this.medusa.removeLineItem(cartId, lineItemId);
       await this._persistCart(tenantId, cart);
       return cart;
@@ -218,7 +218,7 @@ export class EcommerceService {
   }
 
   async applyPromotion(tenantId: string, cartId: string, discountCode: string): Promise<Cart> {
-    if (this.medusa) {
+    if (this.medusa?.applyDiscount) {
       const cart = await this.medusa.applyDiscount(cartId, discountCode);
       await this._persistCart(tenantId, cart);
       return cart;
