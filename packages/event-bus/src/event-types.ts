@@ -101,6 +101,15 @@ export type IntegraxEventType =
   // --- Activepieces ---------------------------------------------------------
   | 'activepieces.flow.started'
   | 'activepieces.flow.failed'
+  // --- Tenants --------------------------------------------------------------
+  | 'tenant.created'
+  | 'tenant.updated'
+  | 'tenant.suspended'
+  | 'tenant.activated'
+  // --- Conectores -----------------------------------------------------------
+  | 'connector.created'
+  | 'connector.updated'
+  | 'connector.deleted'
   // --- Audit & Security -----------------------------------------------------
   | 'audit.security.warning'
   | 'dlq.entry.created'

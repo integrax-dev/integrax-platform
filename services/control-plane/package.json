@@ -33,6 +33,7 @@
     "@integrax/polling-scheduler": "workspace:*",
     "@integrax/reconciliation-engine": "workspace:*",
     "@integrax/schema-bridge": "workspace:*",
+    "@integrax/seed-factory": "workspace:*",
     "@integrax/snapshot-store": "workspace:*",
     "@integrax/storage": "workspace:*",
     "@integrax/temporal-workflows": "workspace:*",
