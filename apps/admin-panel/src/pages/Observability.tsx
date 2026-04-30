@@ -45,6 +45,31 @@ interface ContractChange {
   summary: string;
 }
 
+interface CasesSummary {
+  total: number;
+  openCount: number;
+  byStatus: Record<string, number>;
+  byCaseType: Record<string, number>;
+}
+
+interface ConsistencySignal {
+  id: string;
+  kind: string;
+  severity: string;
+  entityType: string;
+  connectorA: string;
+  connectorB: string;
+  fieldPath?: string;
+  occurredAt: string;
+  resolvedAt?: string | null;
+  caseId?: string;
+}
+
+interface PlatformTimeline {
+  total: number;
+  byKind: Record<string, number>;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const TIER_RANK: Record<string, number> = { low: 0, medium: 1, high: 2, critical: 3 };
@@ -86,9 +111,12 @@ export function Observability() {
   const [runtimeStatus, setRuntimeStatus] = useState<RuntimeStatus | null>(null);
   const [tenantHealth, setTenantHealth] = useState<TenantSyncHealth[]>([]);
   const [contractChanges, setContractChanges] = useState<ContractChange[]>([]);
+  const [platformTimeline, setPlatformTimeline] = useState<PlatformTimeline | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedTenant, setExpandedTenant] = useState<string | null>(null);
+  const [tenantCases, setTenantCases] = useState<Record<string, CasesSummary>>({});
+  const [tenantSignals, setTenantSignals] = useState<Record<string, ConsistencySignal[]>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -105,6 +133,15 @@ export function Observability() {
           (a, b) => TIER_RANK[b.criticalityTier] - TIER_RANK[a.criticalityTier],
         );
         setTenantHealth(sorted);
+        if (sorted.length > 0) {
+          const ids = sorted.map(h => h.tenantId).join(',');
+          try {
+            const ptRes = await fetchAdminJson<{ success: boolean; data: PlatformTimeline }>(
+              `/api/admin/observability/timeline/platform?tenants=${encodeURIComponent(ids)}`,
+            );
+            if (ptRes.success) setPlatformTimeline(ptRes.data);
+          } catch { /* platform timeline is non-critical */ }
+        }
       }
       if (changesRes.success) setContractChanges(changesRes.data);
     } catch (e) {
@@ -113,6 +150,22 @@ export function Observability() {
       setLoading(false);
     }
   }, []);
+
+  const loadTenantDetail = useCallback(async (tenantId: string) => {
+    if (tenantCases[tenantId]) return; // already loaded
+    try {
+      const [casesRes, signalsRes] = await Promise.all([
+        fetchAdminJson<{ success: boolean; data: CasesSummary }>(
+          `/api/admin/observability/cases/summary?tenantId=${encodeURIComponent(tenantId)}`,
+        ),
+        fetchAdminJson<{ success: boolean; data: ConsistencySignal[] }>(
+          `/api/admin/observability/signals?tenantId=${encodeURIComponent(tenantId)}`,
+        ),
+      ]);
+      if (casesRes.success) setTenantCases(prev => ({ ...prev, [tenantId]: casesRes.data }));
+      if (signalsRes.success) setTenantSignals(prev => ({ ...prev, [tenantId]: signalsRes.data.slice(0, 5) }));
+    } catch { /* non-critical */ }
+  }, [tenantCases]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -179,7 +232,11 @@ export function Observability() {
                     <tr
                       key={h.tenantId}
                       className="obs-row obs-row--clickable"
-                      onClick={() => setExpandedTenant(expandedTenant === h.tenantId ? null : h.tenantId)}
+                      onClick={() => {
+                        const next = expandedTenant === h.tenantId ? null : h.tenantId;
+                        setExpandedTenant(next);
+                        if (next) void loadTenantDetail(next);
+                      }}
                     >
                       <td className="obs-monospace">{h.tenantId}</td>
                       <td><span className={`obs-tier ${tierClass(h.criticalityTier)}`}>{h.criticalityTier}</span></td>
@@ -189,31 +246,67 @@ export function Observability() {
                       <td>{h.driftDetectedFlag ? <span className="obs-flag">⚠ sí</span> : '—'}</td>
                       <td className="obs-date">{fmtDate(h.evaluatedAt)}</td>
                     </tr>
-                    {expandedTenant === h.tenantId && h.connectors.length > 0 && (
+                    {expandedTenant === h.tenantId && (
                       <tr key={`${h.tenantId}-detail`} className="obs-row-detail">
                         <td colSpan={7}>
-                          <table className="obs-sub-table">
-                            <thead>
-                              <tr>
-                                <th>Conector</th>
-                                <th>Estado</th>
-                                <th>Fallos consecutivos</th>
-                                <th>Lag (ms)</th>
-                                <th>Último sync exitoso</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {h.connectors.map(c => (
-                                <tr key={c.connectorId}>
-                                  <td className="obs-monospace">{c.connectorId}</td>
-                                  <td><span className={`obs-status ${statusClass(c.status)}`}>{c.status}</span></td>
-                                  <td>{c.consecutiveFailures}</td>
-                                  <td>{c.pipelineLagMs ?? '—'}</td>
-                                  <td className="obs-date">{fmtDate(c.lastSuccessfulSyncAt)}</td>
+                          {h.connectors.length > 0 && (
+                            <table className="obs-sub-table">
+                              <thead>
+                                <tr>
+                                  <th>Conector</th><th>Estado</th>
+                                  <th>Fallos consecutivos</th><th>Lag (ms)</th>
+                                  <th>Último sync exitoso</th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                              </thead>
+                              <tbody>
+                                {h.connectors.map(c => (
+                                  <tr key={c.connectorId}>
+                                    <td className="obs-monospace">{c.connectorId}</td>
+                                    <td><span className={`obs-status ${statusClass(c.status)}`}>{c.status}</span></td>
+                                    <td>{c.consecutiveFailures}</td>
+                                    <td>{c.pipelineLagMs ?? '—'}</td>
+                                    <td className="obs-date">{fmtDate(c.lastSuccessfulSyncAt)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          )}
+                          {tenantCases[h.tenantId] && (
+                            <div className="obs-detail-block">
+                              <div className="obs-detail-label">Casos de consistencia</div>
+                              <div className="obs-detail-pills">
+                                <span className="obs-pill">Total: {tenantCases[h.tenantId].total}</span>
+                                <span className="obs-pill obs-pill--warn">Abiertos: {tenantCases[h.tenantId].openCount}</span>
+                                {Object.entries(tenantCases[h.tenantId].byCaseType).map(([type, count]) => (
+                                  <span key={type} className="obs-pill">{type}: {count}</span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {tenantSignals[h.tenantId] && tenantSignals[h.tenantId].length > 0 && (
+                            <div className="obs-detail-block">
+                              <div className="obs-detail-label">Señales recientes</div>
+                              <table className="obs-sub-table">
+                                <thead>
+                                  <tr>
+                                    <th>Kind</th><th>Severidad</th><th>Entidad</th>
+                                    <th>Campo</th><th>Ocurrido</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {tenantSignals[h.tenantId].map(s => (
+                                    <tr key={s.id}>
+                                      <td className="obs-monospace">{s.kind}</td>
+                                      <td><span className={`obs-status ${statusClass(s.severity === 'critical' ? 'failing' : s.severity === 'high' ? 'degraded' : 'healthy')}`}>{s.severity}</span></td>
+                                      <td>{s.entityType}</td>
+                                      <td className="obs-monospace obs-small">{s.fieldPath ?? '—'}</td>
+                                      <td className="obs-date">{fmtDate(s.occurredAt)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     )}
@@ -223,6 +316,19 @@ export function Observability() {
             </table>
           )}
         </section>
+
+        {/* ── Platform timeline ────────────────────────────────────────── */}
+        {platformTimeline && (
+          <section className="obs-section">
+            <h2 className="obs-section-title">Timeline de consistencia (plataforma)</h2>
+            <div className="obs-detail-pills">
+              <span className="obs-pill">Total: {platformTimeline.total}</span>
+              {Object.entries(platformTimeline.byKind).sort((a, b) => b[1] - a[1]).map(([kind, count]) => (
+                <span key={kind} className="obs-pill">{kind}: {count}</span>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* ── Contract changes ──────────────────────────────────────────── */}
         <section className="obs-section">

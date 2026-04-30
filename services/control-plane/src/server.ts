@@ -22,7 +22,6 @@ import { flowsRouter } from './routes/flows.js';
 import { nodesRouter } from './routes/nodes.js';
 import { driftRouter } from './routes/drift.js';
 import { streamRouter } from './routes/stream.js';
-// @ts-ignore - Note: TS server might lag noticing this newly created file
 import { supportRouter } from './routes/support.js';
 import { consistencyAdminRouter, consistencyTenantRouter } from './routes/consistency.js';
 import { observabilityAdminRouter } from './routes/observability.js';

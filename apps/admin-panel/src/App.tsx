@@ -13,6 +13,7 @@ import { IncidentDetail } from './pages/IncidentDetail';
 import { SchemaDiffs } from './pages/SchemaDiffs';
 import { MappingMemory } from './pages/MappingMemory';
 import { Observability } from './pages/Observability';
+import { ConsistencyRules } from './pages/ConsistencyRules';
 import { Login } from './pages/Login';
 import { useAuthStore } from './stores/auth';
 
@@ -56,6 +57,7 @@ export default function App() {
                     <Route path="/schema-diffs" element={<SchemaDiffs />} />
                     <Route path="/mapping-memory" element={<MappingMemory />} />
                     <Route path="/observability" element={<Observability />} />
+                    <Route path="/consistency-rules" element={<ConsistencyRules />} />
                     <Route path="/settings" element={<Settings />} />
                   </Routes>
                 </Layout>

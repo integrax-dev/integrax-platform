@@ -135,6 +135,18 @@ function Icon({ name }: { name: string }) {
     );
   }
 
+  if (name === 'rules') {
+    return (
+      <svg {...common}>
+        <path d="M3 6h14" />
+        <path d="M3 10h10" />
+        <path d="M3 14h6" />
+        <circle cx="14" cy="13" r="3" />
+        <path d="M14 10v0" />
+      </svg>
+    );
+  }
+
   if (name === 'settings') {
     return (
       <svg {...common}>
@@ -221,6 +233,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       { path: '/audit', label: t('nav.audit'), icon: 'audit', section: 'observe' },
       { path: '/incidents', label: t('nav.incidents'), icon: 'incidents', section: 'observe' },
       { path: '/observability', label: t('nav.observability', 'Observabilidad'), icon: 'observability', section: 'observe' },
+      { path: '/consistency-rules', label: t('nav.consistencyRules', 'Reglas'), icon: 'rules', section: 'data' },
       { path: '/schema-diffs', label: t('nav.schemaDiffs'), icon: 'schema', section: 'data' },
       { path: '/mapping-memory', label: t('nav.mappingMemory'), icon: 'mapping', section: 'data' },
       { path: '/settings', label: t('nav.settings'), icon: 'settings', section: 'settings' },

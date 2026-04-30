@@ -168,6 +168,44 @@
 
 .obs-flag { color: #fbbf24; font-size: 0.8rem; }
 
+/* ── Tenant detail panel ── */
+.obs-detail-block {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border, #2a2a3e);
+}
+
+.obs-detail-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted, #888);
+  margin-bottom: 0.5rem;
+}
+
+.obs-detail-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.obs-pill {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: #27272a33;
+  color: #a1a1aa;
+  border: 1px solid #27272a55;
+}
+
+.obs-pill--warn {
+  background: #78350f22;
+  color: #fcd34d;
+  border-color: #78350f44;
+}
+
 .obs-monospace { font-family: monospace; font-size: 0.8rem; }
 .obs-small     { font-size: 0.75rem; }
 .obs-date      { color: var(--text-muted, #888); font-size: 0.78rem; white-space: nowrap; }
